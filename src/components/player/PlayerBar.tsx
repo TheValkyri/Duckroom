@@ -1,5 +1,6 @@
 import { ChevronUp, ListMusic, Mic2, Sparkles, Volume2, VolumeX } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
 import { albumById, formatTime } from "../../data/library";
 import { usePlayer } from "../../lib/player";
 import { cn } from "../../lib/utils";
@@ -126,32 +127,65 @@ export function PlayerBar() {
             >
               <ListMusic className="size-4" />
             </button>
-            <div className="hidden items-center gap-2 md:flex">
-              <button
-                onClick={toggleMute}
-                aria-label={isMuted ? "Bật âm thanh" : "Tắt âm thanh"}
-                className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              >
-                {isMuted || volume === 0 ? (
-                  <VolumeX className="size-4 text-destructive" />
-                ) : (
-                  <Volume2 className="size-4" />
-                )}
-              </button>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={isMuted ? 0 : volume}
-                aria-label="Âm lượng"
-                onChange={(e) => setVolume(Number(e.target.value))}
-                className="accent-primary h-1 w-24 cursor-pointer"
-              />
-            </div>
+            <VolumeBar />
           </div>
         </div>
       </motion.footer>
     </>
+  );
+}
+
+function VolumeBar() {
+  const { volume, isMuted, setVolume, toggleMute } = usePlayer();
+  const [isDragging, setIsDragging] = useState(false);
+  const currentVol = isMuted ? 0 : volume;
+  const pct = Math.min(100, Math.max(0, currentVol * 100));
+
+  return (
+    <div className="hidden items-center gap-2 md:flex">
+      <button
+        onClick={toggleMute}
+        aria-label={isMuted ? "Bật âm thanh" : "Tắt âm thanh"}
+        className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+      >
+        {isMuted || volume === 0 ? (
+          <VolumeX className="size-4 text-destructive" />
+        ) : (
+          <Volume2 className="size-4" />
+        )}
+      </button>
+      <div
+        className="group relative flex h-6 w-24 items-center select-none cursor-pointer"
+        onPointerDown={() => setIsDragging(true)}
+        onPointerUp={() => setIsDragging(false)}
+      >
+        <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted/80">
+          <div
+            className={cn(
+              "h-full rounded-full bg-primary",
+              isDragging ? "transition-none" : "transition-[width] duration-75 ease-out"
+            )}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <div
+          className={cn(
+            "pointer-events-none absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow-md",
+            isDragging ? "scale-125 opacity-100 transition-none" : "opacity-0 group-hover:scale-125 group-hover:opacity-100 transition-all duration-150"
+          )}
+          style={{ left: `${pct}%` }}
+        />
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={currentVol}
+          aria-label="Âm lượng"
+          onChange={(e) => setVolume(Number(e.target.value))}
+          className="absolute inset-0 size-full opacity-0 cursor-pointer"
+        />
+      </div>
+    </div>
   );
 }

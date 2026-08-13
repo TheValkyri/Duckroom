@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Music2, RefreshCw, Trash2, UploadCloud } from "lucide-react";
+import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { TrackRow } from "../components/TrackRow";
 import { deleteTrack, saveStoredLibrary, syncLibraryWithS3 } from "../data/library";
@@ -69,7 +70,12 @@ function LibraryPage() {
     });
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-12">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="mx-auto max-w-6xl px-6 py-12"
+    >
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-5xl">Thư viện</h1>
@@ -155,6 +161,6 @@ function LibraryPage() {
           <p className="text-muted-foreground py-16 text-center text-sm">Không tìm thấy bài nào.</p>
         ) : null}
       </div>
-    </div>
+    </motion.div>
   );
 }

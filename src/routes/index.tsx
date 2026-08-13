@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Disc3, Music2, Play, Shuffle, UploadCloud } from "lucide-react";
+import { motion } from "motion/react";
 import { AlbumCard } from "../components/AlbumCard";
 import { TrackRow } from "../components/TrackRow";
 import { Visualizer } from "../components/Visualizer";
@@ -97,7 +98,11 @@ function Index() {
   }
 
   return (
-    <div>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+    >
       <section className="grain relative overflow-hidden">
         <img
           src={hero.cover}
@@ -176,7 +181,7 @@ function Index() {
           ))}
         </div>
       </section>
-    </div>
+    </motion.div>
   );
 }
 

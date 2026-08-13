@@ -36,10 +36,13 @@ function getSnapshot(): LibraryStoreState {
 
 const getServerSnapshot = (): LibraryStoreState => emptySnapshot;
 
+let hasHydratedInitial = false;
+
 export function useLibrary(): LibraryStoreState {
-  const [mounted, setMounted] = useState(false);
+  const [mounted, setMounted] = useState(() => hasHydratedInitial);
 
   useEffect(() => {
+    hasHydratedInitial = true;
     setMounted(true);
   }, []);
 

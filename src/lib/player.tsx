@@ -118,7 +118,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
   }, [volume, prevVolume]);
 
-  const pause = useCallback(() => setPlaying(false), []);
+  const pause = useCallback(() => {
+    setPlaying(false);
+    if (audioRefA.current && !audioRefA.current.paused) audioRefA.current.pause();
+    if (audioRefB.current && !audioRefB.current.paused) audioRefB.current.pause();
+  }, []);
 
   const playQueue = useCallback(
     (list: Track[], startIndex = 0, shuffleNow?: boolean) => {
@@ -333,6 +337,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
 
     const onTime = () => {
+      if (!isPlaying) {
+        if (el && !el.paused) el.pause();
+        if (secEl && !secEl.paused) secEl.pause();
+        return;
+      }
+
       const currentTime = el.currentTime;
       setTime(currentTime);
 
@@ -349,8 +359,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         if (secEl) {
           secEl.volume = secVol;
-          if (isPlaying && secEl.paused) {
-            void secEl.play().catch(() => undefined);
+          if (secEl.paused && isPlaying) {
+            void secEl.play().catch((err) => {
+              console.warn("Secondary audio play error:", err);
+            });
           }
         }
       } else {
@@ -501,8 +513,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={value}>
       {children}
       {/* Pure imperative audio elements (No JSX src attribute mutation to avoid reloading on channel swap) */}
-      <audio ref={audioRefA} crossOrigin="anonymous" preload="metadata" />
-      <audio ref={audioRefB} crossOrigin="anonymous" preload="metadata" />
+      <audio ref={audioRefA} crossOrigin="anonymous" preload="auto" />
+      <audio ref={audioRefB} crossOrigin="anonymous" preload="auto" />
     </Ctx.Provider>
   );
 }
