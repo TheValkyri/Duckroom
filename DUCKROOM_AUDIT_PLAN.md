@@ -292,7 +292,7 @@ track.trackNo = parseInt(trackNo, 10) || 1;
 - **`Visualizer.tsx`** dừng vòng lặp `requestAnimationFrame` khi `document.hidden` và có `visibilitychange` listener để resume — xử lý đúng, tránh tốn pin khi tab ẩn. Không cần sửa.
 - **Cover ảnh album** ở `data/library.ts:365` build 1 URL S3 **không qua presigned** (`https://s3.pikamc.vn/${BUCKET_NAME}/${key}`) trong khi phần còn lại của app dùng presigned URL cho mọi thứ khác — không nhất quán. Nếu bucket thực sự private, ảnh cover theo đường này sẽ lỗi 403; nếu bucket public thì mâu thuẫn với việc dùng presigned URL để "bảo vệ" audio ở nơi khác (ai cũng đoán được URL cover thì cũng đoán được pattern URL cho các object khác). Nên thống nhất 1 cách duy nhất.
 - **`-api.stream.track.$id.ts` / `-api.stream.video.$id.ts`**: 2 route file bắt đầu bằng dấu `-` — theo convention của TanStack Router, tiền tố này loại route khỏi route tree (xác nhận: không thấy `stream` xuất hiện trong `routeTree.gen.ts`). Đây là **code chết** — dùng schema Supabase (`supabaseAdmin.from("tracks")`) hoàn toàn khác với data model thật của app (S3 manifest JSON). Đề xuất: xoá hẳn 2 file này (và bảng `tracks`/`videos`/`albums` trong Supabase nếu không dùng), hoặc hoàn thiện nếu đây là hướng kiến trúc dự định chuyển sang trong tương lai — hiện tại nó chỉ gây nhầm lẫn cho dev mới vào dự án (2 nguồn sự thật khác nhau cùng tồn tại).
-- `.lovable/` folder có trong zip — file cấu hình/plan nội bộ của công cụ Lovable, không nên commit vào repo chính thức nếu repo sẽ public hoặc chia sẻ, kiểm tra `.gitignore` đã che đúng chưa.
+- Thư mục `.lovable/` và toàn bộ cấu hình/link Lovable đã được gỡ bỏ 100% khỏi dự án.
 
 ---
 
