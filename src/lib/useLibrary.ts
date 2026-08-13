@@ -7,16 +7,33 @@ type LibraryStoreState = {
   videos: Video[];
 };
 
-const emptySnapshot: LibraryStoreState = {
-  tracks: [],
-  albums: [],
-  videos: [],
+let currentSnapshot: LibraryStoreState = {
+  tracks,
+  albums,
+  videos,
 };
+
+let lastSnapshotVersion = -1;
+let currentSnapshotVersion = 0;
+
+subscribeLibrary(() => {
+  currentSnapshotVersion++;
+});
+
+function getSnapshot(): LibraryStoreState {
+  if (lastSnapshotVersion !== currentSnapshotVersion) {
+    lastSnapshotVersion = currentSnapshotVersion;
+    currentSnapshot = { tracks, albums, videos };
+  }
+  return currentSnapshot;
+}
+
+const getServerSnapshot = (): LibraryStoreState => currentSnapshot;
 
 export function useLibrary(): LibraryStoreState {
   return useSyncExternalStore(
     subscribeLibrary,
-    () => ({ tracks, albums, videos }),
-    () => emptySnapshot
+    getSnapshot,
+    getServerSnapshot
   );
 }
