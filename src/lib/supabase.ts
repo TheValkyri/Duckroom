@@ -1,8 +1,31 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.SUPABASE_URL || "https://your-supabase-project.supabase.co";
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "your-anon-key";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "your-service-role-key";
+function getEnvVar(name: string): string {
+  if (typeof process !== "undefined" && process.env?.[name]) {
+    const val = process.env[name] as string;
+    if (val && typeof val === "string" && val.trim()) return val.trim();
+  }
+  if (typeof import.meta !== "undefined" && import.meta.env?.[`VITE_${name}`]) {
+    const val = import.meta.env[`VITE_${name}`] as string;
+    if (val && typeof val === "string" && val.trim()) return val.trim();
+  }
+  return "";
+}
+
+const supabaseUrl =
+  getEnvVar("SUPABASE_URL") ||
+  getEnvVar("VITE_SUPABASE_URL") ||
+  "https://dummy-project.supabase.co";
+
+const supabaseAnonKey =
+  getEnvVar("SUPABASE_ANON_KEY") ||
+  getEnvVar("VITE_SUPABASE_ANON_KEY") ||
+  "dummy-anon-key";
+
+const supabaseServiceKey =
+  getEnvVar("SUPABASE_SERVICE_ROLE_KEY") ||
+  getEnvVar("VITE_SUPABASE_SERVICE_ROLE_KEY") ||
+  "dummy-service-key";
 
 /** Client phía browser/public */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

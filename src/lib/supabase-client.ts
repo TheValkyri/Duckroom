@@ -1,9 +1,26 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl =
-  (typeof import.meta !== "undefined" && (import.meta.env?.VITE_SUPABASE_URL as string)) || "";
-const supabaseAnonKey =
-  (typeof import.meta !== "undefined" && (import.meta.env?.VITE_SUPABASE_ANON_KEY as string)) || "";
+function getEnvVar(name: string): string {
+  if (typeof import.meta !== "undefined" && import.meta.env?.[name]) {
+    const val = import.meta.env[name] as string;
+    if (val && typeof val === "string" && val.trim()) return val.trim();
+  }
+  if (typeof process !== "undefined" && process.env?.[name]) {
+    const val = process.env[name] as string;
+    if (val && typeof val === "string" && val.trim()) return val.trim();
+  }
+  return "";
+}
 
-/** Browser-side Supabase client using public/anon key only */
+const supabaseUrl =
+  getEnvVar("VITE_SUPABASE_URL") ||
+  getEnvVar("SUPABASE_URL") ||
+  "https://dummy-project.supabase.co";
+
+const supabaseAnonKey =
+  getEnvVar("VITE_SUPABASE_ANON_KEY") ||
+  getEnvVar("SUPABASE_ANON_KEY") ||
+  "dummy-anon-key";
+
+/** Browser-side & SSR public Supabase client (safe against missing env) */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
