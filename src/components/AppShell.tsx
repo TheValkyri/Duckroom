@@ -83,7 +83,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="bg-background min-h-screen" suppressHydrationWarning>
       {/* Floating Global Upload Notification Banner */}
       <AnimatePresence>
         {(uploadState.isUploading || (uploadState.successMessage && location.pathname !== "/upload")) && (
