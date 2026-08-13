@@ -155,11 +155,8 @@ function AlbumPage() {
   const [imgError, setImgError] = useState(false);
 
   const album = loadedAlbum || albumById(paramAlbumId);
-  if (!album && typeof window !== "undefined") {
-    throw notFound();
-  }
   if (!album) {
-    return <div className="mx-auto max-w-6xl px-6 py-14" />;
+    throw notFound();
   }
 
   const refresh = () => setTick((t) => t + 1);

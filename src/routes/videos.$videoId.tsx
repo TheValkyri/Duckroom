@@ -33,11 +33,8 @@ function VideoPage() {
   const navigate = useNavigate();
 
   const video = loadedVideo || videoById(paramVideoId);
-  if (!video && typeof window !== "undefined") {
-    throw notFound();
-  }
   if (!video) {
-    return <div className="mx-auto max-w-5xl px-6 py-12" />;
+    throw notFound();
   }
 
   const [isPlaying, setIsPlaying] = useState(false);
