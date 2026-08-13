@@ -1,21 +1,37 @@
 import {
   BUCKET_NAME,
-  deleteS3ObjectServer,
+  deleteS3ObjectServer as rawDeleteS3ObjectServer,
   getLibraryManifestServer,
-  listS3ObjectsServer,
+  listS3ObjectsServer as rawListS3ObjectsServer,
   requestPresignedReadUrlServer,
-  requestPresignedUploadUrlServer,
-  saveLibraryManifestServer,
+  requestPresignedUploadUrlServer as rawRequestPresignedUploadUrlServer,
+  saveLibraryManifestServer as rawSaveLibraryManifestServer,
 } from "./s3-functions";
+import { getAuthHeaders } from "./useAuth";
 
-export {
-  BUCKET_NAME,
-  deleteS3ObjectServer,
-  getLibraryManifestServer,
-  listS3ObjectsServer,
-  requestPresignedUploadUrlServer,
-  saveLibraryManifestServer,
-};
+export { BUCKET_NAME, getLibraryManifestServer };
+
+export async function requestPresignedUploadUrlServer(opts: {
+  data: { key: string; contentType: string };
+}) {
+  const headers = await getAuthHeaders();
+  return rawRequestPresignedUploadUrlServer({ ...opts, headers });
+}
+
+export async function deleteS3ObjectServer(opts: { data: { key: string } }) {
+  const headers = await getAuthHeaders();
+  return rawDeleteS3ObjectServer({ ...opts, headers });
+}
+
+export async function saveLibraryManifestServer(opts: { data: { jsonString: string } }) {
+  const headers = await getAuthHeaders();
+  return rawSaveLibraryManifestServer({ ...opts, headers });
+}
+
+export async function listS3ObjectsServer(opts?: { data?: unknown }) {
+  const headers = await getAuthHeaders();
+  return rawListS3ObjectsServer({ ...opts, headers });
+}
 
 export async function createPresignedUrl(key: string): Promise<string> {
   if (!key || typeof key !== "string" || !key.trim()) return "";

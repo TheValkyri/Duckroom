@@ -1,43 +1,25 @@
 import { useEffect, useState } from "react";
-import { supabase } from "./supabase";
-
-export type AuthUser = {
-  id: string;
-  email: string;
-  isAdmin?: boolean;
-};
+import { supabase } from "./supabase-client";
+import type { Session, User } from "@supabase/supabase-js";
 
 export function useAuth() {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    void supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.email) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email,
-        });
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsLoading(false);
     });
 
-    // Listen for auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user?.email) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email,
-        });
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsLoading(false);
     });
 
     return () => {
@@ -45,35 +27,32 @@ export function useAuth() {
     };
   }, []);
 
-  const signInWithOtp = async (email: string) => {
-    return await supabase.auth.signInWithOtp({ email });
-  };
-
   const signOut = async () => {
-    return await supabase.auth.signOut();
+    await supabase.auth.signOut();
   };
 
   return {
+    session,
     user,
-    loading,
-    signInWithOtp,
+    isLoggedIn: !!session?.user,
+    isLoading,
+    accessToken: session?.access_token ?? null,
     signOut,
   };
 }
 
-/**
- * Returns authorization headers containing current Supabase session token if available
- */
-export async function getAuthHeaders(): Promise<Record<string, string>> {
+export async function getAccessToken(): Promise<string | null> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      return {
-        Authorization: `Bearer ${session.access_token}`,
-      };
-    }
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
   } catch (err) {
-    console.warn("Error reading Supabase auth headers:", err);
+    console.error("Error getting access token:", err);
+    return null;
   }
-  return {};
+}
+
+export async function getAuthHeaders(): Promise<Record<string, string>> {
+  const token = await getAccessToken();
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
 }

@@ -31,14 +31,22 @@ export const Route = createFileRoute("/upload")({
 });
 
 import { useLibrary } from "../lib/useLibrary";
+import { useAuth } from "../lib/useAuth";
 
 function UploadPage() {
   const navigate = useNavigate();
+  const { isLoggedIn, isLoading: isAuthLoading } = useAuth();
   const { albums } = useLibrary();
   const [storeState, setStoreState] = useState<UploadState>(getUploadState());
   const [over, setOver] = useState(false);
   const [isFetchingLyrics, setIsFetchingLyrics] = useState(false);
   const [showCropModal, setShowCropModal] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthLoading && !isLoggedIn) {
+      void navigate({ to: "/login" });
+    }
+  }, [isAuthLoading, isLoggedIn, navigate]);
 
   useEffect(() => {
     return subscribeUploadState(setStoreState);

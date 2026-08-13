@@ -6,14 +6,18 @@ import {
   Home,
   ListMusic,
   Loader2,
+  LogIn,
+  LogOut,
   PanelLeftClose,
   PanelLeftOpen,
   UploadCloud,
+  User,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
 import { getUploadState, subscribeUploadState, updateUploadState, type UploadState } from "../lib/upload-store";
+import { useAuth } from "../lib/useAuth";
 import { NowPlaying } from "./player/NowPlaying";
 import { PlayerBar } from "./player/PlayerBar";
 
@@ -70,6 +74,7 @@ export function ModernDuckLogo({ className = "size-8" }: { className?: string })
 
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const { user, isLoggedIn, signOut } = useAuth();
   const [uploadState, setUploadState] = useState<UploadState>(getUploadState());
   const [collapsed, setCollapsed] = useState(false);
 
@@ -160,7 +165,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <nav className="flex flex-col gap-1.5">
           {nav.map(({ to, label, icon: Icon }) => {
-            const isActive = location.pathname === to || (to !== "/" && location.pathname.startsWith(to));
             return (
               <Link
                 key={to}
@@ -180,18 +184,60 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        {!collapsed && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-auto px-3 py-4 rounded-xl bg-card/40 border border-white/5 text-[11px] leading-relaxed text-muted-foreground"
-          >
-            <p className="font-semibold text-foreground mb-1 flex items-center gap-1.5">
-              <span>🦆 Duckroom Master</span>
-            </p>
-            Phát bản thu gốc Hi-Res 24-bit / 96kHz không nén.
-          </motion.div>
-        )}
+        <div className="mt-auto flex flex-col gap-2">
+          {isLoggedIn ? (
+            <div className="flex flex-col gap-1">
+              {!collapsed ? (
+                <div className="px-3 py-2.5 rounded-xl bg-card/60 border border-white/5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <User className="size-4 text-primary shrink-0" />
+                    <span className="text-xs text-foreground font-medium truncate">
+                      {user?.email || "Thành viên"}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => signOut()}
+                    title="Đăng xuất"
+                    className="text-muted-foreground hover:text-destructive p-1 rounded-lg hover:bg-accent transition-colors cursor-pointer shrink-0"
+                  >
+                    <LogOut className="size-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => signOut()}
+                  title={`Đăng xuất (${user?.email || ""})`}
+                  className="text-muted-foreground hover:text-destructive flex items-center justify-center p-3 rounded-xl hover:bg-accent/60 transition-colors cursor-pointer"
+                >
+                  <LogOut className="size-5" />
+                </button>
+              )}
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              title={collapsed ? "Đăng nhập" : undefined}
+              className="text-muted-foreground hover:bg-primary/20 hover:text-primary flex items-center gap-3.5 rounded-xl px-3 py-3 text-sm font-medium transition-all border border-transparent hover:border-primary/30"
+              activeProps={{ className: "text-primary font-semibold bg-primary/20 shadow-sm border-primary/30" }}
+            >
+              <LogIn className="size-5 shrink-0 text-primary" />
+              {!collapsed && <span className="whitespace-nowrap truncate">Đăng nhập</span>}
+            </Link>
+          )}
+
+          {!collapsed && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="px-3 py-3 rounded-xl bg-card/40 border border-white/5 text-[11px] leading-relaxed text-muted-foreground"
+            >
+              <p className="font-semibold text-foreground mb-0.5 flex items-center gap-1.5">
+                <span>🦆 Duckroom Master</span>
+              </p>
+              Phát bản thu gốc Hi-Res 24-bit / 96kHz không nén.
+            </motion.div>
+          )}
+        </div>
       </motion.aside>
 
       {/* Mobile Top Navigation */}
@@ -202,7 +248,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="text-primary">Duck</span>room
           </span>
         </Link>
-        <div className="flex gap-1 overflow-x-auto">
+        <div className="flex items-center gap-1 overflow-x-auto">
           {nav.map(({ to, label }) => (
             <Link
               key={to}
@@ -214,6 +260,22 @@ export function AppShell({ children }: { children: ReactNode }) {
               {label}
             </Link>
           ))}
+          {isLoggedIn ? (
+            <button
+              onClick={() => signOut()}
+              title="Đăng xuất"
+              className="text-muted-foreground hover:text-destructive px-2 py-1 rounded-full text-xs cursor-pointer flex items-center gap-1"
+            >
+              <LogOut className="size-3.5" />
+            </button>
+          ) : (
+            <Link
+              to="/login"
+              className="bg-primary/20 text-primary rounded-full px-3 py-1 text-xs whitespace-nowrap font-medium"
+            >
+              Đăng nhập
+            </Link>
+          )}
         </div>
       </nav>
 
