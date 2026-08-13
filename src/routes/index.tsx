@@ -105,10 +105,11 @@ function Index() {
     >
       <section className="grain relative overflow-hidden">
         <img
+          key={hero.cover}
           src={hero.cover}
           alt=""
           aria-hidden
-          className="absolute inset-0 size-full scale-110 object-cover opacity-25 blur-2xl"
+          className="absolute inset-0 size-full scale-110 object-cover opacity-25 blur-3xl transition-opacity duration-700 ease-in-out animate-fade-in"
         />
         <div className="from-background absolute inset-0 bg-gradient-to-t via-transparent to-transparent" />
         <div className="relative mx-auto flex max-w-6xl flex-col gap-10 px-6 py-24 md:flex-row md:items-end">

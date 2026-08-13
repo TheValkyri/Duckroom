@@ -190,7 +190,7 @@ function AlbumPage() {
   return (
     <div className="relative">
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[420px] opacity-40"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[420px] opacity-40 transition-all duration-700 ease-in-out"
         style={{ background: `linear-gradient(180deg, ${album.accent} 0%, transparent 100%)` }}
       />
       <div className="relative mx-auto max-w-6xl px-6 py-14">

@@ -164,21 +164,31 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </div>
 
-        <nav className="flex flex-col gap-1.5">
+        <nav className="flex flex-col gap-1.5 relative">
           {nav.map(({ to, label, icon: Icon }) => {
+            const isActive = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
             return (
               <Link
                 key={to}
                 to={to}
                 activeOptions={{ exact: to === "/" }}
                 title={collapsed ? label : undefined}
-                className="text-muted-foreground hover:bg-accent/50 hover:text-foreground flex items-center gap-3.5 rounded-xl px-3 py-3 text-sm font-medium transition-all relative group"
-                activeProps={{ className: "text-foreground font-semibold bg-accent/80 shadow-sm" }}
+                className={cn(
+                  "flex items-center gap-3.5 rounded-xl px-3 py-3 text-sm font-medium transition-colors relative group cursor-pointer",
+                  isActive ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
+                )}
               >
-                <Icon className="size-5 shrink-0 group-hover:scale-110 transition-transform text-primary/80 group-hover:text-primary" />
-                {!collapsed && <span className="whitespace-nowrap truncate">{label}</span>}
+                {isActive && (
+                  <motion.div
+                    layoutId="sidebar-active-pill"
+                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                    className="absolute inset-0 rounded-xl bg-accent/80 border border-white/10 shadow-sm z-0"
+                  />
+                )}
+                <Icon className={cn("size-5 shrink-0 z-10 transition-transform group-hover:scale-110", isActive ? "text-primary font-bold" : "text-primary/70")} />
+                {!collapsed && <span className="whitespace-nowrap truncate z-10">{label}</span>}
                 {to === "/upload" && uploadState.isUploading && (
-                  <span className="ml-auto size-2 rounded-full bg-primary animate-pulse shrink-0" />
+                  <span className="ml-auto size-2 rounded-full bg-primary animate-pulse shrink-0 z-10" />
                 )}
               </Link>
             );
