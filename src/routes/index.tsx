@@ -127,7 +127,7 @@ function Index() {
                 <Play className="size-4" fill="currentColor" /> Phát album
               </button>
               <button
-                onClick={() => playQueue(activeTracks, 0, true)}
+                onClick={() => playQueue(tracks, 0, true)}
                 className="border-border hover:bg-accent flex items-center gap-2 rounded-full border px-6 py-3 text-sm transition-colors cursor-pointer"
               >
                 <Shuffle className="size-4" /> Trộn toàn bộ kho
@@ -140,7 +140,7 @@ function Index() {
       <section className="mx-auto max-w-6xl px-6 py-14">
         <SectionHead title="Albums" to="/albums" />
         <div className="mt-8 grid grid-cols-2 gap-8 md:grid-cols-3">
-          {activeAlbums.map((a) => (
+          {albums.map((a) => (
             <AlbumCard key={a.id} album={a} />
           ))}
         </div>
@@ -158,7 +158,7 @@ function Index() {
       <section className="mx-auto max-w-6xl px-6 pb-24">
         <SectionHead title="MV" to="/videos" />
         <div className="mt-8 grid gap-8 md:grid-cols-2">
-          {activeVideos.map((v) => (
+          {videos.map((v) => (
             <Link key={v.id} to="/videos/$videoId" params={{ videoId: v.id }} className="group">
               <img
                 src={v.thumb}
