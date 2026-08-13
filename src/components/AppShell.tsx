@@ -18,6 +18,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
 import { getUploadState, subscribeUploadState, updateUploadState, type UploadState } from "../lib/upload-store";
 import { useAuth } from "../lib/useAuth";
+import { cn } from "../lib/utils";
 import { NowPlaying } from "./player/NowPlaying";
 import { PlayerBar } from "./player/PlayerBar";
 
@@ -280,23 +281,16 @@ export function AppShell({ children }: { children: ReactNode }) {
       </nav>
 
       {/* Main Content Area */}
-      <motion.main
-        animate={{ paddingLeft: collapsed ? 80 : 256 }}
-        transition={{ type: "spring", stiffness: 240, damping: 26 }}
-        className="pt-14 pb-32 lg:pt-0 overflow-x-hidden"
+      <main
+        className={cn(
+          "pt-14 pb-32 lg:pt-0 overflow-x-hidden transition-[padding] duration-200 ease-out",
+          collapsed ? "lg:pl-20" : "lg:pl-64"
+        )}
       >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.22, ease: "easeInOut" }}
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
-      </motion.main>
+        <div key={location.pathname} className="min-h-screen">
+          {children}
+        </div>
+      </main>
       <PlayerBar />
       <NowPlaying />
     </div>
