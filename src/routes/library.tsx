@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Music2, RefreshCw, Trash2, UploadCloud } from "lucide-react";
 import { useEffect, useState } from "react";
 import { TrackRow } from "../components/TrackRow";
-import { clearAllTracks, deleteTrack, syncLibraryWithS3 } from "../data/library";
+import { deleteTrack, saveStoredLibrary, syncLibraryWithS3 } from "../data/library";
 import { usePlayer } from "../lib/player";
 import { useLibrary } from "../lib/useLibrary";
 import { cn } from "../lib/utils";
@@ -30,10 +30,23 @@ function LibraryPage() {
   const { tracks, albums } = useLibrary();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<string>("all");
+  const [isSyncing, setIsSyncing] = useState(false);
+
   const handleSyncS3 = async () => {
     setIsSyncing(true);
     await syncLibraryWithS3(true);
     setIsSyncing(false);
+  };
+
+  const handleClearAll = () => {
+    if (confirm("Bạn có chắc chắn muốn xóa toàn bộ danh sách bài hát không?")) {
+      tracks.length = 0;
+      saveStoredLibrary(true);
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    void deleteTrack(id);
   };
 
   const list = tracks
