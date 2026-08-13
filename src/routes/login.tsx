@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlertCircle, Loader2, Lock, Mail } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ModernDuckLogo } from "../components/AppShell";
 import { supabase } from "../lib/supabase-client";
 import { useAuth } from "../lib/useAuth";
@@ -23,9 +23,11 @@ function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  if (!isAuthLoading && isLoggedIn) {
-    void navigate({ to: "/upload" });
-  }
+  useEffect(() => {
+    if (!isAuthLoading && isLoggedIn) {
+      void navigate({ to: "/upload" });
+    }
+  }, [isAuthLoading, isLoggedIn, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
