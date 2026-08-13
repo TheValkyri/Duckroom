@@ -103,12 +103,30 @@ export function loadStoredLibrary() {
   }
 }
 
+function isLoggedInClient(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("sb-") && key.endsWith("-auth-token")) {
+        const item = localStorage.getItem(key);
+        if (item && item.includes("access_token")) return true;
+      }
+    }
+  } catch (e) {}
+  return false;
+}
+
 let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function saveStoredLibrary(immediate = false) {
   if (typeof window === "undefined") return;
 
   notifyLibrarySubscribers();
+
+  if (!isLoggedInClient()) {
+    return;
+  }
 
   // Strip signed URL query params before saving to localStorage and manifest
   const cleanTracks = tracks.map((t) => {

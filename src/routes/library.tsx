@@ -25,20 +25,25 @@ export const Route = createFileRoute("/library")({
   component: LibraryPage,
 });
 
+import { useAuth } from "../lib/useAuth";
+
 function LibraryPage() {
   const { playQueue } = usePlayer();
   const { tracks, albums } = useLibrary();
+  const { isLoggedIn } = useAuth();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<string>("all");
   const [isSyncing, setIsSyncing] = useState(false);
 
   const handleSyncS3 = async () => {
+    if (!isLoggedIn) return;
     setIsSyncing(true);
     await syncLibraryWithS3(true);
     setIsSyncing(false);
   };
 
   const handleClearAll = () => {
+    if (!isLoggedIn) return;
     if (confirm("Bạn có chắc chắn muốn xóa toàn bộ danh sách bài hát không?")) {
       tracks.length = 0;
       saveStoredLibrary(true);
@@ -46,6 +51,7 @@ function LibraryPage() {
   };
 
   const handleDelete = (id: string) => {
+    if (!isLoggedIn) return;
     void deleteTrack(id);
   };
 
@@ -72,28 +78,30 @@ function LibraryPage() {
             GB · không nén lại
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleSyncS3}
-            disabled={isSyncing}
-            className="border-border text-muted-foreground hover:text-foreground flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
-            title="Kiểm tra Pikamc S3 và dọn dẹp các bài hát đã bị xóa trên Storage"
-          >
-            <RefreshCw className={cn("size-3.5", isSyncing && "animate-spin")} />
-            <span>{isSyncing ? "Đang quét S3..." : "Đồng bộ Kho S3"}</span>
-          </button>
-          {tracks.length > 0 && (
+        {isLoggedIn && (
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleClearAll}
-              className="text-muted-foreground hover:text-destructive border-border flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
+              onClick={handleSyncS3}
+              disabled={isSyncing}
+              className="border-border text-muted-foreground hover:text-foreground flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
+              title="Kiểm tra Pikamc S3 và dọn dẹp các bài hát đã bị xóa trên Storage"
             >
-              <Trash2 className="size-3.5" />
-              <span>Xóa sạch bài cũ</span>
+              <RefreshCw className={cn("size-3.5", isSyncing && "animate-spin")} />
+              <span>{isSyncing ? "Đang quét S3..." : "Đồng bộ Kho S3"}</span>
             </button>
-          )}
-        </div>
+            {tracks.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="text-muted-foreground hover:text-destructive border-border flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
+              >
+                <Trash2 className="size-3.5" />
+                <span>Xóa sạch bài cũ</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {tracks.length > 0 && (

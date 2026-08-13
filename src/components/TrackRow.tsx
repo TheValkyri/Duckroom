@@ -6,6 +6,8 @@ import { usePlayer } from "../lib/player";
 import { cn } from "../lib/utils";
 import { EditTrackModal } from "./EditTrackModal";
 
+import { useAuth } from "../lib/useAuth";
+
 export function TrackRow({
   track,
   n,
@@ -24,6 +26,7 @@ export function TrackRow({
   showAlbum?: boolean;
 }) {
   const { current, isPlaying } = usePlayer();
+  const { isLoggedIn } = useAuth();
   const active = current?.id === track.id;
   const album = albumById(track.albumId);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -69,22 +72,24 @@ export function TrackRow({
           </span>
         </button>
 
-        {/* Edit Track & Artwork Button */}
-        <button
-          type="button"
-          title="Chỉnh sửa thông tin bài hát & Artwork"
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowEditModal(true);
-          }}
-          className="text-muted-foreground/40 hover:text-primary p-1 rounded transition-colors opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
-        >
-          <Pencil className="size-4" />
-        </button>
+        {/* Edit Track & Artwork Button - Only for logged-in members */}
+        {isLoggedIn && (
+          <button
+            type="button"
+            title="Chỉnh sửa thông tin bài hát & Artwork"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowEditModal(true);
+            }}
+            className="text-muted-foreground/40 hover:text-primary p-1 rounded transition-colors opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
+          >
+            <Pencil className="size-4" />
+          </button>
+        )}
 
-        {extraActions}
+        {isLoggedIn && extraActions}
 
-        {onDelete && (
+        {isLoggedIn && onDelete && (
           <button
             type="button"
             title="Xóa bài hát khỏi thư viện"

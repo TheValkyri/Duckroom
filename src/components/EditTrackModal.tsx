@@ -7,6 +7,8 @@ import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import { parseLrc } from "../lib/upload-store";
 import { createPresignedUrl, requestPresignedUploadUrlServer } from "../lib/s3";
 
+import { useAuth } from "../lib/useAuth";
+
 export function EditTrackModal({
   track,
   onClose,
@@ -16,6 +18,7 @@ export function EditTrackModal({
   onClose: () => void;
   onUpdated: () => void;
 }) {
+  const { isLoggedIn } = useAuth();
   const currentAlbum = albums.find((a) => a.id === track.albumId);
   const [title, setTitle] = useState(track.title);
   const [artist, setArtist] = useState(track.artist);
@@ -31,6 +34,11 @@ export function EditTrackModal({
   const [isFetchingLyrics, setIsFetchingLyrics] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  if (!isLoggedIn) {
+    onClose();
+    return null;
+  }
+
   function formatTimeSec(s: number) {
     const m = Math.floor(s / 60);
     const r = Math.floor(s % 60);
@@ -38,6 +46,10 @@ export function EditTrackModal({
   }
 
   const handleSave = async () => {
+    if (!isLoggedIn) {
+      setErrorMsg("Bạn cần đăng nhập để thực hiện thay đổi.");
+      return;
+    }
     if (!title.trim()) {
       setErrorMsg("Vui lòng nhập tên bài hát.");
       return;

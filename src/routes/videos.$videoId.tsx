@@ -26,10 +26,13 @@ export const Route = createFileRoute("/videos/$videoId")({
   component: VideoPage,
 });
 
+import { useAuth } from "../lib/useAuth";
+
 function VideoPage() {
   const { video: loadedVideo, videoId: paramVideoId } = Route.useLoaderData();
   const { videos } = useLibrary();
   const { pause: pauseAudioPlayer } = usePlayer();
+  const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
 
   const video = loadedVideo || videoById(paramVideoId);
@@ -49,6 +52,7 @@ function VideoPage() {
   const videoSrc = video.src || `/api/stream/video/${video.id}`;
 
   const handleDeleteVideo = async () => {
+    if (!isLoggedIn) return;
     if (confirm(`Bạn có chắc chắn muốn xóa MV "${video.title}" khỏi Pikamc S3 không?`)) {
       await deleteVideo(video.id);
       void navigate({ to: "/videos" });
@@ -87,14 +91,16 @@ function VideoPage() {
         >
           <ArrowLeft className="size-4" /> Tất cả MV
         </Link>
-        <button
-          type="button"
-          onClick={handleDeleteVideo}
-          className="text-muted-foreground hover:text-destructive border-border flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
-        >
-          <Trash2 className="size-3.5" />
-          <span>Xóa MV này</span>
-        </button>
+        {isLoggedIn && (
+          <button
+            type="button"
+            onClick={handleDeleteVideo}
+            className="text-muted-foreground hover:text-destructive border-border flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
+          >
+            <Trash2 className="size-3.5" />
+            <span>Xóa MV này</span>
+          </button>
+        )}
       </div>
 
       <motion.div

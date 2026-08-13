@@ -18,9 +18,12 @@ export const Route = createFileRoute("/albums/")({
   component: AlbumsPage,
 });
 
+import { useAuth } from "../lib/useAuth";
+
 function AlbumCard({ album, onDelete, onPlay }: { album: Album; onDelete: () => void; onPlay: () => void }) {
   const [imgError, setImgError] = useState(false);
   const [hover, setHover] = useState(false);
+  const { isLoggedIn } = useAuth();
 
   return (
     <motion.div
@@ -30,9 +33,9 @@ function AlbumCard({ album, onDelete, onPlay }: { album: Album; onDelete: () => 
       onMouseLeave={() => setHover(false)}
       className="relative group"
     >
-      {/* Delete button */}
+      {/* Delete button - Only for logged in members */}
       <AnimatePresence>
-        {hover && (
+        {isLoggedIn && hover && (
           <motion.button
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -44,7 +47,7 @@ function AlbumCard({ album, onDelete, onPlay }: { album: Album; onDelete: () => 
                 onDelete();
               }
             }}
-            className="absolute -top-2 -right-2 z-10 bg-destructive text-white rounded-full p-1.5 shadow-lg hover:scale-110 transition-transform"
+            className="absolute -top-2 -right-2 z-10 bg-destructive text-white rounded-full p-1.5 shadow-lg hover:scale-110 transition-transform cursor-pointer"
             aria-label="Xóa album"
           >
             <Trash2 className="size-3" />
@@ -240,9 +243,11 @@ import { useLibrary } from "../lib/useLibrary";
 function AlbumsPage() {
   const { playQueue } = usePlayer();
   const { albums } = useLibrary();
+  const { isLoggedIn } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
 
   const handleDelete = (id: string) => {
+    if (!isLoggedIn) return;
     deleteAlbum(id);
   };
 
@@ -253,13 +258,15 @@ function AlbumsPage() {
           <h1 className="font-display text-5xl">Albums</h1>
           <p className="text-muted-foreground mt-2 text-sm">{albums.length} album đã lưu trữ</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="bg-primary text-primary-foreground flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-transform hover:scale-105"
-        >
-          <Plus className="size-4" />
-          Tạo Album
-        </button>
+        {isLoggedIn && (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="bg-primary text-primary-foreground flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-transform hover:scale-105 cursor-pointer"
+          >
+            <Plus className="size-4" />
+            Tạo Album
+          </button>
+        )}
       </div>
 
       {albums.length > 0 ? (

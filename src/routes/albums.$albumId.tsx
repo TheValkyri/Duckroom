@@ -146,10 +146,13 @@ function AddTracksModal({
 
 import { useLibrary } from "../lib/useLibrary";
 
+import { useAuth } from "../lib/useAuth";
+
 function AlbumPage() {
   const { album: loadedAlbum, albumId: paramAlbumId } = Route.useLoaderData();
   const { tracks, albums } = useLibrary();
   const { playQueue } = usePlayer();
+  const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
   const [showAddTracks, setShowAddTracks] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -165,6 +168,7 @@ function AlbumPage() {
   const currentIds = new Set(list.map((t) => t.id));
 
   const handleDeleteAlbum = () => {
+    if (!isLoggedIn) return;
     if (confirm(`Xóa album "${album.title}"? Các bài hát sẽ chuyển về Single Collection.`)) {
       deleteAlbum(album.id);
       void navigate({ to: "/albums" });
@@ -172,11 +176,13 @@ function AlbumPage() {
   };
 
   const handleRemoveFromAlbum = (trackId: string) => {
+    if (!isLoggedIn) return;
     removeTrackFromAlbum(trackId);
     refresh();
   };
 
   const handleDeleteTrack = async (trackId: string) => {
+    if (!isLoggedIn) return;
     await deleteTrack(trackId);
     refresh();
   };
@@ -196,13 +202,15 @@ function AlbumPage() {
           >
             <ArrowLeft className="size-4" /> Tất cả Album
           </Link>
-          <button
-            onClick={handleDeleteAlbum}
-            className="text-muted-foreground hover:text-destructive border-border flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
-          >
-            <Trash2 className="size-3.5" />
-            <span>Xóa Album</span>
-          </button>
+          {isLoggedIn && (
+            <button
+              onClick={handleDeleteAlbum}
+              className="text-muted-foreground hover:text-destructive border-border flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
+            >
+              <Trash2 className="size-3.5" />
+              <span>Xóa Album</span>
+            </button>
+          )}
         </div>
 
         {/* Album Hero */}
@@ -248,12 +256,14 @@ function AlbumPage() {
               >
                 <Shuffle className="size-4" /> Trộn bài
               </button>
-              <button
-                onClick={() => setShowAddTracks(true)}
-                className="border-border hover:bg-accent flex items-center gap-2 rounded-full border px-6 py-3 text-sm transition-colors"
-              >
-                <ListPlus className="size-4" /> Thêm bài hát
-              </button>
+              {isLoggedIn && (
+                <button
+                  onClick={() => setShowAddTracks(true)}
+                  className="border-border hover:bg-accent flex items-center gap-2 rounded-full border px-6 py-3 text-sm transition-colors cursor-pointer"
+                >
+                  <ListPlus className="size-4" /> Thêm bài hát
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -263,12 +273,14 @@ function AlbumPage() {
           {list.length === 0 ? (
             <div className="border-border bg-card/30 flex flex-col items-center gap-3 rounded-xl border p-12 text-center">
               <p className="text-muted-foreground text-sm">Album này chưa có bài hát nào.</p>
-              <button
-                onClick={() => setShowAddTracks(true)}
-                className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-transform hover:scale-105"
-              >
-                <ListPlus className="size-4" /> Thêm bài hát vào album
-              </button>
+              {isLoggedIn && (
+                <button
+                  onClick={() => setShowAddTracks(true)}
+                  className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-transform hover:scale-105"
+                >
+                  <ListPlus className="size-4" /> Thêm bài hát vào album
+                </button>
+              )}
             </div>
           ) : (
             list.map((t, i) => (
