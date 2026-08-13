@@ -6,7 +6,7 @@ import {
   requestPresignedReadUrlServer,
   requestPresignedUploadUrlServer,
   saveLibraryManifestServer,
-} from "./s3.server";
+} from "./s3-functions";
 
 export {
   BUCKET_NAME,

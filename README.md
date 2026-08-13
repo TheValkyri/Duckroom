@@ -1,29 +1,25 @@
-# Welcome to your Lovable project
+# Duckroom — Kho Nhạc & MV Lossless Cá Nhân
 
-This project was built with [Lovable](https://lovable.dev).
+Ứng dụng web nghe và lưu trữ nhạc FLAC 24-bit, WAV và MV bản gốc cá nhân.
 
-## Build with Lovable
+## Công nghệ sử dụng (Tech Stack)
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+- **Framework**: TanStack Start + React 19 + TypeScript
+- **Lưu trữ S3**: Pikamc S3 Storage (Chống nén, hỗ trợ presigned URLs 7 ngày)
+- **Xác thực & Phân quyền**: Supabase Auth & Database RLS (`allowed_emails`)
+- **Styling**: Tailwind CSS v4 + Motion (Framer Motion)
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+## Hướng dẫn chạy cục bộ (Development)
 
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Yêu cầu Node.js v20+.
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+# Cài đặt dependencies
+npm install
+
+# Chạy dev server
 npm run dev
+
+# Production Build
+npm run build
 ```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
