@@ -1,24 +1,16 @@
-type ServerEntry = {
-  fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
-};
+import { createStartHandler, defaultStreamHandler } from "@tanstack/react-start/server";
+import { getRouter } from "./router";
+import { startInstance } from "./start";
 
-let serverEntryPromise: Promise<ServerEntry> | undefined;
-
-async function getServerEntry(): Promise<ServerEntry> {
-  if (!serverEntryPromise) {
-    serverEntryPromise = import("@tanstack/react-start/server-entry").then(
-      (m) => (m.default ?? m) as ServerEntry,
-    );
-  }
-  return serverEntryPromise;
-}
+const startHandler = createStartHandler({
+  createRouter: getRouter,
+  startInstance,
+})(defaultStreamHandler);
 
 export default {
-  async fetch(request: Request, env: unknown, ctx: unknown) {
+  async fetch(request: Request) {
     try {
-      const handler = await getServerEntry();
-      const response = await handler.fetch(request, env, ctx);
-      return response;
+      return await startHandler(request);
     } catch (error) {
       console.error("SSR Handler Error:", error);
       return new Response("Internal Server Error", { status: 500 });
