@@ -150,7 +150,7 @@ import { useAuth } from "../lib/useAuth";
 
 function AlbumPage() {
   const { album: loadedAlbum, albumId: paramAlbumId } = Route.useLoaderData();
-  const { tracks, albums } = useLibrary();
+  const { tracks, albums, refresh } = useLibrary();
   const { playQueue } = usePlayer();
   const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
@@ -162,7 +162,6 @@ function AlbumPage() {
     throw notFound();
   }
 
-  const refresh = () => setTick((t) => t + 1);
   const list = albumTracks(album.id);
   const total = list.reduce((a, t) => a + t.duration, 0);
   const currentIds = new Set(list.map((t) => t.id));

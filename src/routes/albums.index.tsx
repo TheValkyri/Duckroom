@@ -242,7 +242,7 @@ import { useLibrary } from "../lib/useLibrary";
 
 function AlbumsPage() {
   const { playQueue } = usePlayer();
-  const { albums } = useLibrary();
+  const { albums, refresh } = useLibrary();
   const { isLoggedIn } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
 
