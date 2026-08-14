@@ -84,6 +84,9 @@ export function loadStoredLibrary() {
     if (storedTracks) {
       const parsed: Track[] = JSON.parse(storedTracks);
       parsed.forEach((t) => {
+        if (t.cover?.startsWith("blob:")) {
+          t.cover = undefined;
+        }
         if (Array.isArray(t.lyrics)) {
           t.lyrics.forEach((l) => {
             if (l.text) l.text = correctVietnameseLyrics(l.text);
@@ -96,12 +99,22 @@ export function loadStoredLibrary() {
     const storedAlbums = localStorage.getItem(STORAGE_KEY_ALBUMS);
     if (storedAlbums) {
       const parsed: Album[] = JSON.parse(storedAlbums);
+      parsed.forEach((a) => {
+        if (a.cover?.startsWith("blob:")) {
+          a.cover = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+        }
+      });
       albums.length = 0;
       albums.push(...parsed);
     }
     const storedVideos = localStorage.getItem(STORAGE_KEY_VIDEOS);
     if (storedVideos) {
       const parsed: Video[] = JSON.parse(storedVideos);
+      parsed.forEach((v) => {
+        if (v.thumb?.startsWith("blob:")) {
+          v.thumb = "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=800&auto=format&fit=crop&q=80";
+        }
+      });
       videos.length = 0;
       videos.push(...parsed);
     }
@@ -217,11 +230,19 @@ export async function syncLibraryWithS3(force = false) {
 
     if (manifest && Array.isArray(manifest.albums) && Array.isArray(manifest.tracks)) {
       if (manifest.albums.length > 0) {
+        manifest.albums.forEach((a: Album) => {
+          if (a.cover?.startsWith("blob:")) {
+            a.cover = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+          }
+        });
         albums.length = 0;
         albums.push(...manifest.albums);
       }
       if (manifest.tracks.length > 0) {
         manifest.tracks.forEach((t: Track) => {
+          if (t.cover?.startsWith("blob:")) {
+            t.cover = undefined;
+          }
           if (Array.isArray(t.lyrics)) {
             t.lyrics.forEach((l) => {
               if (l.text) l.text = correctVietnameseLyrics(l.text);
@@ -232,23 +253,61 @@ export async function syncLibraryWithS3(force = false) {
         tracks.push(...manifest.tracks);
       }
       if (Array.isArray(manifest.videos) && manifest.videos.length > 0) {
+        manifest.videos.forEach((v: Video) => {
+          if (v.thumb?.startsWith("blob:")) {
+            v.thumb = "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=800&auto=format&fit=crop&q=80";
+          }
+        });
         videos.length = 0;
         videos.push(...manifest.videos);
       }
 
       notifyLibrarySubscribers();
 
-      // Ensure presigned URLs are fresh for audio and covers
-      await Promise.all(
-        tracks.map(async (track) => {
-          if (!track.src) return;
-          const key = extractS3KeyFromUrl(track.src);
-          if (key && (!track.src.includes("X-Amz-Signature") || track.src.endsWith(key))) {
-            const fresh = await createPresignedUrl(key);
-            if (fresh) track.src = fresh;
+      // Ensure presigned URLs are fresh for audio, track covers, album covers, and video thumbs
+      await Promise.all([
+        ...tracks.map(async (track) => {
+          if (track.src) {
+            const key = extractS3KeyFromUrl(track.src);
+            if (key && (!track.src.includes("X-Amz-Signature") || track.src.endsWith(key))) {
+              const fresh = await createPresignedUrl(key);
+              if (fresh) track.src = fresh;
+            }
           }
-        })
-      );
+          if (track.cover && (track.cover.startsWith("artworks/") || track.cover.startsWith("covers/") || (track.cover.includes("s3.pikamc.vn") && !track.cover.includes("X-Amz-Signature")))) {
+            const key = extractS3KeyFromUrl(track.cover);
+            if (key) {
+              const fresh = await createPresignedUrl(key);
+              if (fresh) track.cover = fresh;
+            }
+          }
+        }),
+        ...albums.map(async (album) => {
+          if (album.cover && (album.cover.startsWith("artworks/") || album.cover.startsWith("covers/") || (album.cover.includes("s3.pikamc.vn") && !album.cover.includes("X-Amz-Signature")))) {
+            const key = extractS3KeyFromUrl(album.cover);
+            if (key) {
+              const fresh = await createPresignedUrl(key);
+              if (fresh) album.cover = fresh;
+            }
+          }
+        }),
+        ...videos.map(async (video) => {
+          if (video.src) {
+            const key = extractS3KeyFromUrl(video.src);
+            if (key && (!video.src.includes("X-Amz-Signature") || video.src.endsWith(key))) {
+              const fresh = await createPresignedUrl(key);
+              if (fresh) video.src = fresh;
+            }
+          }
+          if (video.thumb && (video.thumb.startsWith("artworks/") || video.thumb.startsWith("covers/") || (video.thumb.includes("s3.pikamc.vn") && !video.thumb.includes("X-Amz-Signature")))) {
+            const key = extractS3KeyFromUrl(video.thumb);
+            if (key) {
+              const fresh = await createPresignedUrl(key);
+              if (fresh) video.thumb = fresh;
+            }
+          }
+        }),
+      ]);
       return;
     }
 

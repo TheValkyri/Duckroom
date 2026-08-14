@@ -29,7 +29,10 @@ export function PlayerBar() {
 
   if (!current) return null;
   const album = albumById(current.albumId);
-  const coverUrl = current.cover || album?.cover;
+  const fallbackCover =
+    "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+  const rawCover = current.cover || album?.cover;
+  const coverUrl = rawCover && !rawCover.startsWith("blob:") ? rawCover : fallbackCover;
 
   return (
     <>
@@ -51,6 +54,12 @@ export function PlayerBar() {
               <img
                 src={coverUrl}
                 alt={`Bìa album ${album?.title || current.title}`}
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (target.src !== fallbackCover) {
+                    target.src = fallbackCover;
+                  }
+                }}
                 className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
                 width={56}
                 height={56}

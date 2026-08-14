@@ -76,9 +76,16 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
         {/* Cover */}
         <div className="relative z-10 size-full overflow-hidden rounded-xl bg-muted shadow-sm">
           <img
-            src={track.cover || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"}
+            src={track.cover && !track.cover.startsWith("blob:") ? track.cover : "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"}
             alt={track.title}
             loading="lazy"
+            onError={(e) => {
+              const target = e.currentTarget;
+              const fallback = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+              if (target.src !== fallback) {
+                target.src = fallback;
+              }
+            }}
             className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
 

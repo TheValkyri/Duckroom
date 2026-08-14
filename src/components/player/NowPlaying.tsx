@@ -14,7 +14,10 @@ export function NowPlaying() {
     usePlayer();
   const open = expanded;
   const album = current ? albumById(current.albumId) : undefined;
-  const rawCoverUrl = current?.cover || album?.cover;
+  const fallbackCover =
+    "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+  const rawCover = current?.cover || album?.cover;
+  const rawCoverUrl = rawCover && !rawCover.startsWith("blob:") ? rawCover : fallbackCover;
   const nextTrack = queue[(index + 1) % queue.length];
 
   const [cleanCoverUrl, setCleanCoverUrl] = useState<string | undefined>(rawCoverUrl);
@@ -22,12 +25,12 @@ export function NowPlaying() {
 
   useEffect(() => {
     if (!rawCoverUrl) {
-      setCleanCoverUrl(undefined);
+      setCleanCoverUrl(fallbackCover);
       return;
     }
     let isMounted = true;
     cropBlackLetterbox(rawCoverUrl).then((cropped) => {
-      if (isMounted) setCleanCoverUrl(cropped || rawCoverUrl);
+      if (isMounted) setCleanCoverUrl(cropped || rawCoverUrl || fallbackCover);
     });
     return () => {
       isMounted = false;
@@ -171,9 +174,15 @@ export function NowPlaying() {
                       )}
                     >
                       <motion.img
-                        src={cleanCoverUrl}
+                        src={cleanCoverUrl || fallbackCover}
                         alt={`Bìa ${current.title}`}
                         onLoad={handleImageLoad}
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          if (target.src !== fallbackCover) {
+                            target.src = fallbackCover;
+                          }
+                        }}
                         animate={{ scale: isPlaying ? 1 : 0.96 }}
                         transition={{ type: "spring", stiffness: 120, damping: 18 }}
                         className="size-full object-cover rounded-2xl"

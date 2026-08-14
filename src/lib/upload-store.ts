@@ -256,26 +256,47 @@ export async function executeGlobalUpload() {
         }
       }
 
-      let finalCover = artworkPreview || extractedCover || undefined;
+      let finalCover: string | undefined = undefined;
 
-      if (artworkFile) {
-        updateUploadState({ progressText: `Đang tải lên Ảnh Artwork riêng...`, percent: 85 });
-        const artworkExt = artworkFile.name.split(".").pop() || "jpg";
+      let artBlobToUpload: Blob | null = artworkFile;
+      let artContentType = artworkFile?.type || "image/jpeg";
+      let artExt = artworkFile?.name.split(".").pop() || "jpg";
+
+      if (!artBlobToUpload) {
+        const candidate = artworkPreview || extractedCover;
+        if (candidate) {
+          if (candidate.startsWith("blob:") || candidate.startsWith("data:")) {
+            try {
+              const res = await fetch(candidate);
+              artBlobToUpload = await res.blob();
+              artContentType = artBlobToUpload.type || "image/jpeg";
+              artExt = artContentType.includes("png") ? "png" : "jpg";
+            } catch (err) {
+              console.warn("Error converting extracted cover to blob:", err);
+            }
+          } else if (candidate.startsWith("http")) {
+            finalCover = candidate;
+          }
+        }
+      }
+
+      if (artBlobToUpload) {
+        updateUploadState({ progressText: `Đang tải lên Ảnh bìa Artwork lên máy chủ...`, percent: 85 });
         const cleanSeq = isSingle ? "single" : padNumber(tracks.filter((t) => t.albumId === albumId).length + 1);
-        const artworkKey = `artworks/${cleanSeq} - ${cleanTitle}.${artworkExt}`;
+        const artworkKey = `artworks/${cleanSeq}-${fileId}-${cleanTitle}.${artExt}`;
         const { uploadUrl: artUploadUrl } = await requestPresignedUploadUrlServer({
-          data: { key: artworkKey, contentType: artworkFile.type || "image/jpeg" },
+          data: { key: artworkKey, contentType: artContentType },
         });
         await fetch(artUploadUrl, {
           method: "PUT",
-          headers: { "Content-Type": artworkFile.type || "image/jpeg" },
-          body: artworkFile,
+          headers: { "Content-Type": artContentType },
+          body: artBlobToUpload,
         });
         finalCover = await createPresignedUrl(artworkKey);
 
         if (!isSingle && albumId !== "singles") {
           const matchedAlbum = albums.find((a) => a.id === albumId);
-          if (matchedAlbum && matchedAlbum.cover.includes("unsplash.com")) {
+          if (matchedAlbum && (matchedAlbum.cover.includes("unsplash.com") || matchedAlbum.cover.startsWith("blob:"))) {
             matchedAlbum.cover = finalCover;
           }
         }

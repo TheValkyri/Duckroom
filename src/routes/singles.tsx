@@ -65,6 +65,9 @@ function SingleCard({
   const fallbackCover =
     "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
 
+  const validCover =
+    track.cover && !track.cover.startsWith("blob:") ? track.cover : fallbackCover;
+
   return (
     <motion.div
       whileHover={{ y: -6 }}
@@ -101,9 +104,15 @@ function SingleCard({
         {/* Front Cover Artwork */}
         <div className="relative z-10 size-full overflow-hidden rounded-xl bg-muted shadow-md">
           <img
-            src={track.cover || fallbackCover}
+            src={validCover}
             alt={track.title}
             loading="lazy"
+            onError={(e) => {
+              const target = e.currentTarget;
+              if (target.src !== fallbackCover) {
+                target.src = fallbackCover;
+              }
+            }}
             className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
 
