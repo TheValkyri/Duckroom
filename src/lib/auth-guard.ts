@@ -76,10 +76,19 @@ export const requireMemberMiddleware = createMiddleware()
     const token = typeof window !== "undefined" ? await getAccessToken() : null;
     return next({
       headers: token ? { Authorization: `Bearer ${token}` } : {},
+      sendContext: {
+        authToken: token,
+      },
     });
   })
-  .server(async ({ next, request }) => {
-    const auth = await verifyMemberAuthorization(request);
+  .server(async ({ next, request, context }) => {
+    const passedToken =
+      (context as any)?.authToken ||
+      (request?.headers?.get?.("authorization") || "").replace(/^Bearer\s+/i, "") ||
+      request?.headers?.get?.("x-supabase-auth") ||
+      request?.headers?.get?.("x-auth-token");
+
+    const auth = await verifyMemberAuthorization(request, passedToken);
 
     if (!auth.isAuthorized) {
       throw new Response(

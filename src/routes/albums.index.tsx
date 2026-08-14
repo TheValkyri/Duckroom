@@ -221,6 +221,15 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
             </div>
           )}
 
+          {!isLoggedIn && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-300 flex items-center justify-between gap-3 mt-3">
+              <span>💡 Bạn chưa đăng nhập. Để tải ảnh bìa lên Pikamc S3, vui lòng đăng nhập tài khoản.</span>
+              <Link to="/login" className="underline font-semibold hover:text-white shrink-0">
+                Đăng nhập
+              </Link>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 space-y-4 py-3 pr-1">
             {/* Cover upload & preview */}
             <div className="border border-border/80 rounded-xl p-4 bg-accent/20">
@@ -246,7 +255,12 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <label
-                      htmlFor="album-cover-upload"
+                      htmlFor={isLoggedIn ? "album-cover-upload" : undefined}
+                      onClick={() => {
+                        if (!isLoggedIn) {
+                          setErrorMsg("Vui lòng đăng nhập tài khoản thành viên để tải ảnh lên Pikamc S3.");
+                        }
+                      }}
                       className={cn(
                         "inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-all cursor-pointer",
                         isUploading && "opacity-50 cursor-not-allowed"

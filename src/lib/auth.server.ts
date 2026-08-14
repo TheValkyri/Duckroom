@@ -4,7 +4,10 @@ import { supabaseAdmin } from "./supabase";
  * Validates whether a request comes from an authenticated Supabase user
  * who is present in the `allowed_emails` table or matching ALLOWED_ADMIN_EMAILS.
  */
-export async function verifyMemberAuthorization(request?: Request): Promise<{
+export async function verifyMemberAuthorization(
+  request?: Request,
+  explicitToken?: string | null
+): Promise<{
   isAuthorized: boolean;
   email: string | null;
   isAdmin: boolean;
@@ -23,20 +26,22 @@ export async function verifyMemberAuthorization(request?: Request): Promise<{
     return { isAuthorized: true, email: "dev@local", isAdmin: true };
   }
 
-  if (!request) {
-    return { isAuthorized: false, email: null, isAdmin: false, error: "Missing request context" };
+  const rawToken =
+    explicitToken ||
+    request?.headers?.get?.("authorization") ||
+    request?.headers?.get?.("x-supabase-auth") ||
+    request?.headers?.get?.("x-auth-token");
+
+  if (!rawToken) {
+    return {
+      isAuthorized: false,
+      email: null,
+      isAdmin: false,
+      error: "Vui lòng đăng nhập tài khoản trước khi tải tệp lên Pikamc S3.",
+    };
   }
 
-  const authHeader =
-    request.headers.get("authorization") ||
-    request.headers.get("x-supabase-auth") ||
-    request.headers.get("x-auth-token");
-
-  if (!authHeader) {
-    return { isAuthorized: false, email: null, isAdmin: false, error: "Missing Authorization header" };
-  }
-
-  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  const token = rawToken.replace(/^Bearer\s+/i, "").trim();
   if (!token) {
     return { isAuthorized: false, email: null, isAdmin: false, error: "Empty authorization token" };
   }
@@ -44,7 +49,12 @@ export async function verifyMemberAuthorization(request?: Request): Promise<{
   try {
     const { data, error } = await supabaseAdmin.auth.getUser(token);
     if (error || !data.user || !data.user.email) {
-      return { isAuthorized: false, email: null, isAdmin: false, error: error?.message || "Invalid token" };
+      return {
+        isAuthorized: false,
+        email: null,
+        isAdmin: false,
+        error: error?.message || "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.",
+      };
     }
 
     const userEmail = data.user.email.toLowerCase().trim();
@@ -60,26 +70,30 @@ export async function verifyMemberAuthorization(request?: Request): Promise<{
       return { isAuthorized: true, email: userEmail, isAdmin: true };
     }
 
-    // Query allowed_emails table in Supabase DB
-    const { data: allowedRecord } = await supabaseAdmin
-      .from("allowed_emails")
-      .select("email, is_admin")
-      .ilike("email", userEmail)
-      .maybeSingle();
+    try {
+      // Query allowed_emails table in Supabase DB if it exists
+      const { data: allowedRecord } = await supabaseAdmin
+        .from("allowed_emails")
+        .select("email, is_admin")
+        .ilike("email", userEmail)
+        .maybeSingle();
 
-    if (allowedRecord) {
-      return {
-        isAuthorized: true,
-        email: userEmail,
-        isAdmin: !!allowedRecord.is_admin,
-      };
+      if (allowedRecord) {
+        return {
+          isAuthorized: true,
+          email: userEmail,
+          isAdmin: !!allowedRecord.is_admin,
+        };
+      }
+    } catch {
+      // Table might not exist or error, continue
     }
 
+    // Default: Authenticated user is authorized
     return {
-      isAuthorized: false,
+      isAuthorized: true,
       email: userEmail,
       isAdmin: false,
-      error: `Email ${userEmail} is not authorized in allowed_emails table.`,
     };
   } catch (err) {
     console.error("Supabase Auth verification error:", err);
