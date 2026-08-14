@@ -1,4 +1,5 @@
-import { BUCKET_NAME, requestPresignedReadUrlServer } from "./s3-functions";
+import { requestPresignedReadUrlServer } from "./s3-functions";
+import { BUCKET_NAME } from "./s3-constants";
 
 export { BUCKET_NAME };
 

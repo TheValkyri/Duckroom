@@ -1,4 +1,4 @@
-import { BUCKET_NAME } from "./s3-functions";
+import { BUCKET_NAME } from "./s3-constants";
 
 /**
  * Safely extracts the clean S3 key from any presigned or direct Pikamc S3 URL.

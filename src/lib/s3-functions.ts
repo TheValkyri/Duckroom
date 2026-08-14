@@ -24,10 +24,8 @@ function requireEnv(name: string, fallback?: string): string {
   throw new Error(`[S3 Server Error] Missing required environment variable: ${name}`);
 }
 
-export const BUCKET_NAME = requireEnv(
-  "S3_BUCKET_NAME",
-  "pikamc-osi-ccccda39-9eac-43c3-ae21-894787c65678"
-);
+import { BUCKET_NAME } from "./s3-constants";
+export { BUCKET_NAME };
 
 export function getS3ServerClient() {
   const endpoint = requireEnv("S3_ENDPOINT", "https://s3.pikamc.vn");
