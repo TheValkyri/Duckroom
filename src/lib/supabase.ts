@@ -15,7 +15,7 @@ function getEnvVar(name: string): string {
 const supabaseUrl =
   getEnvVar("SUPABASE_URL") ||
   getEnvVar("VITE_SUPABASE_URL") ||
-  "https://dummy-project.supabase.co";
+  "https://lvrcqcghwebxlkrsisby.supabase.co";
 
 const supabaseAnonKey =
   getEnvVar("SUPABASE_ANON_KEY") ||
