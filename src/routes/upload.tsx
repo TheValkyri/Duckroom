@@ -13,6 +13,7 @@ import {
   updateUploadState,
   type UploadState,
 } from "../lib/upload-store";
+import { beautifyLrcString } from "../lib/lyrics-formatter";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/upload")({
@@ -357,13 +358,13 @@ function UploadPage() {
                     const match = data.find((d: any) => d.syncedLyrics) || data[0];
                     if (match?.syncedLyrics) {
                       updateUploadState({
-                        lyricsText: match.syncedLyrics,
-                        successMessage: `✨ Đã tự động tìm thấy lời bài hát cho "${match.trackName || title}"!`,
+                        lyricsText: beautifyLrcString(match.syncedLyrics),
+                        successMessage: `✨ Đã tự động tìm và chuẩn hóa chính tả lời bài hát cho "${match.trackName || title}"!`,
                       });
                     } else if (match?.plainLyrics) {
                       updateUploadState({
-                        lyricsText: match.plainLyrics,
-                        successMessage: `✨ Đã tìm thấy lời bài hát cho "${match.trackName || title}"!`,
+                        lyricsText: beautifyLrcString(match.plainLyrics),
+                        successMessage: `✨ Đã tìm và chuẩn hóa chính tả lời bài hát cho "${match.trackName || title}"!`,
                       });
                     } else {
                       updateUploadState({ errorMessage: "Không tìm thấy lời bài hát. Bạn có thể tự nhập bên dưới." });

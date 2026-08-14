@@ -6,6 +6,7 @@ import {
   saveLibraryManifestServer,
 } from "../lib/s3-functions";
 import { extractS3KeyFromUrl } from "../lib/s3-key";
+import { correctVietnameseLyrics } from "../lib/lyrics-formatter";
 
 export type LyricLine = { time: number; text: string };
 
@@ -82,6 +83,13 @@ export function loadStoredLibrary() {
     const storedTracks = localStorage.getItem(STORAGE_KEY_TRACKS);
     if (storedTracks) {
       const parsed: Track[] = JSON.parse(storedTracks);
+      parsed.forEach((t) => {
+        if (Array.isArray(t.lyrics)) {
+          t.lyrics.forEach((l) => {
+            if (l.text) l.text = correctVietnameseLyrics(l.text);
+          });
+        }
+      });
       tracks.length = 0;
       tracks.push(...parsed);
     }
@@ -213,6 +221,13 @@ export async function syncLibraryWithS3(force = false) {
         albums.push(...manifest.albums);
       }
       if (manifest.tracks.length > 0) {
+        manifest.tracks.forEach((t: Track) => {
+          if (Array.isArray(t.lyrics)) {
+            t.lyrics.forEach((l) => {
+              if (l.text) l.text = correctVietnameseLyrics(l.text);
+            });
+          }
+        });
         tracks.length = 0;
         tracks.push(...manifest.tracks);
       }

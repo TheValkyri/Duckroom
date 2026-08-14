@@ -6,6 +6,7 @@ import { albums, saveStoredLibrary, type Track } from "../data/library";
 import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import { createPresignedUrl } from "../lib/s3";
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
+import { beautifyLrcString } from "../lib/lyrics-formatter";
 
 import { useAuth } from "../lib/useAuth";
 
@@ -286,8 +287,8 @@ export function EditTrackModal({
                     const data = await res.json();
                     if (Array.isArray(data) && data.length > 0) {
                       const match = data.find((d: any) => d.syncedLyrics) || data[0];
-                      if (match?.syncedLyrics) setLyricsText(match.syncedLyrics);
-                      else if (match?.plainLyrics) setLyricsText(match.plainLyrics);
+                      if (match?.syncedLyrics) setLyricsText(beautifyLrcString(match.syncedLyrics));
+                      else if (match?.plainLyrics) setLyricsText(beautifyLrcString(match.plainLyrics));
                     }
                   } catch (err) {
                     console.error("Lyrics fetch error:", err);
@@ -304,6 +305,16 @@ export function EditTrackModal({
                 )}
                 Tự động tải lời mới
               </button>
+              {lyricsText.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setLyricsText(beautifyLrcString(lyricsText))}
+                  className="text-muted-foreground hover:text-foreground text-[11px] underline cursor-pointer"
+                  title="Sửa lỗi chính tả & định dạng lại lời bài hát"
+                >
+                  Sửa chính tả
+                </button>
+              )}
             </div>
             <textarea
               rows={5}

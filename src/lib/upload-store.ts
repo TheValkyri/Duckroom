@@ -66,26 +66,8 @@ export function updateUploadState(partial: Partial<UploadState>) {
   }
 }
 
-export function parseLrc(lrcText: string): LyricLine[] {
-  if (!lrcText.trim()) return [];
-  const lines = lrcText.split("\n");
-  const result: LyricLine[] = [];
-  const regex = /\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\](.*)/;
-
-  for (const line of lines) {
-    const match = regex.exec(line.trim());
-    if (match) {
-      const min = parseInt(match[1]!, 10);
-      const sec = parseInt(match[2]!, 10);
-      const text = match[4]!.trim();
-      if (text) result.push({ time: min * 60 + sec, text });
-    } else if (line.trim()) {
-      result.push({ time: 0, text: line.trim() });
-    }
-  }
-
-  return result.sort((a, b) => a.time - b.time);
-}
+import { parseLrcWithAutoCorrect } from "./lyrics-formatter";
+export { parseLrcWithAutoCorrect as parseLrc };
 
 function getMediaDuration(file: File): Promise<number> {
   return new Promise((resolve) => {
