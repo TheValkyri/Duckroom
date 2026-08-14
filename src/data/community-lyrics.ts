@@ -54,22 +54,50 @@ export const COMMUNITY_LYRICS: PresetLyric[] = [
     title: "mây",
     artist: "Obito",
     album: "Single",
-    duration: 168,
+    duration: 172,
     isSynced: true,
-    source: "Duckroom Community (Verified)",
-    syncedLyrics: `[00:11.50] Thả vào đời hàng ngàn nỗi lo
-[00:15.50] Cố nhấn anh xuống cứ liên hồi
-[00:19.20] Cược một trái tim nhiều lần tan vỡ, anh điên rồi
-[00:24.50] Chỉ một bước đi anh cũng suy nghĩ điều nên tồi
-[00:29.20] Hai từ "chúng ta" giờ đã biến mất trong đêm rồi
-[00:34.00] Nhìn lên bầu trời mây trôi lững lờ
-[00:39.50] Từng ký ức xưa cứ thế vỡ đôi
-[00:44.20] Tình yêu của anh trao em bấy lâu
-[00:49.00] Giờ như áng mây trôi về nơi đâu
-[00:54.50] Lang thang góc phố một mình anh bước
-[00:59.20] Gạt giọt lệ sầu ướt đẫm hàng mi
-[01:04.00] Chúc em bình yên trên con đường mới
-[01:09.50] Áng mây buồn trôi mãi không quay về.`,
+    source: "Duckroom Community (Genius Verified)",
+    syncedLyrics: `[00:11.50] Thả vào đời hàng ngàn nỗi lo, cố nhấn anh xuống cứ liên hồi
+[00:16.80] Cược một trái tim nhiều lần tan vỡ, anh điên rồi
+[00:21.50] Chỉ một bước đi anh cũng suy nghĩ liệu nên tội
+[00:26.50] Hai từ "chúng ta" giờ đã biến mất trong đêm rồi
+[00:31.00] (Huh-uh-uh-huh-uh-uh-uh-uh)
+[00:34.50] Nơi bao dấu yêu khi xưa liệu ta còn có thể?
+[00:39.50] (Huh-uh-uh-huh-uh-uh-uh-uh)
+[00:43.00] Anh nghe tiếng em đâu đây khi đứng trên lối về
+[00:48.00] Phút chốc bầu trời còn trong xanh
+[00:50.50] Cơn gió đùa cùng bồ công anh rồi mãi xa
+[00:53.50] Em thấy điều gì ở trong anh?
+[00:55.80] Bao tiếng lòng cùng sự mong manh đang xé ra
+[00:58.20] Rồi hóa tro tàn, đống lơ là
+[01:00.80] Theo bao dấu chân anh đi về phía không ngóng chờ
+[01:03.50] Còn những mơ màng, lướt trên đàn
+[01:06.00] Vang lên tiếng ca đau thương, làm sao đây hả em ơi?
+[01:08.80] Tối ta chùng nhau suốt, cùng nhau uống nhấp môi ly và cùng bao thuốc
+[01:13.50] Chuyện mình đâu muốn áng mây đen đùng đùng lao xuống
+[01:17.00] Mình lại mau cuốn khói bay nghi ngờ rồi đau đớn, làm mình mau lớn hơn
+[01:21.80] (Huh-uh-uh-huh-uh-uh-uh-uh)
+[01:25.50] Nơi bao dấu yêu khi xưa liệu ta còn có thể?
+[01:30.00] (Huh-uh-uh-huh-uh-uh-uh-uh)
+[01:33.80] Anh nghe tiếng em đâu đây khi đứng trên lối về
+[01:38.50] Nhiều lời buông ra về anh cho dù đúng hay là sai, that's the way I feeling cảm xúc
+[01:43.80] Em đi khuất xa nơi đây, đi khuất xa nơi đây
+[01:46.50] Trappin' vài câu xong lại quên đi ngày mai, I'm about to stuck in the loop
+[01:51.50] Những cơn đau đớn đang khơi dậy
+[01:54.00] Đôi chân cứ lê đi anh tìm những kỷ niệm giờ còn lại là xác xơ giữa mênh mông trời
+[01:59.20] Lặng thầm về một cuộc tình dài
+[02:02.00] Lại những khi ấy anh làm sai, và thật sự talk you all those lies
+[02:07.00] Khiến cho em mệt nhoài, anh tự vụt tắt đi đôi bờ vai
+[02:11.80] Nhiều lời em nhắn lúc đó anh cũng đau bao nhiêu lần
+[02:15.00] Từng cảm xúc anh cứ như là xa hay gần
+[02:17.80] Rằng tụi mình sẽ dừng lại vì đớn đau bao lần
+[02:20.50] Chẳng còn gì ngoài một mình và trái tim chai sần
+[02:23.50] Giờ mong ước đấy cũng trôi theo thời gian
+[02:26.50] Tình yêu đang dở dang, đành thôi cũng lỡ làng
+[02:29.80] Lại những tình hóa nhưng muộn màng, lụi dần đến khi tro tàn, ah-ah-ah
+[02:35.00] Chạm vào nỗi nhớ, nơi những yêu thương muốn anh bên em giờ quá xa sau nơi ẩn mây
+[02:41.50] Từng đêm hiu hắt, anh nói với anh "Baby, chuyện đâu ý gì"
+[02:46.00] Nói thế thôi anh cũng chẳng nghĩ gì...`,
   },
   {
     title: "dư âm",
