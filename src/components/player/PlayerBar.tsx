@@ -122,10 +122,18 @@ export function PlayerBar() {
             </button>
             <button
               aria-label="Lời bài hát"
-              onClick={() => setLyricsOpen(!lyricsOpen)}
+              title={lyricsOpen ? "Ẩn lời bài hát" : "Xem lời bài hát"}
+              onClick={() => {
+                if (!expanded) {
+                  setExpanded(true);
+                  setLyricsOpen(true);
+                } else {
+                  setLyricsOpen(!lyricsOpen);
+                }
+              }}
               className={cn(
                 "text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-1.5 rounded-full hover:bg-accent/50",
-                lyricsOpen && "text-primary bg-primary/10",
+                lyricsOpen && expanded && "text-primary bg-primary/10",
               )}
             >
               <Mic2 className="size-4" />

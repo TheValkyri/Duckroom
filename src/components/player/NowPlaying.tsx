@@ -12,7 +12,7 @@ import { LyricsPane } from "./Lyrics";
 export function NowPlaying() {
   const { current, queue, index, expanded, setExpanded, isPlaying, time, lyricsOpen, setLyricsOpen, next } =
     usePlayer();
-  const open = expanded || lyricsOpen;
+  const open = expanded;
   const album = current ? albumById(current.albumId) : undefined;
   const rawCoverUrl = current?.cover || album?.cover;
   const nextTrack = queue[(index + 1) % queue.length];
