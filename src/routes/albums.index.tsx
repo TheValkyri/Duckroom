@@ -6,7 +6,8 @@ import { albumTracks, albums, createAlbum, deleteAlbum, saveStoredLibrary, type 
 import { usePlayer } from "../lib/player";
 import { ArtworkCropModal } from "../components/ArtworkCropModal";
 import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
-import { createPresignedUrl, requestPresignedUploadUrlServer } from "../lib/s3";
+import { createPresignedUrl } from "../lib/s3";
+import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/albums/")({

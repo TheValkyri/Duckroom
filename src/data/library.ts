@@ -1,10 +1,10 @@
+import { createPresignedUrl } from "../lib/s3";
 import {
-  createPresignedUrl,
   deleteS3ObjectServer,
   getLibraryManifestServer,
   listS3ObjectsServer,
   saveLibraryManifestServer,
-} from "../lib/s3";
+} from "../lib/s3-functions";
 import { extractS3KeyFromUrl } from "../lib/s3-key";
 
 export type LyricLine = { time: number; text: string };

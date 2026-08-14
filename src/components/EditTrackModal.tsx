@@ -4,8 +4,8 @@ import { useState } from "react";
 import { ArtworkCropModal } from "./ArtworkCropModal";
 import { albums, saveStoredLibrary, type Track } from "../data/library";
 import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
-import { parseLrc } from "../lib/upload-store";
-import { createPresignedUrl, requestPresignedUploadUrlServer } from "../lib/s3";
+import { createPresignedUrl } from "../lib/s3";
+import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
 
 import { useAuth } from "../lib/useAuth";
 
