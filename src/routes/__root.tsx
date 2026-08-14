@@ -115,9 +115,7 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body suppressHydrationWarning>
-        <div id="app" suppressHydrationWarning>
-          {children}
-        </div>
+        {children}
         <Scripts />
       </body>
     </html>

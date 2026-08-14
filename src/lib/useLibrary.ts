@@ -34,7 +34,7 @@ function getSnapshot(): LibraryStoreState {
   return currentSnapshot;
 }
 
-const getServerSnapshot = (): LibraryStoreState => emptySnapshot;
+const getServerSnapshot = (): LibraryStoreState => getSnapshot();
 
 export function useLibrary(): LibraryStoreState {
   return useSyncExternalStore(
