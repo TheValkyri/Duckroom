@@ -66,8 +66,8 @@ export function updateUploadState(partial: Partial<UploadState>) {
   }
 }
 
-import { parseLrcWithAutoCorrect } from "./lyrics-formatter";
-export { parseLrcWithAutoCorrect as parseLrc };
+import { parseLrcWithAutoCorrect as parseLrc } from "./lyrics-formatter";
+export { parseLrc };
 
 function getMediaDuration(file: File): Promise<number> {
   return new Promise((resolve) => {
