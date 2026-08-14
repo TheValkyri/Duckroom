@@ -124,11 +124,14 @@ function SingleCard({
           </div>
 
           {/* Quick Play Overlay Button */}
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2 z-20">
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2 z-20 pointer-events-none">
             <button
-              onClick={onPlay}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPlay();
+              }}
               title={isThisPlaying ? "Tạm dừng" : "Phát đĩa đơn"}
-              className="size-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg transform transition-transform hover:scale-110 active:scale-95 cursor-pointer"
+              className="size-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg transform transition-transform hover:scale-110 active:scale-95 cursor-pointer pointer-events-auto"
             >
               <Play className="size-5 ml-0.5" fill="currentColor" />
             </button>
@@ -136,28 +139,30 @@ function SingleCard({
 
           {/* Member Actions Top Right */}
           {isLoggedIn && (
-            <div className="absolute top-2.5 right-2.5 z-30 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <div className="absolute top-2.5 right-2.5 z-40 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-auto">
               <button
+                type="button"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   onEdit();
                 }}
                 title="Chỉnh sửa thông tin bài hát / LRC"
-                className="size-7 rounded-full bg-black/75 hover:bg-primary text-white hover:text-black border border-white/20 flex items-center justify-center transition-colors cursor-pointer shadow-md"
+                className="size-8 rounded-full bg-black/80 hover:bg-primary text-white hover:text-black border border-white/20 flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-110 active:scale-95"
               >
-                <Edit className="size-3.5" />
+                <Edit className="size-4" />
               </button>
               <button
+                type="button"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   onDelete();
                 }}
                 title="Xóa đĩa đơn này"
-                className="size-7 rounded-full bg-black/75 hover:bg-destructive text-white border border-white/20 flex items-center justify-center transition-colors cursor-pointer shadow-md"
+                className="size-8 rounded-full bg-black/80 hover:bg-destructive text-white border border-white/20 flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-110 active:scale-95"
               >
-                <Trash2 className="size-3.5" />
+                <Trash2 className="size-4" />
               </button>
             </div>
           )}
@@ -166,15 +171,31 @@ function SingleCard({
 
       {/* Meta details */}
       <div className="mt-3.5 flex flex-col">
-        <h3
-          onClick={onPlay}
-          className={cn(
-            "font-display text-base font-semibold truncate cursor-pointer transition-colors hover:text-primary",
-            isCurrentTrack ? "text-primary" : "text-foreground"
+        <div className="flex items-start justify-between gap-2">
+          <h3
+            onClick={onPlay}
+            className={cn(
+              "font-display text-base font-semibold truncate cursor-pointer transition-colors hover:text-primary flex-1",
+              isCurrentTrack ? "text-primary" : "text-foreground"
+            )}
+          >
+            {track.title}
+          </h3>
+          {isLoggedIn && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onEdit();
+              }}
+              title="Sửa bài hát & lời LRC"
+              className="text-muted-foreground hover:text-primary p-1 rounded-md transition-colors cursor-pointer shrink-0"
+            >
+              <Edit className="size-3.5" />
+            </button>
           )}
-        >
-          {track.title}
-        </h3>
+        </div>
         <p className="text-muted-foreground text-xs truncate mt-0.5">
           {track.artist}
         </p>
