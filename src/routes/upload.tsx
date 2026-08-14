@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArtworkCropModal } from "../components/ArtworkCropModal";
 import { type Album } from "../data/library";
 import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
-import { extractAudioCover, extractVideoThumbnail } from "../lib/metadata";
+import { extractAudioMetadata, extractVideoThumbnail } from "../lib/metadata";
 import {
   executeGlobalUpload,
   getUploadState,
@@ -105,8 +105,18 @@ function UploadPage() {
     });
 
     if (!isVid) {
-      const cover = await extractAudioCover(file);
-      if (cover) updateUploadState({ extractedCover: cover });
+      const meta = await extractAudioMetadata(file);
+      const updates: Partial<UploadState> = {};
+      if (meta.cover) updates.extractedCover = meta.cover;
+      if (meta.title && (!title || title === autoTitle)) updates.title = meta.title;
+      if (meta.artist && (!artist || artist === autoArtist)) updates.artist = meta.artist;
+      if (meta.album && !album) updates.album = meta.album;
+      if (meta.year && !year) updates.year = meta.year;
+      if (meta.lyrics) {
+        updates.lyricsText = meta.lyrics;
+        updates.successMessage = `✨ Đã tự động trích xuất lời bài hát nhúng sẵn từ metadata (${meta.lyrics.length} ký tự)!`;
+      }
+      updateUploadState(updates);
     } else {
       const thumb = await extractVideoThumbnail(file);
       if (thumb) updateUploadState({ extractedCover: thumb });
