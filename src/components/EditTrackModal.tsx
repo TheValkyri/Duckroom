@@ -2,6 +2,7 @@ import { Image, Loader2, Scissors, Sparkles, X, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { ArtworkCropModal } from "./ArtworkCropModal";
+import { LyricsSearchModal } from "./LyricsSearchModal";
 import { albums, saveStoredLibrary, type Track } from "../data/library";
 import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import { createPresignedUrl } from "../lib/s3";
@@ -31,6 +32,7 @@ export function EditTrackModal({
   const [artworkFile, setArtworkFile] = useState<File | null>(null);
   const [artworkPreview, setArtworkPreview] = useState<string | null>(track.cover || null);
   const [showCropModal, setShowCropModal] = useState(false);
+  const [showLyricsSearchModal, setShowLyricsSearchModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isFetchingLyrics, setIsFetchingLyrics] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -307,33 +309,13 @@ export function EditTrackModal({
               </label>
               <button
                 type="button"
-                disabled={isFetchingLyrics || isSaving}
-                onClick={async () => {
-                  const query = `${artist} ${title}`.trim();
-                  if (!query) return;
-                  setIsFetchingLyrics(true);
-                  try {
-                    const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`);
-                    const data = await res.json();
-                    if (Array.isArray(data) && data.length > 0) {
-                      const match = data.find((d: any) => d.syncedLyrics) || data[0];
-                      if (match?.syncedLyrics) setLyricsText(beautifyLrcString(match.syncedLyrics));
-                      else if (match?.plainLyrics) setLyricsText(beautifyLrcString(match.plainLyrics));
-                    }
-                  } catch (err) {
-                    console.error("Lyrics fetch error:", err);
-                  } finally {
-                    setIsFetchingLyrics(false);
-                  }
-                }}
+                disabled={isSaving}
+                onClick={() => setShowLyricsSearchModal(true)}
                 className="text-primary hover:underline text-xs flex items-center gap-1 font-semibold cursor-pointer"
+                title="Mở kho tìm kiếm lời bài hát & file LRC đồng bộ đa nguồn"
               >
-                {isFetchingLyrics ? (
-                  <Loader2 className="size-3 animate-spin" />
-                ) : (
-                  <Sparkles className="size-3" />
-                )}
-                Tự động tải lời mới
+                <Sparkles className="size-3" />
+                <span>Tìm lời Online (Kho LRC)</span>
               </button>
               {lyricsText.trim() && (
                 <button
@@ -403,6 +385,20 @@ export function EditTrackModal({
             onApply={(file, dataUrl) => {
               setArtworkFile(file);
               setArtworkPreview(dataUrl);
+            }}
+          />
+        )}
+        {showLyricsSearchModal && (
+          <LyricsSearchModal
+            isOpen={showLyricsSearchModal}
+            onClose={() => setShowLyricsSearchModal(false)}
+            initialTitle={title}
+            initialArtist={artist}
+            audioDuration={track.duration || 180}
+            onSelectLyrics={(lrc, trackInfo) => {
+              setLyricsText(lrc);
+              if (trackInfo?.title && (!title || title === "Tên bài hát")) setTitle(trackInfo.title);
+              if (trackInfo?.artist && (!artist || artist === "Nghệ sĩ")) setArtist(trackInfo.artist);
             }}
           />
         )}
