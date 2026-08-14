@@ -1,6 +1,6 @@
 import { Image, Loader2, Scissors, Sparkles, X, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArtworkCropModal } from "./ArtworkCropModal";
 import { LyricsSearchModal } from "./LyricsSearchModal";
 import { albums, saveStoredLibrary, type Track } from "../data/library";
@@ -10,6 +10,7 @@ import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
 import { beautifyLrcString, parseLrcWithAutoCorrect } from "../lib/lyrics-formatter";
 import { autoTimePacingLyrics } from "../lib/metadata";
 import { useAuth } from "../lib/useAuth";
+import { cn } from "../lib/utils";
 
 export function EditTrackModal({
   track,
@@ -20,7 +21,7 @@ export function EditTrackModal({
   onClose: () => void;
   onUpdated: () => void;
 }) {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isLoading } = useAuth();
   const currentAlbum = albums.find((a) => a.id === track.albumId);
   const [title, setTitle] = useState(track.title);
   const [artist, setArtist] = useState(track.artist);
@@ -37,8 +38,14 @@ export function EditTrackModal({
   const [isFetchingLyrics, setIsFetchingLyrics] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  if (!isLoggedIn) {
-    onClose();
+  // Close modal if user is confirmed not logged in (deferred to avoid setState-during-render)
+  useEffect(() => {
+    if (!isLoading && !isLoggedIn) {
+      onClose();
+    }
+  }, [isLoading, isLoggedIn, onClose]);
+
+  if (isLoading || !isLoggedIn) {
     return null;
   }
 
@@ -111,7 +118,7 @@ export function EditTrackModal({
       track.albumId = targetAlbumId;
       track.trackNo = Math.max(1, parseInt(trackNo, 10) || 1);
       track.cover = finalCover;
-      track.lyrics = parseLrc(lyricsText);
+      track.lyrics = parseLrcWithAutoCorrect(lyricsText);
 
       saveStoredLibrary(true);
       onUpdated();

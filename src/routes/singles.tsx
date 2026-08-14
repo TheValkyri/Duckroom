@@ -76,6 +76,39 @@ function SingleCard({
       onMouseLeave={() => setHover(false)}
       className="relative group flex flex-col"
     >
+      {/* Member Actions — rendered OUTSIDE the overflow-hidden cover container to guarantee clickability */}
+      {isLoggedIn && (
+        <div
+          className="absolute top-5.5 right-5.5 z-50 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          style={{ pointerEvents: "auto" }}
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onEdit();
+            }}
+            title="Chỉnh sửa thông tin bài hát / LRC"
+            className="size-8 rounded-full bg-black/80 hover:bg-primary text-white hover:text-black border border-white/20 flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-110 active:scale-95"
+          >
+            <Edit className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDelete();
+            }}
+            title="Xóa đĩa đơn này"
+            className="size-8 rounded-full bg-black/80 hover:bg-destructive text-white border border-white/20 flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-110 active:scale-95"
+          >
+            <Trash2 className="size-4" />
+          </button>
+        </div>
+      )}
+
       {/* Vinyl Disc & Cover Assembly */}
       <div className="relative aspect-square w-full rounded-2xl bg-card/60 p-3 border border-white/5 shadow-xl transition-all duration-300 group-hover:border-primary/30 group-hover:shadow-2xl overflow-hidden">
         {/* Sliding Vinyl Record on Hover */}
@@ -136,36 +169,6 @@ function SingleCard({
               <Play className="size-5 ml-0.5" fill="currentColor" />
             </button>
           </div>
-
-          {/* Member Actions Top Right */}
-          {isLoggedIn && (
-            <div className="absolute top-2.5 right-2.5 z-40 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-auto">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onEdit();
-                }}
-                title="Chỉnh sửa thông tin bài hát / LRC"
-                className="size-8 rounded-full bg-black/80 hover:bg-primary text-white hover:text-black border border-white/20 flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-110 active:scale-95"
-              >
-                <Edit className="size-4" />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onDelete();
-                }}
-                title="Xóa đĩa đơn này"
-                className="size-8 rounded-full bg-black/80 hover:bg-destructive text-white border border-white/20 flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-110 active:scale-95"
-              >
-                <Trash2 className="size-4" />
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
