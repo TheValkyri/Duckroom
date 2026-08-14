@@ -3,7 +3,7 @@ import { AlertTriangle, CheckCircle2, Image, Loader2, Scissors, Sparkles, Upload
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { ArtworkCropModal } from "../components/ArtworkCropModal";
-import { albums, type Album } from "../data/library";
+import { type Album } from "../data/library";
 import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import { extractAudioCover, extractVideoThumbnail } from "../lib/metadata";
 import {
@@ -234,6 +234,7 @@ function UploadPage() {
           placeholder="Nhập tên nghệ sĩ"
         />
         <AlbumSelectField
+          albums={albums}
           value={album}
           disabled={isUploading}
           onChange={(v) => updateUploadState({ album: v })}
@@ -485,11 +486,13 @@ function Field({
 }
 
 function AlbumSelectField({
+  albums: albumList,
   value,
   disabled,
   onChange,
   onSelectAlbum,
 }: {
+  albums: Album[];
   value: string;
   disabled?: boolean;
   onChange: (v: string) => void;
@@ -497,14 +500,14 @@ function AlbumSelectField({
 }) {
   const uniqueAlbums = useMemo(() => {
     const map = new Map<string, Album>();
-    for (const a of albums) {
+    for (const a of albumList) {
       if (a.title.trim() && a.title.toLowerCase() !== "single collection" && a.title.toLowerCase() !== "singles") {
         const key = a.title.trim().toLowerCase();
         if (!map.has(key)) map.set(key, a);
       }
     }
     return Array.from(map.values());
-  }, [albums]);
+  }, [albumList]);
 
   return (
     <div>
