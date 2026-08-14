@@ -12,6 +12,14 @@ import { autoTimePacingLyrics } from "../lib/metadata";
 import { useAuth } from "../lib/useAuth";
 import { cn } from "../lib/utils";
 
+function formatTimeSec(s: number): string {
+  if (typeof s !== "number" || isNaN(s) || s < 0) return "00:00.00";
+  const m = Math.floor(s / 60);
+  const r = Math.floor(s % 60);
+  const ms = Math.min(99, Math.floor(Math.round((s % 1) * 100)));
+  return `${m.toString().padStart(2, "0")}:${r.toString().padStart(2, "0")}.${ms.toString().padStart(2, "0")}`;
+}
+
 export function EditTrackModal({
   track,
   onClose,
@@ -48,12 +56,6 @@ export function EditTrackModal({
 
   if (isLoading || !isLoggedIn) {
     return null;
-  }
-
-  function formatTimeSec(s: number) {
-    const m = Math.floor(s / 60);
-    const r = Math.floor(s % 60);
-    return `${m.toString().padStart(2, "0")}:${r.toString().padStart(2, "0")}.00`;
   }
 
   const handleSave = async () => {

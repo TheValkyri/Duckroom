@@ -103,10 +103,13 @@ export function parseLrcWithAutoCorrect(lrcText: string): LyricLine[] {
     if (match) {
       const min = parseInt(match[1]!, 10);
       const sec = parseInt(match[2]!, 10);
+      const msStr = match[3] || "00";
+      const ms = parseFloat(`0.${msStr}`);
+      const time = parseFloat((min * 60 + sec + ms).toFixed(3));
       const rawContent = match[4] || "";
       const text = correctVietnameseLyrics(rawContent);
       if (text) {
-        result.push({ time: min * 60 + sec, text });
+        result.push({ time, text });
       }
     } else if (trimmed && !trimmed.startsWith("[")) {
       const text = correctVietnameseLyrics(trimmed);
