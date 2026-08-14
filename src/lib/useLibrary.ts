@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { albums, subscribeLibrary, tracks, videos, type Album, type Track, type Video } from "../data/library";
 
 type LibraryStoreState = {
@@ -36,25 +36,10 @@ function getSnapshot(): LibraryStoreState {
 
 const getServerSnapshot = (): LibraryStoreState => emptySnapshot;
 
-let hasHydratedInitial = false;
-
 export function useLibrary(): LibraryStoreState {
-  const [mounted, setMounted] = useState(() => hasHydratedInitial);
-
-  useEffect(() => {
-    hasHydratedInitial = true;
-    setMounted(true);
-  }, []);
-
-  const storeState = useSyncExternalStore(
+  return useSyncExternalStore(
     subscribeLibrary,
     getSnapshot,
     getServerSnapshot
   );
-
-  if (!mounted) {
-    return emptySnapshot;
-  }
-
-  return storeState;
 }
