@@ -1,0 +1,21 @@
+{
+  "name": "Duckroom",
+  "short_name": "Duckroom",
+  "description": "Kho nhạc Lossless & MV bản gốc cá nhân",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/og-image.jpg",
+      "sizes": "1200x675",
+      "type": "image/jpeg"
+    }
+  ]
+}

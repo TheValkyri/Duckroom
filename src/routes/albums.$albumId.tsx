@@ -24,12 +24,17 @@ export const Route = createFileRoute("/albums/$albumId")({
   },
   head: ({ loaderData }) => {
     const t = loaderData?.album?.title ?? "Album";
+    const cover = loaderData?.album?.cover || "https://duckroom.vercel.app/og-image.jpg";
     return {
       meta: [
-        { title: `${t} — Duckroom Lossless` },
+        { title: `${t} — Duckroom` },
         { name: "description", content: `Nghe album ${t} ở chất lượng gốc, không nén lại.` },
-        { property: "og:title", content: `${t} — Duckroom Lossless` },
+        { property: "og:site_name", content: "Duckroom" },
+        { property: "og:title", content: `${t} — Duckroom` },
         { property: "og:description", content: `Nghe album ${t} ở chất lượng gốc.` },
+        { property: "og:image", content: cover },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:image", content: cover },
       ],
     };
   },

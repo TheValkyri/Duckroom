@@ -9,10 +9,14 @@ import { Play } from "lucide-react";
 export const Route = createFileRoute("/albums/")({
   head: () => ({
     meta: [
-      { title: "Albums — Duckroom Lossless" },
+      { title: "Albums — Duckroom" },
       { name: "description", content: "Tất cả album trong kho lưu trữ Duckroom, master nguyên gốc." },
-      { property: "og:title", content: "Albums — Duckroom Lossless" },
+      { property: "og:site_name", content: "Duckroom" },
+      { property: "og:title", content: "Albums — Duckroom" },
       { property: "og:description", content: "Tất cả album trong kho lưu trữ Duckroom, master nguyên gốc." },
+      { property: "og:image", content: "https://duckroom.vercel.app/og-image.jpg" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "https://duckroom.vercel.app/og-image.jpg" },
     ],
   }),
   component: AlbumsPage,

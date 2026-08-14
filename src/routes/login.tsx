@@ -8,8 +8,14 @@ import { useAuth } from "../lib/useAuth";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Đăng nhập — Duckroom Lossless" },
-      { name: "description", content: "Đăng nhập tài khoản thành viên Duckroom để quản lý kho nhạc." },
+      { title: "Đăng nhập — Duckroom" },
+      { name: "description", content: "Đăng nhập tài khoản quản trị Duckroom để quản lý kho nhạc." },
+      { property: "og:site_name", content: "Duckroom" },
+      { property: "og:title", content: "Đăng nhập — Duckroom" },
+      { property: "og:description", content: "Đăng nhập tài khoản quản trị Duckroom để quản lý kho nhạc." },
+      { property: "og:image", content: "https://duckroom.vercel.app/og-image.jpg" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "https://duckroom.vercel.app/og-image.jpg" },
     ],
   }),
   component: LoginPage,

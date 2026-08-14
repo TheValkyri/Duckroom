@@ -12,17 +12,23 @@ import { usePlayer } from "../lib/player";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Duckroom — Kho nhạc lossless riêng" },
+      { title: "Duckroom" },
       {
         name: "description",
         content:
           "Nghe và lưu trữ bản thu FLAC 24-bit cùng MV bản gốc: trộn bài, lặp lại, lời bài hát theo thời gian thực.",
       },
+      { property: "og:site_name", content: "Duckroom" },
       { property: "og:title", content: "Duckroom — Kho nhạc lossless riêng" },
       {
         property: "og:description",
-        content: "Nghe và lưu trữ bản thu FLAC 24-bit cùng MV bản gốc, không nén lại.",
+        content: "Nghe và lưu trữ bản thu FLAC 24-bit cùng MV bản gốc: trộn bài, lặp lại, lời bài hát theo thời gian thực.",
       },
+      { property: "og:image", content: "https://duckroom.vercel.app/og-image.jpg" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "675" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "https://duckroom.vercel.app/og-image.jpg" },
     ],
   }),
   component: Index,

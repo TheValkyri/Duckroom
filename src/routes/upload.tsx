@@ -18,13 +18,17 @@ import { cn } from "../lib/utils";
 export const Route = createFileRoute("/upload")({
   head: () => ({
     meta: [
-      { title: "Tải lên — Duckroom Lossless" },
+      { title: "Tải lên — Duckroom" },
       {
         name: "description",
         content: "Đưa file FLAC, WAV và MV bản gốc vào kho lưu trữ Duckroom, không nén lại.",
       },
-      { property: "og:title", content: "Tải lên — Duckroom Lossless" },
+      { property: "og:site_name", content: "Duckroom" },
+      { property: "og:title", content: "Tải lên — Duckroom" },
       { property: "og:description", content: "Đưa file FLAC, WAV và MV bản gốc vào kho lưu trữ." },
+      { property: "og:image", content: "https://duckroom.vercel.app/og-image.jpg" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "https://duckroom.vercel.app/og-image.jpg" },
     ],
   }),
   component: UploadPage,

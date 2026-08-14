@@ -14,12 +14,17 @@ export const Route = createFileRoute("/videos/$videoId")({
   },
   head: ({ loaderData }) => {
     const t = loaderData?.video?.title ?? "Video";
+    const thumb = loaderData?.video?.thumb || "https://duckroom.vercel.app/og-image.jpg";
     return {
       meta: [
         { title: `${t} — Duckroom` },
         { name: "description", content: `Xem ${t} ở độ phân giải và bitrate gốc.` },
+        { property: "og:site_name", content: "Duckroom" },
         { property: "og:title", content: `${t} — Duckroom` },
         { property: "og:description", content: `Xem ${t} ở độ phân giải và bitrate gốc.` },
+        { property: "og:image", content: thumb },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:image", content: thumb },
       ],
     };
   },

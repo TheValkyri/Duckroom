@@ -9,10 +9,14 @@ import { cn } from "../lib/utils";
 export const Route = createFileRoute("/videos/")({
   head: () => ({
     meta: [
-      { title: "MV & Video — Duckroom Lossless" },
+      { title: "MV — Duckroom" },
       { name: "description", content: "Kho MV và live session lưu ở master gốc trong Duckroom." },
-      { property: "og:title", content: "MV & Video — Duckroom Lossless" },
+      { property: "og:site_name", content: "Duckroom" },
+      { property: "og:title", content: "MV — Duckroom" },
       { property: "og:description", content: "Kho MV và live session lưu ở master gốc." },
+      { property: "og:image", content: "https://duckroom.vercel.app/og-image.jpg" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "https://duckroom.vercel.app/og-image.jpg" },
     ],
   }),
   component: VideosPage,

@@ -11,16 +11,20 @@ import { cn } from "../lib/utils";
 export const Route = createFileRoute("/library")({
   head: () => ({
     meta: [
-      { title: "Thư viện — Duckroom Lossless" },
+      { title: "Thư viện — Duckroom" },
       {
         name: "description",
         content: "Toàn bộ bản thu FLAC/WAV 24-bit trong kho lưu trữ Duckroom.",
       },
-      { property: "og:title", content: "Thư viện — Duckroom Lossless" },
+      { property: "og:site_name", content: "Duckroom" },
+      { property: "og:title", content: "Thư viện — Duckroom" },
       {
         property: "og:description",
         content: "Toàn bộ bản thu FLAC/WAV 24-bit trong kho lưu trữ Duckroom.",
       },
+      { property: "og:image", content: "https://duckroom.vercel.app/og-image.jpg" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "https://duckroom.vercel.app/og-image.jpg" },
     ],
   }),
   component: LibraryPage,
