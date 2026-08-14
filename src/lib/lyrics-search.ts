@@ -1,8 +1,13 @@
 /**
  * Bộ tìm kiếm Lời bài hát & File LRC chuyên nghiệp đa nguồn (Multi-Tier Lyrics Search Engine)
- * Nguồn: LRCLIB (exact + search) + Lyrics.ovh (Musixmatch/Spotify backend)
- * Hỗ trợ chuẩn hóa tiếng Việt, tự động bóc tách từ khóa rác và xem trước kết quả.
+ * Nguồn:
+ *  - Tier 0: Duckroom Community & Vietnamese Vault (Lời đồng bộ chuẩn xác cao)
+ *  - Tier 1: LRCLIB /api/get (Exact match)
+ *  - Tier 2: LRCLIB /api/search (Multi-query permutations)
+ *  - Tier 3: Lyrics.ovh / Musixmatch backend (Plain text fallback)
  */
+
+import { COMMUNITY_LYRICS } from "../data/community-lyrics";
 
 export interface LyricSearchResult {
   id: string | number;
@@ -47,7 +52,7 @@ function addResult(
   seenKeys: Set<string>,
   item: LyricSearchResult
 ): void {
-  const key = `${(item.trackName || "").toLowerCase()}_${(item.artistName || "").toLowerCase()}_${item.isSynced}`;
+  const key = `${(item.trackName || "").toLowerCase().trim()}_${(item.artistName || "").toLowerCase().trim()}_${item.isSynced}`;
   if (!seenKeys.has(key)) {
     seenKeys.add(key);
     results.push(item);
@@ -55,7 +60,7 @@ function addResult(
 }
 
 /** Helper: safely fetch JSON with timeout */
-async function safeFetchJson(url: string, timeoutMs = 6000): Promise<any> {
+async function safeFetchJson(url: string, timeoutMs = 5000): Promise<any> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -74,30 +79,8 @@ async function safeFetchJson(url: string, timeoutMs = 6000): Promise<any> {
   }
 }
 
-async function safeFetchText(url: string, timeoutMs = 6000): Promise<string | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "DuckroomLossless/2.0 (https://duckroom.vercel.app)",
-      },
-    });
-    if (!res.ok) return null;
-    return await res.text();
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 /**
  * Tìm kiếm lời bài hát chuyên sâu qua nhiều tầng (Multi-tier Strategy)
- * Tier 1: LRCLIB /api/get (exact match)
- * Tier 2: LRCLIB /api/search (multiple query permutations)
- * Tier 3: Lyrics.ovh / api.lyrics.ovh (Musixmatch/Spotify backend - plain lyrics fallback)
  */
 export async function searchOnlineLyricsMultiSource(
   title: string,
@@ -110,8 +93,42 @@ export async function searchOnlineLyricsMultiSource(
   const rawArtist = artist.trim();
   const cleanT = cleanSongQuery(rawTitle);
   const cleanA = cleanSongQuery(rawArtist);
-  const nonDiacriticT = removeVietnameseDiacritics(cleanT);
-  const nonDiacriticA = removeVietnameseDiacritics(cleanA);
+  const nonDiacriticT = removeVietnameseDiacritics(cleanT).toLowerCase();
+  const nonDiacriticA = removeVietnameseDiacritics(cleanA).toLowerCase();
+  const fullSearchQuery = `${cleanA} ${cleanT}`.trim().toLowerCase();
+  const fullNormQuery = `${nonDiacriticA} ${nonDiacriticT}`.trim();
+
+  // ───────────────────────────────────────────────────────────
+  // TIER 0: Duckroom Community & Vietnamese Curated Vault
+  // ───────────────────────────────────────────────────────────
+  for (const preset of COMMUNITY_LYRICS) {
+    const pTitleNorm = removeVietnameseDiacritics(preset.title).toLowerCase();
+    const pArtistNorm = removeVietnameseDiacritics(preset.artist).toLowerCase();
+    const pFullNorm = `${pArtistNorm} ${pTitleNorm}`;
+    const pRevNorm = `${pTitleNorm} ${pArtistNorm}`;
+
+    const isMatch =
+      pTitleNorm === nonDiacriticT ||
+      pFullNorm === fullNormQuery ||
+      pRevNorm === fullNormQuery ||
+      (nonDiacriticT && pTitleNorm.includes(nonDiacriticT)) ||
+      (fullNormQuery && pFullNorm.includes(fullNormQuery)) ||
+      (fullNormQuery && (pTitleNorm.includes(fullNormQuery) || fullNormQuery.includes(pTitleNorm)));
+
+    if (isMatch) {
+      addResult(results, seenKeys, {
+        id: `community-${preset.title}-${preset.artist}`,
+        trackName: preset.title,
+        artistName: preset.artist,
+        albumName: preset.album || "Single",
+        duration: preset.duration || 180,
+        isSynced: preset.isSynced,
+        syncedLyrics: preset.syncedLyrics || null,
+        plainLyrics: preset.plainLyrics || null,
+        source: preset.source || "Duckroom Community",
+      });
+    }
+  }
 
   // ───────────────────────────────────────────────────────────
   // TIER 1: LRCLIB /api/get (exact match with track + artist)
@@ -119,7 +136,7 @@ export async function searchOnlineLyricsMultiSource(
   const exactPairs: Array<[string, string]> = [];
   if (cleanT && cleanA) {
     exactPairs.push([cleanT, cleanA]);
-    if (nonDiacriticT !== cleanT || nonDiacriticA !== cleanA) {
+    if (nonDiacriticT !== cleanT.toLowerCase() || nonDiacriticA !== cleanA.toLowerCase()) {
       exactPairs.push([nonDiacriticT, nonDiacriticA]);
     }
   }
@@ -158,17 +175,17 @@ export async function searchOnlineLyricsMultiSource(
         nonDiacriticA && nonDiacriticT ? `${nonDiacriticA} ${nonDiacriticT}` : "",
         nonDiacriticA && nonDiacriticT ? `${nonDiacriticT} ${nonDiacriticA}` : "",
         // Non-diacritic title only
-        nonDiacriticT !== cleanT ? nonDiacriticT : "",
-        // Artist only (catches cases where title is generic like "nước")
+        nonDiacriticT !== cleanT.toLowerCase() ? nonDiacriticT : "",
+        // Artist only
         cleanA && cleanA.length >= 2 ? cleanA : "",
-        nonDiacriticA && nonDiacriticA !== cleanA && nonDiacriticA.length >= 2 ? nonDiacriticA : "",
+        nonDiacriticA && nonDiacriticA !== cleanA.toLowerCase() && nonDiacriticA.length >= 2 ? nonDiacriticA : "",
         // Raw title as-is
         rawTitle !== cleanT ? rawTitle : "",
       ].filter((q) => q.length >= 2)
     )
   );
 
-  // Run search queries in parallel batches of 3 for speed
+  // Run search queries in parallel batches
   const batchSize = 3;
   for (let i = 0; i < searchQueries.length; i += batchSize) {
     const batch = searchQueries.slice(i, i + batchSize);
@@ -199,13 +216,10 @@ export async function searchOnlineLyricsMultiSource(
 
   // ───────────────────────────────────────────────────────────
   // TIER 3: Lyrics.ovh (Musixmatch / Spotify backend)
-  //   Plain lyrics fallback for songs not on LRCLIB
   // ───────────────────────────────────────────────────────────
   if (cleanA && cleanT) {
-    const ovhPairs: Array<[string, string]> = [
-      [cleanA, cleanT],
-    ];
-    if (nonDiacriticA !== cleanA || nonDiacriticT !== cleanT) {
+    const ovhPairs: Array<[string, string]> = [[cleanA, cleanT]];
+    if (nonDiacriticA !== cleanA.toLowerCase() || nonDiacriticT !== cleanT.toLowerCase()) {
       ovhPairs.push([nonDiacriticA, nonDiacriticT]);
     }
 
@@ -225,19 +239,25 @@ export async function searchOnlineLyricsMultiSource(
           plainLyrics: data.lyrics.trim(),
           source: "Lyrics.ovh (Musixmatch)",
         });
-        break; // Found plain lyrics, no need for more ovh queries
+        break;
       }
     }
   }
 
   // ───────────────────────────────────────────────────────────
-  // SORTING: Synced first, then by relevance (name match score)
+  // SORTING: Community & Synced first, then by relevance score
   // ───────────────────────────────────────────────────────────
   const titleLower = cleanT.toLowerCase();
   const artistLower = cleanA.toLowerCase();
 
   return results.sort((a, b) => {
-    // Synced always first
+    // Community verified always top
+    const aIsComm = a.source.includes("Community");
+    const bIsComm = b.source.includes("Community");
+    if (aIsComm && !bIsComm) return -1;
+    if (!aIsComm && bIsComm) return 1;
+
+    // Synced always before plain
     if (a.isSynced && !b.isSynced) return -1;
     if (!a.isSynced && b.isSynced) return 1;
 
@@ -253,15 +273,12 @@ function getRelevanceScore(item: LyricSearchResult, title: string, artist: strin
   const tn = (item.trackName || "").toLowerCase();
   const an = (item.artistName || "").toLowerCase();
 
-  // Exact title match
   if (tn === title) score += 100;
   else if (tn.includes(title) || title.includes(tn)) score += 50;
 
-  // Exact artist match
   if (an === artist) score += 80;
   else if (an.includes(artist) || artist.includes(an)) score += 40;
 
-  // Non-diacritic fuzzy match
   const tnNorm = removeVietnameseDiacritics(tn).toLowerCase();
   const anNorm = removeVietnameseDiacritics(an).toLowerCase();
   const titleNorm = removeVietnameseDiacritics(title).toLowerCase();
@@ -270,7 +287,7 @@ function getRelevanceScore(item: LyricSearchResult, title: string, artist: strin
   if (tnNorm === titleNorm) score += 30;
   if (anNorm === artistNorm) score += 25;
 
-  // Source priority
+  if (item.source.includes("Community")) score += 50;
   if (item.source.includes("Exact")) score += 20;
 
   return score;
