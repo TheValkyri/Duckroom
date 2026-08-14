@@ -1,4 +1,4 @@
-import { Image, Loader2, Scissors, Sparkles, X } from "lucide-react";
+import { Image, Loader2, Scissors, Sparkles, X, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { ArtworkCropModal } from "./ArtworkCropModal";
@@ -6,8 +6,8 @@ import { albums, saveStoredLibrary, type Track } from "../data/library";
 import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import { createPresignedUrl } from "../lib/s3";
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
-import { beautifyLrcString } from "../lib/lyrics-formatter";
-
+import { beautifyLrcString, parseLrcWithAutoCorrect } from "../lib/lyrics-formatter";
+import { autoTimePacingLyrics } from "../lib/metadata";
 import { useAuth } from "../lib/useAuth";
 
 export function EditTrackModal({
@@ -335,6 +335,20 @@ export function EditTrackModal({
                 )}
                 Tự động tải lời mới
               </button>
+              {lyricsText.trim() && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const paced = autoTimePacingLyrics(lyricsText, track.duration || 180);
+                    if (paced) setLyricsText(beautifyLrcString(paced));
+                  }}
+                  className="text-amber-400 hover:text-amber-300 hover:underline text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
+                  title="Tự động tính toán và chia đều mốc thời gian [mm:ss.xx] theo độ dài bài hát"
+                >
+                  <Zap className="size-3" />
+                  <span>Canh nhịp</span>
+                </button>
+              )}
               {lyricsText.trim() && (
                 <button
                   type="button"

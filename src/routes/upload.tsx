@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, Image, Loader2, Scissors, Sparkles, UploadCloud, Zap } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Image, Loader2, Mic, Scissors, Sparkles, UploadCloud, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { ArtworkCropModal } from "../components/ArtworkCropModal";
+import { LrcLiveSyncModal } from "../components/LrcLiveSyncModal";
 import { type Album } from "../data/library";
 import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import {
@@ -51,6 +52,7 @@ function UploadPage() {
   const [over, setOver] = useState(false);
   const [isFetchingLyrics, setIsFetchingLyrics] = useState(false);
   const [showCropModal, setShowCropModal] = useState(false);
+  const [showLiveSyncModal, setShowLiveSyncModal] = useState(false);
 
   useEffect(() => {
     if (!isAuthLoading && !isLoggedIn) {
@@ -407,7 +409,19 @@ function UploadPage() {
             <label htmlFor="field-lyrics" className="text-muted-foreground text-xs tracking-wider uppercase">
               Lời bài hát (Định dạng LRC [MM:SS])
             </label>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              {lyricsText.trim() && (
+                <button
+                  type="button"
+                  disabled={!selectedFile || isUploading}
+                  onClick={() => setShowLiveSyncModal(true)}
+                  className="text-emerald-400 hover:text-emerald-300 hover:underline flex items-center gap-1 text-xs font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title="Bật nhạc phát và bấm Spacebar để gán mốc thời gian chuẩn xác 100% theo từng câu hát của ca sĩ"
+                >
+                  <Mic className="size-3" />
+                  <span>Chấm nhịp theo giọng hát</span>
+                </button>
+              )}
               {lyricsText.trim() && (
                 <button
                   type="button"
@@ -541,6 +555,20 @@ function UploadPage() {
               updateUploadState({
                 artworkFile: file,
                 artworkPreview: dataUrl,
+              });
+            }}
+          />
+        )}
+        {showLiveSyncModal && (
+          <LrcLiveSyncModal
+            isOpen={showLiveSyncModal}
+            onClose={() => setShowLiveSyncModal(false)}
+            audioFile={selectedFile}
+            initialLyrics={lyricsText}
+            onSave={(syncedLrc) => {
+              updateUploadState({
+                lyricsText: syncedLrc,
+                successMessage: "✨ Đã áp dụng lời bài hát được chấm nhịp khớp 100% với giọng hát nghệ sĩ!",
               });
             }}
           />
