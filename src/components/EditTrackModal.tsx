@@ -244,16 +244,46 @@ export function EditTrackModal({
                 className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
-            <div>
-              <label className="text-muted-foreground text-xs font-medium uppercase tracking-wider block mb-1">
-                Album
-              </label>
+            <div className="col-span-2 sm:col-span-1">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-muted-foreground text-xs font-medium uppercase tracking-wider block">
+                  Album / Đĩa đơn
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setAlbumName("")}
+                  className="text-[11px] text-primary hover:underline cursor-pointer"
+                >
+                  🎵 Đặt làm Đĩa đơn
+                </button>
+              </div>
               <input
                 value={albumName}
                 onChange={(e) => setAlbumName(e.target.value)}
-                placeholder="Nhập tên album hoặc để trống"
+                placeholder="Để trống nếu là Đĩa đơn (Single)"
                 className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
               />
+              {albums.filter((a) => a.id !== "singles" && a.id !== "single-collection").length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {albums
+                    .filter((a) => a.id !== "singles" && a.id !== "single-collection")
+                    .map((a) => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => setAlbumName(a.title)}
+                        className={cn(
+                          "px-2 py-0.5 rounded text-[10px] border transition-colors cursor-pointer",
+                          albumName.toLowerCase() === a.title.toLowerCase()
+                            ? "bg-primary/20 text-primary border-primary/40 font-medium"
+                            : "border-border text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {a.title}
+                      </button>
+                    ))}
+                </div>
+              )}
             </div>
             <div>
               <label className="text-muted-foreground text-xs font-medium uppercase tracking-wider block mb-1">

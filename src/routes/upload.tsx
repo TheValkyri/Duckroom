@@ -238,22 +238,74 @@ function UploadPage() {
           onChange={(v) => updateUploadState({ artist: v })}
           placeholder="Nhập tên nghệ sĩ"
         />
-        <AlbumSelectField
-          albums={albums}
-          value={album}
-          disabled={isUploading}
-          onChange={(v) => updateUploadState({ album: v })}
-          onSelectAlbum={(selectedAlbum) => {
-            const updates: Partial<UploadState> = {};
-            if (selectedAlbum.artist && (!artist || artist === "Nghệ sĩ")) {
-              updates.artist = selectedAlbum.artist;
-            }
-            if (selectedAlbum.year) {
-              updates.year = selectedAlbum.year.toString();
-            }
-            updateUploadState(updates);
-          }}
-        />
+        {!isVideo && (
+          <div className="md:col-span-2 border-b border-border/60 pb-4">
+            <label className="text-muted-foreground text-xs tracking-wider uppercase block mb-2 font-medium">
+              Loại phát hành
+            </label>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                disabled={isUploading}
+                onClick={() => updateUploadState({ album: "" })}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer",
+                  !album.trim() || album.toLowerCase() === "singles" || album.toLowerCase() === "single collection"
+                    ? "border-primary bg-primary/20 text-primary shadow-sm"
+                    : "border-border text-muted-foreground hover:text-foreground hover:bg-accent/40"
+                )}
+              >
+                <span>🎵 Đĩa đơn (Single)</span>
+              </button>
+              <button
+                type="button"
+                disabled={isUploading}
+                onClick={() => {
+                  const defaultAlbum = albums.find(
+                    (a) => a.id !== "singles" && a.id !== "single-collection"
+                  );
+                  updateUploadState({ album: defaultAlbum ? defaultAlbum.title : "Album mới" });
+                }}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer",
+                  album.trim() && album.toLowerCase() !== "singles" && album.toLowerCase() !== "single collection"
+                    ? "border-primary bg-primary/20 text-primary shadow-sm"
+                    : "border-border text-muted-foreground hover:text-foreground hover:bg-accent/40"
+                )}
+              >
+                <span>💿 Thuộc Album</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {(!isVideo && album.trim() && album.toLowerCase() !== "singles" && album.toLowerCase() !== "single collection") ? (
+          <AlbumSelectField
+            albums={albums}
+            value={album}
+            disabled={isUploading}
+            onChange={(v) => updateUploadState({ album: v })}
+            onSelectAlbum={(selectedAlbum) => {
+              const updates: Partial<UploadState> = {};
+              if (selectedAlbum.artist && (!artist || artist === "Nghệ sĩ")) {
+                updates.artist = selectedAlbum.artist;
+              }
+              if (selectedAlbum.year) {
+                updates.year = selectedAlbum.year.toString();
+              }
+              updateUploadState(updates);
+            }}
+          />
+        ) : !isVideo ? (
+          <div className="flex flex-col justify-center bg-card/40 border border-white/5 rounded-xl p-3.5">
+            <span className="text-xs text-primary font-medium flex items-center gap-1.5">
+              <span>🎵 Đĩa đơn độc lập</span>
+            </span>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Bài hát sẽ được đưa vào mục <strong>Đĩa đơn</strong> với ảnh bìa Artwork riêng biệt.
+            </p>
+          </div>
+        ) : null}
         <Field
           id="field-year"
           label="Năm phát hành"

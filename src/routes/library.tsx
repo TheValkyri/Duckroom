@@ -60,18 +60,36 @@ function LibraryPage() {
     void deleteTrack(id);
   };
 
+  const hasSingles = tracks.some((t) => !t.albumId || t.albumId === "singles" || t.albumId === "single-collection");
+  const filteredAlbums = albums.filter((a) => a.id !== "singles" && a.id !== "single-collection");
+
   const list = tracks
-    .filter(
-      (t) =>
-        (filter === "all" || t.albumId === filter) &&
-        (t.title.toLowerCase().includes(q.toLowerCase()) ||
-          t.artist.toLowerCase().includes(q.toLowerCase())),
-    )
+    .filter((t) => {
+      const isSingle = !t.albumId || t.albumId === "singles" || t.albumId === "single-collection";
+      const matchesFilter =
+        filter === "all"
+          ? true
+          : filter === "singles"
+          ? isSingle
+          : t.albumId === filter;
+
+      const matchesSearch =
+        t.title.toLowerCase().includes(q.toLowerCase()) ||
+        t.artist.toLowerCase().includes(q.toLowerCase());
+
+      return matchesFilter && matchesSearch;
+    })
     .sort((a, b) => {
       const timeA = parseInt(a.id.split("-")[0] || "0", 10) || a.trackNo;
       const timeB = parseInt(b.id.split("-")[0] || "0", 10) || b.trackNo;
       return timeA - timeB;
     });
+
+  const filterTabs = [
+    { id: "all", title: "Tất cả" },
+    ...(hasSingles ? [{ id: "singles", title: "🎵 Đĩa đơn" }] : []),
+    ...filteredAlbums,
+  ];
 
   return (
     <motion.div
@@ -122,13 +140,13 @@ function LibraryPage() {
             placeholder="Tìm bài hát, nghệ sĩ…"
             className="border-border bg-card focus:ring-ring w-64 rounded-md border px-3 py-2 text-sm outline-none focus:ring-1"
           />
-          {[{ id: "all", title: "Tất cả" }, ...albums].map((a) => (
+          {filterTabs.map((a) => (
             <button
               key={a.id}
               onClick={() => setFilter(a.id)}
               className={cn(
-                "border-border text-muted-foreground rounded-full border px-3 py-1.5 text-xs transition-colors",
-                filter === a.id && "bg-primary text-primary-foreground border-transparent",
+                "border-border text-muted-foreground rounded-full border px-3 py-1.5 text-xs transition-colors cursor-pointer",
+                filter === a.id && "bg-primary text-primary-foreground border-transparent font-medium",
               )}
             >
               {a.title}

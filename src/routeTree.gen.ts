@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as SinglesRouteImport } from './routes/singles'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as AlbumsIndexRouteImport } from './routes/albums.index'
 import { Route as AlbumsAlbumIdRouteImport } from './routes/albums.$albumId'
@@ -31,6 +32,11 @@ const LibraryRoute = LibraryRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SinglesRoute = SinglesRouteImport.update({
+  id: '/singles',
+  path: '/singles',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UploadRoute = UploadRouteImport.update({
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
+  '/singles': typeof SinglesRoute
   '/upload': typeof UploadRoute
   '/albums/$albumId': typeof AlbumsAlbumIdRoute
   '/videos/$videoId': typeof VideosVideoIdRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
+  '/singles': typeof SinglesRoute
   '/upload': typeof UploadRoute
   '/albums/$albumId': typeof AlbumsAlbumIdRoute
   '/videos/$videoId': typeof VideosVideoIdRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
+  '/singles': typeof SinglesRoute
   '/upload': typeof UploadRoute
   '/albums/$albumId': typeof AlbumsAlbumIdRoute
   '/videos/$videoId': typeof VideosVideoIdRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/library'
     | '/login'
+    | '/singles'
     | '/upload'
     | '/albums/$albumId'
     | '/videos/$videoId'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/library'
     | '/login'
+    | '/singles'
     | '/upload'
     | '/albums/$albumId'
     | '/videos/$videoId'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/'
     | '/library'
     | '/login'
+    | '/singles'
     | '/upload'
     | '/albums/$albumId'
     | '/videos/$videoId'
@@ -127,6 +139,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LibraryRoute: typeof LibraryRoute
   LoginRoute: typeof LoginRoute
+  SinglesRoute: typeof SinglesRoute
   UploadRoute: typeof UploadRoute
   AlbumsAlbumIdRoute: typeof AlbumsAlbumIdRoute
   VideosVideoIdRoute: typeof VideosVideoIdRoute
@@ -155,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/singles': {
+      id: '/singles'
+      path: '/singles'
+      fullPath: '/singles'
+      preLoaderRoute: typeof SinglesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/upload': {
@@ -199,6 +219,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LibraryRoute: LibraryRoute,
   LoginRoute: LoginRoute,
+  SinglesRoute: SinglesRoute,
   UploadRoute: UploadRoute,
   AlbumsAlbumIdRoute: AlbumsAlbumIdRoute,
   VideosVideoIdRoute: VideosVideoIdRoute,

@@ -1,6 +1,7 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import {
   CheckCircle2,
+  Disc,
   Disc3,
   Film,
   Home,
@@ -26,6 +27,7 @@ const nav = [
   { to: "/", label: "Trang chủ", icon: Home },
   { to: "/library", label: "Thư viện", icon: ListMusic },
   { to: "/albums", label: "Albums", icon: Disc3 },
+  { to: "/singles", label: "Đĩa đơn", icon: Disc },
   { to: "/videos", label: "MV", icon: Film },
   { to: "/upload", label: "Tải lên", icon: UploadCloud },
 ] as const;

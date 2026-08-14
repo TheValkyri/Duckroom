@@ -1,18 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Disc3, Music2, Play, Shuffle, UploadCloud } from "lucide-react";
+import { Disc, Disc3, Music2, Play, Shuffle, UploadCloud } from "lucide-react";
 import { motion } from "motion/react";
+import { useState } from "react";
 import { AlbumCard } from "../components/AlbumCard";
 import { TrackRow } from "../components/TrackRow";
 import { Visualizer } from "../components/Visualizer";
-import { useEffect, useState } from "react";
-import { useLibrary } from "../lib/useLibrary";
-import { albumTracks } from "../data/library";
+import { albumTracks, type Track } from "../data/library";
 import { usePlayer } from "../lib/player";
+import { useLibrary } from "../lib/useLibrary";
+import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Duckroom" },
+      { title: "Duckroom — Kho nhạc lossless riêng" },
       {
         name: "description",
         content:
@@ -34,6 +35,86 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void }) {
+  const { current, isPlaying } = usePlayer();
+  const isCurrentTrack = current?.id === track.id;
+  const isThisPlaying = isCurrentTrack && isPlaying;
+  const [hover, setHover] = useState(false);
+
+  return (
+    <motion.div
+      whileHover={{ y: -4 }}
+      transition={{ type: "spring", stiffness: 300, damping: 24 }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      className="group flex flex-col relative"
+    >
+      <div className="relative aspect-square w-full rounded-2xl bg-card/60 p-2.5 border border-white/5 shadow-md group-hover:border-primary/30 group-hover:shadow-xl transition-all duration-300 overflow-hidden">
+        {/* Sliding Vinyl */}
+        <motion.div
+          animate={{
+            x: hover ? 24 : 0,
+            rotate: isThisPlaying ? 360 : hover ? 45 : 0,
+          }}
+          transition={{
+            x: { type: "spring", stiffness: 260, damping: 24 },
+            rotate: isThisPlaying
+              ? { repeat: Infinity, duration: 3.5, ease: "linear" }
+              : { duration: 0.5 },
+          }}
+          className="absolute inset-y-3 right-3 aspect-square rounded-full bg-zinc-950 border border-white/10 shadow-xl pointer-events-none flex items-center justify-center z-0"
+          style={{
+            backgroundImage:
+              "repeating-radial-gradient(circle, #18181b 0, #18181b 2px, #09090b 3px, #09090b 5px)",
+          }}
+        >
+          <div className="size-8 rounded-full border border-white/20 bg-card/90 flex items-center justify-center">
+            <div className="size-2.5 rounded-full bg-zinc-900 border border-white/30" />
+          </div>
+        </motion.div>
+
+        {/* Cover */}
+        <div className="relative z-10 size-full overflow-hidden rounded-xl bg-muted shadow-sm">
+          <img
+            src={track.cover || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"}
+            alt={track.title}
+            loading="lazy"
+            className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+
+          <div className="absolute top-2 left-2 z-20">
+            <span className="bg-black/75 backdrop-blur-md border border-white/15 text-primary text-[9px] font-mono px-1.5 py-0.5 rounded tracking-wider font-semibold shadow-sm">
+              {track.format || "FLAC 24/96"}
+            </span>
+          </div>
+
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20">
+            <button
+              onClick={onPlay}
+              className="size-11 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg transform transition-transform hover:scale-110 active:scale-95 cursor-pointer"
+            >
+              <Play className="size-4 ml-0.5" fill="currentColor" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-2.5 flex flex-col">
+        <h4
+          onClick={onPlay}
+          className={cn(
+            "font-display text-sm font-semibold truncate cursor-pointer transition-colors hover:text-primary",
+            isCurrentTrack ? "text-primary" : "text-foreground"
+          )}
+        >
+          {track.title}
+        </h4>
+        <p className="text-muted-foreground text-xs truncate mt-0.5">{track.artist}</p>
+      </div>
+    </motion.div>
+  );
+}
+
 function Index() {
   const { playQueue, isPlaying } = usePlayer();
   const { tracks, albums, videos } = useLibrary();
@@ -41,6 +122,15 @@ function Index() {
   const hero = albums[0];
   const heroTracks = hero ? albumTracks(hero.id) : [];
   const recent = tracks.slice(0, 5);
+
+  const singles = tracks.filter(
+    (t) =>
+      !t.albumId ||
+      t.albumId === "singles" ||
+      t.albumId === "single-collection" ||
+      t.albumId === "single"
+  );
+  const featuredSingles = singles.slice(0, 5);
 
   if (!hero || albums.length === 0) {
     return (
@@ -82,13 +172,13 @@ function Index() {
               icon: Disc3,
             },
             {
-              title: "MV 4K Bản Gốc",
-              desc: "Xem MV chất lượng gốc ProRes & H.265 với bitrate cao nhất.",
-              icon: Play,
+              title: "Đĩa đơn & Albums",
+              desc: "Phân loại linh hoạt giữa Album đầy đủ và các bản phát hành Đĩa đơn độc lập.",
+              icon: Disc,
             },
             {
               title: "Lời Bài Hát Đồng Bộ",
-              desc: "Tự động cuộn lời bài hát chính xác theo thời gian thực.",
+              desc: "Tự động cuộn lời bài hát chính xác theo thời gian thực chuẩn Apple Music.",
               icon: Music2,
             },
           ].map((item, i) => (
@@ -109,6 +199,7 @@ function Index() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
     >
+      {/* Hero Featured Album */}
       <section className="grain relative overflow-hidden">
         <img
           key={hero.cover}
@@ -127,14 +218,14 @@ function Index() {
             className="aspect-square w-60 rounded-xl object-cover shadow-[0_40px_100px_-30px_oklch(0_0_0/0.9)] md:w-80"
           />
           <div className="flex-1">
-            <p className="text-primary text-xs tracking-[0.35em] uppercase">Mới nhất</p>
-            <h1 className="font-display mt-3 text-6xl leading-[0.95] md:text-7xl">{hero.title}</h1>
-            <p className="text-muted-foreground mt-4 max-w-md text-sm">{hero.note}</p>
+            <p className="text-primary text-xs tracking-[0.35em] uppercase font-semibold">Album Nổi Bật</p>
+            <h1 className="font-display mt-3 text-5xl leading-[0.95] md:text-7xl">{hero.title}</h1>
+            <p className="text-muted-foreground mt-4 max-w-md text-sm">{hero.note || `${hero.artist} · ${hero.year}`}</p>
             <Visualizer playing={isPlaying} bars={36} height={40} className="mt-6 max-w-sm" />
             <div className="mt-6 flex flex-wrap gap-3">
               <button
                 onClick={() => playQueue(heroTracks, 0, false)}
-                className="bg-primary text-primary-foreground flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-transform hover:scale-[1.03] cursor-pointer"
+                className="bg-primary text-primary-foreground flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-transform hover:scale-[1.03] cursor-pointer shadow-md"
               >
                 <Play className="size-4" fill="currentColor" /> Phát album
               </button>
@@ -149,6 +240,7 @@ function Index() {
         </div>
       </section>
 
+      {/* Albums Section */}
       <section className="mx-auto max-w-6xl px-6 py-14">
         <SectionHead title="Albums" to="/albums" />
         <div className="mt-8 grid grid-cols-2 gap-8 md:grid-cols-3">
@@ -158,6 +250,26 @@ function Index() {
         </div>
       </section>
 
+      {/* Singles Section (If available) */}
+      {featuredSingles.length > 0 && (
+        <section className="mx-auto max-w-6xl px-6 pb-14">
+          <SectionHead title="Đĩa đơn & Single" to="/singles" badge={`${singles.length} bài`} />
+          <div className="mt-8 grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {featuredSingles.map((track) => (
+              <SingleMiniCard
+                key={track.id}
+                track={track}
+                onPlay={() => {
+                  const idx = singles.findIndex((t) => t.id === track.id);
+                  playQueue(singles, idx >= 0 ? idx : 0);
+                }}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Recent Tracks Section */}
       <section className="mx-auto max-w-6xl px-6 pb-14">
         <SectionHead title="Nghe gần đây" to="/library" />
         <div className="mt-6">
@@ -167,37 +279,55 @@ function Index() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 pb-24">
-        <SectionHead title="MV" to="/videos" />
-        <div className="mt-8 grid gap-8 md:grid-cols-2">
-          {videos.map((v) => (
-            <Link key={v.id} to="/videos/$videoId" params={{ videoId: v.id }} className="group">
-              <img
-                src={v.thumb}
-                alt={`Ảnh nền MV ${v.title}`}
-                loading="lazy"
-                width={800}
-                height={456}
-                className="aspect-video w-full rounded-lg object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-              />
-              <h3 className="font-display mt-3 text-xl">{v.title}</h3>
-              <p className="text-muted-foreground text-xs">
-                {v.resolution} · {v.codec}
-              </p>
-            </Link>
-          ))}
-        </div>
-      </section>
+      {/* Videos Section */}
+      {videos.length > 0 && (
+        <section className="mx-auto max-w-6xl px-6 pb-24">
+          <SectionHead title="MV Bản Gốc" to="/videos" />
+          <div className="mt-8 grid gap-8 md:grid-cols-2">
+            {videos.map((v) => (
+              <Link key={v.id} to="/videos/$videoId" params={{ videoId: v.id }} className="group">
+                <img
+                  src={v.thumb}
+                  alt={`Ảnh nền MV ${v.title}`}
+                  loading="lazy"
+                  width={800}
+                  height={456}
+                  className="aspect-video w-full rounded-xl object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                />
+                <h3 className="font-display mt-3 text-xl">{v.title}</h3>
+                <p className="text-muted-foreground text-xs">
+                  {v.resolution} · {v.codec}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </motion.div>
   );
 }
 
-function SectionHead({ title, to }: { title: string; to: "/albums" | "/library" | "/videos" }) {
+function SectionHead({
+  title,
+  to,
+  badge,
+}: {
+  title: string;
+  to: "/albums" | "/library" | "/videos" | "/singles";
+  badge?: string;
+}) {
   return (
     <div className="border-border flex items-baseline justify-between border-b pb-3">
-      <h2 className="font-display text-3xl">{title}</h2>
-      <Link to={to} className="text-muted-foreground hover:text-primary text-xs">
-        Xem tất cả
+      <div className="flex items-center gap-3">
+        <h2 className="font-display text-3xl font-bold">{title}</h2>
+        {badge && (
+          <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+            {badge}
+          </span>
+        )}
+      </div>
+      <Link to={to} className="text-muted-foreground hover:text-primary text-xs font-medium transition-colors">
+        Xem tất cả →
       </Link>
     </div>
   );
