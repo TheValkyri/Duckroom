@@ -16,6 +16,80 @@ export interface PresetLyric {
 
 export const COMMUNITY_LYRICS: PresetLyric[] = [
   {
+    title: "BOUNCE",
+    artist: "Hazel",
+    album: "BẢY",
+    duration: 229,
+    isSynced: true,
+    source: "Duckroom Community (YouTube / Genius Verified)",
+    syncedLyrics: `[00:00.00] Then again, hell, as you call it
+[00:03.50] Has always been the true heart of human religion
+[00:07.50] You can curb the worst of your thoughts only through collected fear and hatred of another world
+[00:13.50] My world
+[00:16.00] Bounce, we go
+[00:18.20] Địa ngục huyên náo điên đảo vẫn gọi tên tao, hư vô
+[00:22.50] Lộn ngược một vòng tam giới từ thấp lên cao như nhau
+[00:26.80] Tự hỏi những lời khuyên bảo ở trong chiêm bao, đi đâu?
+[00:31.20] Bầu trời sao, mưa ngâu
+[00:33.50] I said, "bounce", we go
+[00:35.80] Her head went straight back down to suck around, the souls
+[00:40.20] Để năng lượng này tỏa ra họ cảm nhận tao, khi đau (Ah)
+[00:44.50] Liệu em còn ở cạnh bên, but I said, "nah she won't, nah she won't"
+[00:48.50] Pick a mic, a side
+[00:51.00] Chọn ai vai đau mỏi (Ai?)
+[00:53.50] Để xem giữa bầu trời đêm ai dành lời khen cho ngôi sao chổi
+[00:58.00] Ngước mắt nhìn lên thật cao thấy những giọt lệ không thể lau nổi
+[01:02.50] Đồng hồ thì không biết nói nhưng thời gian sẽ trả lời câu hỏi (Hỏi)
+[01:07.00] Ghi và chép giá trị cũ đổi giá trị mới ngày hôm qua
+[01:11.20] Suy và xét theo hành trình khám phá dị giới và tâm ma (Ah)
+[01:15.50] Giây phút bạc nhược trước khung thành thì sút toàn trượt và văng xa
+[01:19.80] Đến lúc làm được có lẽ là phúc lạc dược được thông qua (Qua)
+[01:24.00] Nếu muốn viết sạch chắc ngòi bút phải thay bằng huyết mạch
+[01:27.50] Đỏ trên nền trắng giống như hoa phượng nở trên tuyết lạnh
+[01:30.50] Trong lòng bão tố nhưng mà phần tâm can là thiết thạch (Yeah)
+[01:32.00] Muốn tìm hạt vàng lòng phải không bi quan
+[01:34.50] Phần tâm đã tĩnh ở trong nguy nan
+[01:37.00] Tận hưởng cơn giông đi ngang (Ngang)
+[01:39.50] Bao nhiêu nghi can lại chỉ mong phi tang
+[01:42.00] Cái ngày mà tao nằm xuống chúng mày sẽ thấy cửu long di quan
+[01:45.00] Bounce, we go
+[01:47.20] Địa ngục huyên náo điên đảo vẫn gọi tên tao, hư vô
+[01:51.50] Lộn ngược một vòng tam giới từ thấp lên cao như nhau
+[01:55.80] Tự hỏi những lời khuyên bảo ở trong chiêm bao (What?), đi đâu? (Where?)
+[02:00.20] Bầu trời sao, mưa ngâu
+[02:02.50] I said, "bounce", we go
+[02:04.80] Her head went straight back down to suck around, the souls
+[02:09.20] Để năng lượng này tỏa ra họ cảm nhận tao, khi đau
+[02:13.50] Liệu em còn ở cạnh bên, but I said, "nah she won't, nah she won't"
+[02:17.50] Nói tao nghe mày thấy gì bên ngoài xa xăm
+[02:20.50] Đôi mắt mày đang nhầm lẫn làm gì có vị thiên sứ nào da ngăm
+[02:24.50] Chỉ có kẻ trong cơn điên mới chọn vong xuyên làm nơi thả hoa đăng
+[02:29.00] Còn những con chiên lạc lối lại về ở dưới đôi cánh của Satan
+[02:33.50] Họ bảo là, biến kẻ thù thành bạn?
+[02:35.50] Nah, tao biến kẻ thù thành đoạn
+[02:37.50] Chấp nhận nếu phần người lành lặn thì cũng phải khiến phần hồn thành loạn
+[02:42.00] Tất cả những kẻ nào mạnh dạn sẽ được đưa tiễn về miền cực lạc
+[02:46.50] Đem mọi thứ đặt về cực hạn, bàn tay chạm đến cả vạn mảnh đạn
+[02:50.50] Get 'em
+[02:52.00] Nói tao nghe mày là phe quỷ hay phe thần (Yeah)
+[02:55.00] I'm the he before the hell and heaven (Yeah)
+[02:58.00] Vậy độc nhất sẽ là toxic hay venom (Yeah)
+[03:00.80] Lemme talk to Satan
+[03:02.80] Hai năm mươi, ba năm mươi rồi bốn năm mươi
+[03:05.50] Nhìn những con số tăng lên lòng tham vô đáy chúng muốn nhân đôi (Uh-huh)
+[03:09.80] Ở giữa cái chốn ăn chơi có mấy thằng khốn đang muốn ăn tươi
+[03:13.80] Chén thánh đã uống xong xuôi chỉ còn long đen đổ xuống chân thôi
+[03:18.00] Đừng nói ân huệ, nếu như chưa từng có đủ công lao
+[03:21.80] Những sự thật mày phơi ra tao coi như món hàng thủ công cao
+[03:25.50] Nếu nhận quân tử hơn tao thì phải đảm bảo quân tử hơn tao
+[03:29.50] Nếu đã cầm ỷ thiên kiếm thì chỉ tuyên chiến với chủ long đao
+[03:33.50] Bounce, we go
+[03:35.50] Địa ngục huyên náo điên đảo vẫn gọi tên tao, hư vô
+[03:39.50] Lộn ngược một vòng tam giới từ thấp lên cao như nhau
+[03:43.50] Tự hỏi những lời khuyên bảo ở trong chiêm bao, đi đâu?
+[03:46.00] I said, "bounce", we go!`,
+  },
+  {
     title: "nước",
     artist: "Obito",
     album: "Single",

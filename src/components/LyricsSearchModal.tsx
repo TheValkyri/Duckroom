@@ -9,6 +9,7 @@ import {
   Mic,
   Music,
   PlusCircle,
+  Rewind,
   Search,
   Sparkles,
   Wand2,
@@ -16,7 +17,7 @@ import {
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { beautifyLrcString } from "../lib/lyrics-formatter";
+import { beautifyLrcString, shiftLrcTime } from "../lib/lyrics-formatter";
 import {
   searchOnlineLyricsMultiSource,
   type LyricSearchResult,
@@ -408,6 +409,39 @@ export function LyricsSearchModal({
                         </button>
                       </div>
 
+                      {/* Time-shift bar for synced results */}
+                      {selectedResult.syncedLyrics && (
+                        <div className="px-4 py-1.5 bg-black/40 border-b border-border flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
+                          <span className="text-muted-foreground text-[10px] uppercase font-mono tracking-wider flex items-center gap-1">
+                            <Rewind className="size-3" /> Lệch nhịp? Dịch chuyển thời gian:
+                          </span>
+                          <div className="flex items-center gap-1">
+                            {[
+                              { label: "-2s", val: -2 },
+                              { label: "-1s", val: -1 },
+                              { label: "-0.5s", val: -0.5 },
+                              { label: "+0.5s", val: 0.5 },
+                              { label: "+1s", val: 1 },
+                              { label: "+2s", val: 2 },
+                            ].map((btn) => (
+                              <button
+                                key={btn.label}
+                                type="button"
+                                onClick={() => {
+                                  if (selectedResult.syncedLyrics) {
+                                    const shifted = shiftLrcTime(selectedResult.syncedLyrics, btn.val);
+                                    setSelectedResult({ ...selectedResult, syncedLyrics: shifted });
+                                  }
+                                }}
+                                className="bg-card hover:bg-primary/20 hover:text-primary border border-border px-1.5 py-0.5 rounded text-[10px] font-mono transition-colors cursor-pointer"
+                              >
+                                {btn.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <div
                         className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 font-mono text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap select-text bg-black/20"
                         style={{ scrollbarGutter: "stable" }}
@@ -500,11 +534,43 @@ export function LyricsSearchModal({
                   </button>
                 </div>
 
+                {/* Quick time shifter in paste tab */}
+                {(pastedPacedLrc || pastedText.includes("[")) && (
+                  <div className="px-3 py-1.5 bg-black/40 border border-white/10 rounded-lg flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
+                    <span className="text-muted-foreground text-[10px] uppercase font-mono tracking-wider flex items-center gap-1">
+                      <Rewind className="size-3" /> Dịch chuyển:
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {[
+                        { label: "-2s", val: -2 },
+                        { label: "-1s", val: -1 },
+                        { label: "-0.5s", val: -0.5 },
+                        { label: "+0.5s", val: 0.5 },
+                        { label: "+1s", val: 1 },
+                        { label: "+2s", val: 2 },
+                      ].map((btn) => (
+                        <button
+                          key={btn.label}
+                          type="button"
+                          onClick={() => {
+                            const current = pastedPacedLrc || autoTimePacingLyrics(pastedText, audioDuration, true);
+                            const shifted = shiftLrcTime(current, btn.val);
+                            setPastedPacedLrc(shifted);
+                          }}
+                          className="bg-card hover:bg-primary/20 hover:text-primary border border-border px-1.5 py-0.5 rounded text-[10px] font-mono transition-colors cursor-pointer"
+                        >
+                          {btn.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div
                   className="flex-1 min-h-[220px] p-3.5 bg-card/60 border border-border rounded-xl font-mono text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap select-text overflow-y-auto"
                   style={{ scrollbarGutter: "stable" }}
                 >
-                  {pastedPacedLrc || (pastedText.trim() ? autoTimePacingLyrics(pastedText, audioDuration) : "Lời bài hát sau khi canh nhịp sẽ hiển thị tại đây với mốc thời gian [mm:ss.ms] chuẩn xác.")}
+                  {pastedPacedLrc || (pastedText.trim() ? autoTimePacingLyrics(pastedText, audioDuration, true) : "Lời bài hát sau khi canh nhịp sẽ hiển thị tại đây với mốc thời gian [mm:ss.ms] chuẩn xác.")}
                 </div>
               </div>
             </div>

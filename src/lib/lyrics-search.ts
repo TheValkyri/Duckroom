@@ -25,9 +25,10 @@ export function cleanSongQuery(str: string): string {
   if (!str) return "";
   return str
     .replace(/\.[^/.]+$/, "") // bỏ đuôi file .flac, .mp3, .webm
+    .replace(/^(?:[IVXLCDM]+\.|\d+\.|\d+\s*[-–—]|track\s*\d+[:\-.]?)\s*/i, "") // Bỏ số thứ tự La Mã I. II. III. hoặc 01. Track 1
     .replace(/\(.*?\)/g, " ") // bỏ ngoặc đơn (feat. ABC), (Audio Gốc), (Official MV)
     .replace(/\[.*?\]/g, " ") // bỏ ngoặc vuông [Audio Gốc], [MV]
-    .replace(/\b(prod\.?|feat\.?|ft\.?|official|music video|audio gốc|audio|lyric video|remix|version)\b/gi, " ")
+    .replace(/\b(prod\.?|feat\.?|ft\.?|official|music video|audio gốc|audio|lyric video|remix|version|vnm)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -97,6 +98,7 @@ export async function searchOnlineLyricsMultiSource(
   const nonDiacriticA = removeVietnameseDiacritics(cleanA).toLowerCase();
   const fullSearchQuery = `${cleanA} ${cleanT}`.trim().toLowerCase();
   const fullNormQuery = `${nonDiacriticA} ${nonDiacriticT}`.trim();
+  const searchTokens = Array.from(new Set(`${nonDiacriticA} ${nonDiacriticT}`.split(/\s+/).filter((w) => w.length >= 2)));
 
   // ───────────────────────────────────────────────────────────
   // TIER 0: Duckroom Community & Vietnamese Curated Vault
@@ -107,7 +109,13 @@ export async function searchOnlineLyricsMultiSource(
     const pFullNorm = `${pArtistNorm} ${pTitleNorm}`;
     const pRevNorm = `${pTitleNorm} ${pArtistNorm}`;
 
+    // Token-based matching: if all search tokens are found in the preset title + artist
+    const allTokensMatch =
+      searchTokens.length > 0 &&
+      searchTokens.every((token) => pTitleNorm.includes(token) || pArtistNorm.includes(token));
+
     const isMatch =
+      allTokensMatch ||
       pTitleNorm === nonDiacriticT ||
       pFullNorm === fullNormQuery ||
       pRevNorm === fullNormQuery ||
