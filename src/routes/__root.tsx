@@ -102,13 +102,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
-  shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
 });
 
-function RootShell({ children }: { children: ReactNode }) {
+import { loadStoredLibrary, syncLibraryWithS3 } from "../data/library";
+
+function RootDocument({ children }: { children: ReactNode }) {
   return (
     <html lang="vi" suppressHydrationWarning>
       <head>
@@ -122,8 +123,6 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
-import { loadStoredLibrary, syncLibraryWithS3 } from "../data/library";
-
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
@@ -133,13 +132,15 @@ function RootComponent() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <PlayerProvider>
-        <AppShell>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-        </AppShell>
-      </PlayerProvider>
-    </QueryClientProvider>
+    <RootDocument>
+      <QueryClientProvider client={queryClient}>
+        <PlayerProvider>
+          <AppShell>
+            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+            <Outlet />
+          </AppShell>
+        </PlayerProvider>
+      </QueryClientProvider>
+    </RootDocument>
   );
 }
