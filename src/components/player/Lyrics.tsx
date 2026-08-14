@@ -34,7 +34,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
     }
   }, [current?.id]);
 
-  // Smoothly scroll active lyrics to center of view with fluid animation
+  // Smoothly scroll active lyrics into center of view without jitter
   useEffect(() => {
     if (isUserScrollingRef.current) return;
     const container = containerRef.current;
@@ -85,7 +85,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
         ref={containerRef}
         onWheel={handleUserScroll}
         onTouchMove={handleUserScroll}
-        className="flex h-full flex-col gap-6 md:gap-8 overflow-y-auto pt-16 pb-48 px-4 md:px-8 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className="flex h-full flex-col gap-6 md:gap-7 overflow-y-auto pt-16 pb-48 px-4 md:px-8 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
         {lines.map((line, i) => {
           const isActive = i === activeIndex;
@@ -102,20 +102,20 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
                 seek(line.time);
               }}
               className={cn(
-                "text-left font-sans tracking-tight leading-snug md:leading-normal transition-all duration-500 ease-out transform-gpu cursor-pointer group block w-full outline-none",
-                // Balanced and pretty text wrapping to eliminate orphan words / awkward line breaks
+                // Identical font-bold geometry across ALL states to permanently prevent layout reflow/expansion
+                "text-left font-sans font-bold tracking-tight leading-snug md:leading-normal transition-all duration-300 transform-gpu cursor-pointer group block w-full outline-none",
                 "[text-wrap:balance] [text-wrap:pretty] break-words [word-break:keep-all]",
                 compact
                   ? "text-base md:text-lg"
                   : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
                 isActive
-                  ? "text-white font-bold opacity-100 scale-[1.02] origin-left translate-x-2 drop-shadow-[0_0_24px_rgba(255,255,255,0.45)] blur-0"
+                  ? "text-white opacity-100 drop-shadow-[0_0_24px_rgba(255,255,255,0.45)] blur-0"
                   : isPassed
-                  ? "text-white/45 font-medium opacity-50 scale-100 blur-[0.2px] hover:opacity-90 hover:text-white/90 hover:blur-0"
-                  : "text-white/30 font-medium opacity-35 scale-[0.98] blur-[0.4px] hover:opacity-85 hover:text-white/85 hover:blur-0",
+                  ? "text-white/45 opacity-45 blur-[0.25px] hover:opacity-85 hover:text-white/85 hover:blur-0"
+                  : "text-white/25 opacity-25 blur-[0.45px] hover:opacity-80 hover:text-white/80 hover:blur-0",
               )}
             >
-              <span className="inline-block transition-colors duration-300">
+              <span className="inline-block transition-colors duration-200">
                 {line.text}
               </span>
             </button>

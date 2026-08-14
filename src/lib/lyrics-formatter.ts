@@ -5,10 +5,10 @@ import type { LyricLine } from "../data/library";
  * Maps misspelled words to correct Vietnamese standard orthography.
  */
 const SPELLING_CORRECTIONS: [RegExp, string][] = [
-  // User reported specific typos & common Vietnamese lyrics misspellings
-  [/\bxám\s+hối\b/gi, "sám hối"],
-  [/\bXám\s+hối\b/g, "Sám hối"],
-  [/\bXÁM\s+HỐI\b/g, "SÁM HỐI"],
+  // User requested exact wording: "xám hối"
+  [/\bsám\s+hối\b/gi, "xám hối"],
+  [/\bSám\s+hối\b/g, "Xám hối"],
+  [/\bSÁM\s+HỐI\b/g, "XÁM HỐI"],
   [/\bbạc\s+mạng\b/gi, "bạt mạng"],
   [/\bsáng\s+lạng\b/gi, "xán lạn"],
   [/\bchuẩn\s+đoán\b/gi, "chẩn đoán"],
