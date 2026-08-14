@@ -11,6 +11,7 @@ import {
 import { tracks as allTracks, type Track } from "../data/library";
 import { createPresignedUrl } from "./s3";
 import { extractS3KeyFromUrl } from "./s3-key";
+import { useLibrary } from "./useLibrary";
 
 export type RepeatMode = "off" | "all" | "one";
 
@@ -24,7 +25,7 @@ type PlayerState = {
   isMuted: boolean;
   shuffle: boolean;
   repeat: RepeatMode;
-  crossfade: number; // seconds, default 10
+  crossfade: number; // seconds (e.g. 10, 12, 5, 3, 0)
   expanded: boolean;
   lyricsOpen: boolean;
   queueOpen: boolean;
@@ -65,8 +66,10 @@ function shuffled<T>(arr: T[], keepFirst?: T): T[] {
 }
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const [baseQueue, setBaseQueue] = useState<Track[]>(allTracks);
-  const [queue, setQueue] = useState<Track[]>(allTracks);
+  const { tracks: libraryTracks } = useLibrary();
+
+  const [baseQueue, setBaseQueue] = useState<Track[]>(() => (libraryTracks.length > 0 ? libraryTracks : allTracks));
+  const [queue, setQueue] = useState<Track[]>(() => (libraryTracks.length > 0 ? libraryTracks : allTracks));
   const [index, setIndex] = useState(0);
   const [isPlaying, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
@@ -75,28 +78,48 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [prevVolume, setPrevVolume] = useState(0.8);
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<RepeatMode>("off");
-  const [crossfade, setCrossfadeState] = useState<number>(10); // Default 10s crossfade!
+  const [crossfade, setCrossfadeState] = useState<number>(10); // Default studio 10s crossfade
   const [expanded, setExpanded] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
 
-  // Active channel selector for dual-buffer gapless crossfade ('A' or 'B')
+  // Sync library updates when user uploads or edits songs
+  useEffect(() => {
+    if (libraryTracks && libraryTracks.length > 0) {
+      setBaseQueue((prev) => {
+        if (prev.length === libraryTracks.length) return prev;
+        return libraryTracks;
+      });
+      setQueue((prev) => {
+        if (prev.length === libraryTracks.length) return prev;
+        return shuffle ? prev : libraryTracks;
+      });
+    }
+  }, [libraryTracks, shuffle]);
+
+  // Dual-buffer gapless crossfade channels ('A' and 'B')
   const [activeChannel, setActiveChannel] = useState<"A" | "B">("A");
 
   const current = queue[index];
-  const nextTrack = queue[(index + 1) % queue.length];
+  const nextTrack = queue.length > 1 ? queue[(index + 1) % queue.length] : undefined;
 
   const audioRefA = useRef<HTMLAudioElement | null>(null);
   const audioRefB = useRef<HTMLAudioElement | null>(null);
+
+  // Tracks which track ID is loaded in Channel A and Channel B
+  const channelTrackIdA = useRef<string | null>(null);
+  const channelTrackIdB = useRef<string | null>(null);
+
+  const isHandingOverRef = useRef<boolean>(false);
 
   const primaryAudioRef = activeChannel === "A" ? audioRefA : audioRefB;
   const secondaryAudioRef = activeChannel === "A" ? audioRefB : audioRefA;
 
   const effectiveVolume = isMuted ? 0 : volume;
 
-  // Sync volume to active primary audio element
+  // Sync volume to primary audio element
   useEffect(() => {
-    if (primaryAudioRef.current) {
+    if (primaryAudioRef.current && !isHandingOverRef.current) {
       primaryAudioRef.current.volume = effectiveVolume;
     }
   }, [effectiveVolume, primaryAudioRef]);
@@ -134,17 +157,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setIndex(useShuffle ? 0 : startIndex);
       setTime(0);
 
-      // Reset secondary audio
+      // Reset secondary channel
       if (secondaryAudioRef.current) {
         secondaryAudioRef.current.pause();
         secondaryAudioRef.current.src = "";
       }
+      if (activeChannel === "A") {
+        channelTrackIdB.current = null;
+      } else {
+        channelTrackIdA.current = null;
+      }
 
-      if (primaryAudioRef.current) primaryAudioRef.current.currentTime = 0;
+      if (primaryAudioRef.current) {
+        primaryAudioRef.current.currentTime = 0;
+      }
       setPlaying(true);
       if (shuffleNow !== undefined) setShuffle(shuffleNow);
     },
-    [shuffle, primaryAudioRef, secondaryAudioRef],
+    [shuffle, activeChannel, primaryAudioRef, secondaryAudioRef],
   );
 
   const next = useCallback(
@@ -154,7 +184,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         secondaryAudioRef.current.pause();
         secondaryAudioRef.current.src = "";
       }
-      if (primaryAudioRef.current) primaryAudioRef.current.currentTime = 0;
+      if (activeChannel === "A") {
+        channelTrackIdB.current = null;
+      } else {
+        channelTrackIdA.current = null;
+      }
+
+      if (primaryAudioRef.current) {
+        primaryAudioRef.current.currentTime = 0;
+      }
 
       setIndex((i) => {
         if (repeat === "one" && !manual) {
@@ -169,7 +207,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return i;
       });
     },
-    [queue.length, repeat, current?.src, primaryAudioRef, secondaryAudioRef],
+    [queue.length, repeat, current?.src, activeChannel, primaryAudioRef, secondaryAudioRef],
   );
 
   const prev = useCallback(() => {
@@ -178,12 +216,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       secondaryAudioRef.current.pause();
       secondaryAudioRef.current.src = "";
     }
-    if (primaryAudioRef.current) primaryAudioRef.current.currentTime = 0;
+    if (activeChannel === "A") {
+      channelTrackIdB.current = null;
+    } else {
+      channelTrackIdA.current = null;
+    }
+
+    if (primaryAudioRef.current) {
+      primaryAudioRef.current.currentTime = 0;
+    }
     if (time > 4) {
       return;
     }
     setIndex((i) => (i - 1 + queue.length) % queue.length);
-  }, [queue.length, time, primaryAudioRef, secondaryAudioRef]);
+  }, [queue.length, time, activeChannel, primaryAudioRef, secondaryAudioRef]);
 
   const toggleShuffle = useCallback(() => {
     setShuffle((s) => {
@@ -224,18 +270,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const secLoadedTrackIdRef = useRef<string | null>(null);
-
-  // Pre-load next track into secondary audio buffer in advance for 100% gapless crossfade
+  // Preload next track into secondary channel for 100% gapless DJ crossfade
   useEffect(() => {
     const secEl = secondaryAudioRef.current;
     if (!secEl || !nextTrack || queue.length <= 1 || crossfade <= 0 || repeat === "one") return;
 
-    if (secLoadedTrackIdRef.current === nextTrack.id) return;
+    const currentSecTrackId = activeChannel === "A" ? channelTrackIdB.current : channelTrackIdA.current;
+    if (currentSecTrackId === nextTrack.id && secEl.src) return;
 
     let isCancelled = false;
     async function prepareSecondaryAudio() {
-      let targetSrc = nextTrack.src || `/api/stream/track/${nextTrack.id}`;
+      let targetSrc = nextTrack!.src || `/api/stream/track/${nextTrack!.id}`;
       const s3Key = extractS3KeyFromUrl(targetSrc);
       if (s3Key && !targetSrc.includes("X-Amz-Signature")) {
         try {
@@ -250,8 +295,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       if (isCancelled || !secEl) return;
       secEl.src = targetSrc;
+      secEl.volume = 0;
+      secEl.preload = "auto";
       secEl.load();
-      secLoadedTrackIdRef.current = nextTrack.id;
+
+      if (activeChannel === "A") {
+        channelTrackIdB.current = nextTrack!.id;
+      } else {
+        channelTrackIdA.current = nextTrack!.id;
+      }
     }
 
     void prepareSecondaryAudio();
@@ -259,17 +311,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => {
       isCancelled = true;
     };
-  }, [nextTrack?.id, crossfade, queue.length, repeat, secondaryAudioRef]);
+  }, [nextTrack?.id, crossfade, queue.length, repeat, activeChannel, secondaryAudioRef]);
 
-  // Unified Primary Audio Source & Play/Pause Controller (Imperative management, zero JSX attribute mutation)
+  // Primary Audio Controller (Gapless Handover Protection)
   useEffect(() => {
     const el = primaryAudioRef.current;
     if (!el || !current || !current.src) return;
 
+    const currentPrimaryTrackId = activeChannel === "A" ? channelTrackIdA.current : channelTrackIdB.current;
+
+    // GAPLESS HANDOVER: If element is ALREADY playing this track (via crossfade handover), NEVER reload or reset!
+    if (currentPrimaryTrackId === current.id && el.src) {
+      if (isPlaying && el.paused) {
+        void el.play().catch(() => {});
+      } else if (!isPlaying && !el.paused) {
+        el.pause();
+      }
+      return;
+    }
+
     let isCancelled = false;
 
     async function syncAudioSource() {
-      let targetSrc = current.src;
+      let targetSrc = current!.src;
       const s3Key = extractS3KeyFromUrl(targetSrc);
 
       if (s3Key && !targetSrc.includes("X-Amz-Signature")) {
@@ -286,22 +350,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       if (isCancelled || !el) return;
 
-      // CRITICAL GAPLESS FIX: If element is ALREADY playing this track (via crossfade handover), NEVER reload or reset!
-      if (el.src && (el.src === targetSrc || el.src.includes(current.id))) {
-        if (isPlaying && el.paused) {
-          try {
-            await el.play();
-          } catch (err) {
-            console.warn("Audio play warning:", err);
-          }
-        } else if (!isPlaying && !el.paused) {
-          el.pause();
-        }
-        return;
+      el.src = targetSrc;
+      el.preload = "auto";
+      el.load();
+
+      if (activeChannel === "A") {
+        channelTrackIdA.current = current!.id;
+      } else {
+        channelTrackIdB.current = current!.id;
       }
 
-      el.src = targetSrc;
-      el.load();
+      el.volume = effectiveVolume;
 
       if (isPlaying) {
         try {
@@ -319,9 +378,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => {
       isCancelled = true;
     };
-  }, [current?.id, isPlaying, primaryAudioRef]);
+  }, [current?.id, isPlaying, activeChannel, primaryAudioRef, effectiveVolume]);
 
-  // High-performance Dual-Channel Crossfade & Metadata Listener
+  // High-performance DJ Studio Equal-Power Crossfade Listener
   useEffect(() => {
     const el = primaryAudioRef.current;
     const secEl = secondaryAudioRef.current;
@@ -350,39 +409,74 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const remaining = dur - currentTime;
       const windowSec = Math.min(crossfade, Math.floor(dur / 3));
 
-      // Automated Crossfade Engine (Disabled when Repeat 1 Song is active)
-      if (crossfade > 0 && windowSec > 0 && remaining <= windowSec && nextTrack && queue.length > 1 && repeat !== "one") {
-        const primaryVol = Math.max(0, Math.min(effectiveVolume, effectiveVolume * (remaining / windowSec)));
-        const secVol = Math.max(0, Math.min(effectiveVolume, effectiveVolume * (1 - remaining / windowSec)));
+      // Studio Equal-Power Crossfade Curve: cos(t)^2 + sin(t)^2 = 1 (constant acoustic energy)
+      if (
+        crossfade > 0 &&
+        windowSec > 0 &&
+        remaining <= windowSec &&
+        nextTrack &&
+        queue.length > 1 &&
+        repeat !== "one"
+      ) {
+        const progress = Math.max(0, Math.min(1, (windowSec - remaining) / windowSec));
+        const gainPrimary = Math.cos(progress * 0.5 * Math.PI);
+        const gainSecondary = Math.sin(progress * 0.5 * Math.PI);
 
-        el.volume = primaryVol;
+        el.volume = Math.max(0, Math.min(1, effectiveVolume * gainPrimary));
 
-        if (secEl) {
-          secEl.volume = secVol;
+        if (secEl && secEl.src) {
+          secEl.volume = Math.max(0, Math.min(1, effectiveVolume * gainSecondary));
           if (secEl.paused && isPlaying) {
-            void secEl.play().catch((err) => {
-              console.warn("Secondary audio play error:", err);
-            });
+            void secEl.play().catch(() => {});
           }
         }
+
+        // Automatic Smooth Handover right before track ends (0.15s)
+        if (remaining <= 0.15 && !isHandingOverRef.current) {
+          isHandingOverRef.current = true;
+          if (secEl && !secEl.paused) {
+            secEl.volume = effectiveVolume;
+            setActiveChannel((ch) => (ch === "A" ? "B" : "A"));
+            setIndex((i) => (i + 1) % queue.length);
+            el.pause();
+            el.currentTime = 0;
+            if (activeChannel === "A") {
+              channelTrackIdA.current = null;
+            } else {
+              channelTrackIdB.current = null;
+            }
+          }
+          setTimeout(() => {
+            isHandingOverRef.current = false;
+          }, 300);
+        }
       } else {
-        el.volume = effectiveVolume;
-        if (secEl && !secEl.paused) {
-          secEl.pause();
-          secEl.currentTime = 0;
+        if (!isHandingOverRef.current) {
+          el.volume = effectiveVolume;
+          if (secEl && !secEl.paused && remaining > windowSec) {
+            secEl.pause();
+            secEl.currentTime = 0;
+            secEl.volume = 0;
+          }
         }
       }
     };
 
     const onEnded = () => {
+      if (isHandingOverRef.current) return;
+
       if (secEl && !secEl.paused && nextTrack && queue.length > 1 && repeat !== "one") {
-        // Dual-Buffer Swap: secondary channel is ALREADY playing nextTrack seamlessly at second 10!
         secEl.volume = effectiveVolume;
-        secLoadedTrackIdRef.current = null;
         setActiveChannel((ch) => (ch === "A" ? "B" : "A"));
         setIndex((i) => (i + 1) % queue.length);
+        el.pause();
+        el.currentTime = 0;
+        if (activeChannel === "A") {
+          channelTrackIdA.current = null;
+        } else {
+          channelTrackIdB.current = null;
+        }
       } else {
-        secLoadedTrackIdRef.current = null;
         next();
       }
     };
@@ -400,7 +494,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       el.removeEventListener("timeupdate", onTime);
       el.removeEventListener("ended", onEnded);
     };
-  }, [current, nextTrack, crossfade, effectiveVolume, isPlaying, next, queue.length, repeat, primaryAudioRef, secondaryAudioRef]);
+  }, [
+    current,
+    nextTrack,
+    crossfade,
+    effectiveVolume,
+    isPlaying,
+    next,
+    queue.length,
+    repeat,
+    activeChannel,
+    primaryAudioRef,
+    secondaryAudioRef,
+  ]);
 
   const seek = useCallback(
     (t: number) => {
@@ -409,9 +515,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         primaryAudioRef.current.currentTime = t;
         primaryAudioRef.current.volume = effectiveVolume;
       }
-      // Instantly kill secondary crossfade audio when seeking!
+      // Instantly silence and pause secondary crossfade buffer upon manual seek
       if (secondaryAudioRef.current) {
         secondaryAudioRef.current.pause();
+        secondaryAudioRef.current.currentTime = 0;
         secondaryAudioRef.current.volume = 0;
       }
     },
@@ -473,9 +580,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setLyricsOpen,
       setQueueOpen,
       jumpTo: (i: number) => {
-        setIndex(i);
         setTime(0);
-        if (primaryAudioRef.current) primaryAudioRef.current.currentTime = 0;
+        if (secondaryAudioRef.current) {
+          secondaryAudioRef.current.pause();
+          secondaryAudioRef.current.src = "";
+        }
+        if (primaryAudioRef.current) {
+          primaryAudioRef.current.currentTime = 0;
+        }
+        setIndex(i);
         setPlaying(true);
       },
       moveInQueue,
@@ -495,6 +608,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       lyricsOpen,
       queueOpen,
       primaryAudioRef,
+      secondaryAudioRef,
       playQueue,
       toggle,
       pause,
@@ -512,7 +626,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={value}>
       {children}
-      {/* Pure imperative audio elements (No JSX src attribute mutation to avoid reloading on channel swap) */}
+      {/* Pure imperative dual audio elements for zero-latency seamless crossfade */}
       <audio ref={audioRefA} crossOrigin="anonymous" preload="auto" />
       <audio ref={audioRefB} crossOrigin="anonymous" preload="auto" />
     </Ctx.Provider>

@@ -97,15 +97,28 @@ export function PlayerBar() {
             </div>
             <button
               aria-label="Hòa âm Crossfade"
-              title={`Hòa âm chuyển bài: ${crossfade > 0 ? `${crossfade} giây (Tự động mix)` : "Tắt"}`}
-              onClick={() => setCrossfade(crossfade > 0 ? (crossfade === 10 ? 5 : crossfade === 5 ? 0 : 10) : 10)}
+              title={`Hòa trộn bài (Crossfade): ${
+                crossfade > 0
+                  ? `${crossfade} giây (Studio Equal-Power Mix)`
+                  : "Đang tắt (Nhấn để bật 10s)"
+              }`}
+              onClick={() => {
+                const presets = [10, 12, 5, 3, 0];
+                const curIdx = presets.indexOf(crossfade);
+                const nextVal = presets[(curIdx + 1) % presets.length];
+                setCrossfade(nextVal);
+              }}
               className={cn(
-                "text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border border-transparent cursor-pointer",
-                crossfade > 0 && "text-primary border-primary/30 bg-primary/10",
+                "text-muted-foreground hover:text-foreground transition-all flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border border-white/10 cursor-pointer shadow-sm active:scale-95",
+                crossfade > 0
+                  ? "text-amber-400 border-amber-500/40 bg-amber-500/10 shadow-[0_0_12px_rgba(245,158,11,0.15)]"
+                  : "hover:bg-accent/50",
               )}
             >
-              <Sparkles className="size-3.5" />
-              <span className="hidden sm:inline">{crossfade > 0 ? `${crossfade}s` : "Mix Off"}</span>
+              <Sparkles className={cn("size-3.5", crossfade > 0 && "text-amber-400 animate-pulse")} />
+              <span className="hidden sm:inline font-mono">
+                {crossfade > 0 ? `${crossfade}s` : "Mix Off"}
+              </span>
             </button>
             <button
               aria-label="Lời bài hát"
