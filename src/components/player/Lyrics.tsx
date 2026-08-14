@@ -103,16 +103,16 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
               }}
               className={cn(
                 // Identical font-bold geometry across ALL states to permanently prevent layout reflow/expansion
-                "text-left font-sans font-bold tracking-tight leading-snug md:leading-normal transition-all duration-300 transform-gpu cursor-pointer group block w-full outline-none",
+                "text-left font-sans font-bold tracking-tight leading-snug md:leading-normal transition-all duration-300 transform-gpu cursor-pointer group block w-full outline-none antialiased subpixel-antialiased",
                 "[text-wrap:balance] [text-wrap:pretty] break-words [word-break:keep-all]",
                 compact
                   ? "text-base md:text-lg"
                   : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
                 isActive
-                  ? "text-white opacity-100 drop-shadow-[0_0_24px_rgba(255,255,255,0.45)] blur-0"
+                  ? "text-white opacity-100"
                   : isPassed
-                  ? "text-white/45 opacity-45 blur-[0.25px] hover:opacity-85 hover:text-white/85 hover:blur-0"
-                  : "text-white/25 opacity-25 blur-[0.45px] hover:opacity-80 hover:text-white/80 hover:blur-0",
+                  ? "text-white/45 opacity-45 hover:text-white/85 hover:opacity-85"
+                  : "text-white/20 opacity-25 hover:text-white/80 hover:opacity-80",
               )}
             >
               <span className="inline-block transition-colors duration-200">
