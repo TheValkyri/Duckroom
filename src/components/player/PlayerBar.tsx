@@ -19,6 +19,7 @@ export function PlayerBar() {
     toggleMute,
     crossfade,
     setCrossfade,
+    expanded,
     setExpanded,
     lyricsOpen,
     setLyricsOpen,
