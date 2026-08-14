@@ -1,11 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, Image, Loader2, Scissors, Sparkles, UploadCloud } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Image, Loader2, Scissors, Sparkles, UploadCloud, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { ArtworkCropModal } from "../components/ArtworkCropModal";
 import { type Album } from "../data/library";
 import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
-import { extractAudioMetadata, extractVideoThumbnail } from "../lib/metadata";
+import {
+  autoTimePacingLyrics,
+  extractAudioMetadata,
+  extractVideoThumbnail,
+  getAudioFileDuration,
+} from "../lib/metadata";
 import {
   executeGlobalUpload,
   getUploadState,
@@ -398,62 +403,87 @@ function UploadPage() {
         </div>
 
         <div className="md:col-span-2 border-t border-border/60 pt-4">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
             <label htmlFor="field-lyrics" className="text-muted-foreground text-xs tracking-wider uppercase">
               Lời bài hát (Định dạng LRC [MM:SS])
             </label>
-            <button
-              type="button"
-              disabled={isFetchingLyrics || isUploading}
-              onClick={async () => {
-                const query = `${artist} ${title}`.trim() || title.trim();
-                if (!query) {
-                  updateUploadState({ errorMessage: "Vui lòng nhập Tên bài hát và Nghệ sĩ trước." });
-                  return;
-                }
-                setIsFetchingLyrics(true);
-                updateUploadState({ errorMessage: "", successMessage: "" });
-                try {
-                  const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`);
-                  const data = await res.json();
-                  if (Array.isArray(data) && data.length > 0) {
-                    const match = data.find((d: any) => d.syncedLyrics) || data[0];
-                    if (match?.syncedLyrics) {
+            <div className="flex items-center gap-3">
+              {lyricsText.trim() && (
+                <button
+                  type="button"
+                  disabled={isUploading}
+                  onClick={async () => {
+                    const duration = selectedFile ? await getAudioFileDuration(selectedFile) : 180;
+                    const paced = autoTimePacingLyrics(lyricsText, duration);
+                    if (paced) {
                       updateUploadState({
-                        lyricsText: beautifyLrcString(match.syncedLyrics),
-                        successMessage: `✨ Đã tự động tìm và chuẩn hóa chính tả lời bài hát cho "${match.trackName || title}"!`,
+                        lyricsText: beautifyLrcString(paced),
+                        successMessage: `⚡ Đã tự động canh nhịp mượt mà theo thời lượng bài hát (${Math.floor(duration / 60)}:${Math.floor(duration % 60).toString().padStart(2, "0")})!`,
                       });
-                    } else if (match?.plainLyrics) {
-                      updateUploadState({
-                        lyricsText: beautifyLrcString(match.plainLyrics),
-                        successMessage: `✨ Đã tìm và chuẩn hóa chính tả lời bài hát cho "${match.trackName || title}"!`,
-                      });
-                    } else {
-                      updateUploadState({ errorMessage: "Không tìm thấy lời bài hát. Bạn có thể tự nhập bên dưới." });
                     }
-                  } else {
-                    updateUploadState({ errorMessage: "Không tìm thấy lời bài hát trên thư viện." });
-                  }
-                } catch {
-                  updateUploadState({ errorMessage: "Lỗi khi kết nối thư viện lời bài hát." });
-                } finally {
-                  setIsFetchingLyrics(false);
-                }
-              }}
-              className="text-primary hover:underline flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50 cursor-pointer"
-            >
-              {isFetchingLyrics ? (
-                <>
-                  <Loader2 className="size-3 animate-spin" />
-                  <span>Đang tìm lời...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="size-3" />
-                  <span>Tự động tìm & điền Lời bài hát (.LRC)</span>
-                </>
+                  }}
+                  className="text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1 text-xs font-semibold cursor-pointer transition-colors"
+                  title="Tự động tính toán và chia đều mốc thời gian [mm:ss.xx] theo độ dài bài hát"
+                >
+                  <Zap className="size-3" />
+                  <span>Canh nhịp tự động</span>
+                </button>
               )}
-            </button>
+              <button
+                type="button"
+                disabled={isFetchingLyrics || isUploading}
+                onClick={async () => {
+                  const query = `${artist} ${title}`.trim() || title.trim();
+                  if (!query) {
+                    updateUploadState({ errorMessage: "Vui lòng nhập Tên bài hát và Nghệ sĩ trước." });
+                    return;
+                  }
+                  setIsFetchingLyrics(true);
+                  updateUploadState({ errorMessage: "", successMessage: "" });
+                  try {
+                    const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`);
+                    const data = await res.json();
+                    if (Array.isArray(data) && data.length > 0) {
+                      const match = data.find((d: any) => d.syncedLyrics) || data[0];
+                      const duration = selectedFile ? await getAudioFileDuration(selectedFile) : (match?.duration || 180);
+                      if (match?.syncedLyrics) {
+                        updateUploadState({
+                          lyricsText: beautifyLrcString(match.syncedLyrics),
+                          successMessage: `✨ Đã tự động tìm và chuẩn hóa lời bài hát có sẵn timing cho "${match.trackName || title}"!`,
+                        });
+                      } else if (match?.plainLyrics) {
+                        const paced = autoTimePacingLyrics(match.plainLyrics, duration);
+                        updateUploadState({
+                          lyricsText: beautifyLrcString(paced),
+                          successMessage: `✨ Đã tìm và tự động canh nhịp thời lượng cho "${match.trackName || title}"!`,
+                        });
+                      } else {
+                        updateUploadState({ errorMessage: "Không tìm thấy lời bài hát. Bạn có thể tự nhập bên dưới." });
+                      }
+                    } else {
+                      updateUploadState({ errorMessage: "Không tìm thấy lời bài hát trên thư viện." });
+                    }
+                  } catch {
+                    updateUploadState({ errorMessage: "Lỗi khi kết nối thư viện lời bài hát." });
+                  } finally {
+                    setIsFetchingLyrics(false);
+                  }
+                }}
+                className="text-primary hover:underline flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50 cursor-pointer"
+              >
+                {isFetchingLyrics ? (
+                  <>
+                    <Loader2 className="size-3 animate-spin" />
+                    <span>Đang tìm lời...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="size-3" />
+                    <span>Tìm lời Online</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
           <textarea
             id="field-lyrics"

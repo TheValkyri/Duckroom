@@ -11,22 +11,100 @@ export interface ExtractedAudioMetadata {
   year: string | null;
 }
 
-export function formatRawLyricsToLrc(raw: string): string {
+export function getAudioFileDuration(file: File): Promise<number> {
+  return new Promise((resolve) => {
+    try {
+      const url = URL.createObjectURL(file);
+      const audio = new Audio();
+      audio.preload = "metadata";
+      audio.src = url;
+      audio.onloadedmetadata = () => {
+        const d = audio.duration;
+        URL.revokeObjectURL(url);
+        resolve(Number.isFinite(d) && d > 10 ? d : 180);
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(180);
+      };
+    } catch {
+      resolve(180);
+    }
+  });
+}
+
+export function autoTimePacingLyrics(raw: string, durationSeconds: number = 180): string {
   if (!raw || !raw.trim()) return "";
   const trimmed = raw.trim();
 
-  // If already contains LRC timestamps [mm:ss] or [mm:ss.xx], return as is
-  if (/\[\d{2}:\d{2}/.test(trimmed)) {
-    return trimmed;
+  // If already contains varied LRC timestamps [mm:ss] or [mm:ss.xx], keep it
+  const matches = trimmed.match(/\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\]/g);
+  if (matches && matches.length >= 3) {
+    const nonZero = matches.some((m) => !m.startsWith("[00:00"));
+    if (nonZero) return trimmed;
   }
 
-  // Otherwise, convert plain text lines into clean LRC format
-  const lines = trimmed
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0 && !l.startsWith("[Chorus") && !l.startsWith("[Verse") && !l.startsWith("[Refrain") && !l.startsWith("[Bridge") && !l.startsWith("[Outro") && !l.startsWith("[Intro"));
+  // Extract text lines without empty timestamps or section headers
+  const rawLines = trimmed.split(/\r?\n/);
+  const cleanLines: string[] = [];
 
-  return lines.map((line) => `[00:00.00] ${line}`).join("\n");
+  for (const l of rawLines) {
+    const withoutTs = l.replace(/^\[\d{2}:\d{2}(?:\.\d{2,3})?\]\s*/, "").trim();
+    if (!withoutTs) continue;
+    if (
+      withoutTs.startsWith("[Chorus") ||
+      withoutTs.startsWith("[Verse") ||
+      withoutTs.startsWith("[Refrain") ||
+      withoutTs.startsWith("[Bridge") ||
+      withoutTs.startsWith("[Outro")
+    ) {
+      continue;
+    }
+    cleanLines.push(withoutTs);
+  }
+
+  if (cleanLines.length === 0) return "";
+
+  // Dynamic pacing based on audio duration
+  const totalDuration = Math.max(durationSeconds, 60);
+  const introTime = Math.min(Math.max(totalDuration * 0.065, 7.5), 15.0); // 7.5s to 15s intro
+  const outroTime = Math.min(Math.max(totalDuration * 0.05, 5.0), 12.0); // 5s to 12s outro
+  const singingDuration = Math.max(totalDuration - introTime - outroTime, 30.0);
+
+  // Weight each line by syllable / word length
+  const weights = cleanLines.map((line) => {
+    const words = line.split(/\s+/).filter(Boolean).length;
+    return Math.max(words * 1.5 + line.length * 0.1, 4.0);
+  });
+
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0) || 1;
+
+  let currentSec = introTime;
+  const result: string[] = [];
+
+  for (let i = 0; i < cleanLines.length; i++) {
+    const line = cleanLines[i]!;
+    const mm = Math.floor(currentSec / 60)
+      .toString()
+      .padStart(2, "0");
+    const ss = Math.floor(currentSec % 60)
+      .toString()
+      .padStart(2, "0");
+    const ms = Math.floor((currentSec % 1) * 100)
+      .toString()
+      .padStart(2, "0");
+
+    result.push(`[${mm}:${ss}.${ms}] ${line}`);
+
+    const lineDuration = (weights[i]! / totalWeight) * singingDuration;
+    currentSec += lineDuration;
+  }
+
+  return result.join("\n");
+}
+
+export function formatRawLyricsToLrc(raw: string, durationSeconds: number = 180): string {
+  return autoTimePacingLyrics(raw, durationSeconds);
 }
 
 function decodeId3Text(view: DataView, offset: number, frameSize: number): string {
@@ -43,7 +121,10 @@ function decodeId3Text(view: DataView, offset: number, frameSize: number): strin
   }
 }
 
-export async function extractAudioMetadata(file: File): Promise<ExtractedAudioMetadata> {
+export async function extractAudioMetadata(
+  file: File,
+  durationSeconds?: number
+): Promise<ExtractedAudioMetadata> {
   const result: ExtractedAudioMetadata = {
     cover: null,
     lyrics: null,
@@ -54,6 +135,7 @@ export async function extractAudioMetadata(file: File): Promise<ExtractedAudioMe
   };
 
   try {
+    const duration = durationSeconds ?? (await getAudioFileDuration(file));
     // Read first 20MB to cover high-res embedded artworks and metadata blocks
     const buffer = await file.slice(0, 20 * 1024 * 1024).arrayBuffer();
     const view = new DataView(buffer);
@@ -126,7 +208,7 @@ export async function extractAudioMetadata(file: File): Promise<ExtractedAudioMe
                       val.length > 5 &&
                       !result.lyrics
                     ) {
-                      result.lyrics = formatRawLyricsToLrc(val);
+                      result.lyrics = formatRawLyricsToLrc(val, duration);
                     }
                   }
                 }
@@ -247,7 +329,7 @@ export async function extractAudioMetadata(file: File): Promise<ExtractedAudioMe
                   ? new TextDecoder("utf-16")
                   : new TextDecoder("utf-8");
               const rawText = decoder.decode(textBytes).replace(/\0+$/, "").trim();
-              if (rawText) result.lyrics = formatRawLyricsToLrc(rawText);
+              if (rawText) result.lyrics = formatRawLyricsToLrc(rawText, duration);
             }
           } catch (e) {
             console.warn("USLT error:", e);
