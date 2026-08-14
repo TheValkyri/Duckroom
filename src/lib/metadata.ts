@@ -33,15 +33,21 @@ export function getAudioFileDuration(file: File): Promise<number> {
   });
 }
 
-export function autoTimePacingLyrics(raw: string, durationSeconds: number = 180): string {
+export function autoTimePacingLyrics(
+  raw: string,
+  durationSeconds: number = 180,
+  forceRepace: boolean = false
+): string {
   if (!raw || !raw.trim()) return "";
   const trimmed = raw.trim();
 
-  // If already contains varied LRC timestamps [mm:ss] or [mm:ss.xx], keep it
-  const matches = trimmed.match(/\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\]/g);
-  if (matches && matches.length >= 3) {
-    const nonZero = matches.some((m) => !m.startsWith("[00:00"));
-    if (nonZero) return trimmed;
+  // If already contains varied LRC timestamps [mm:ss] or [mm:ss.xx], keep it UNLESS forceRepace is requested
+  if (!forceRepace) {
+    const matches = trimmed.match(/\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\]/g);
+    if (matches && matches.length >= 3) {
+      const nonZero = matches.some((m) => !m.startsWith("[00:00"));
+      if (nonZero) return trimmed;
+    }
   }
 
   // Extract text lines without empty timestamps or section headers
@@ -56,7 +62,8 @@ export function autoTimePacingLyrics(raw: string, durationSeconds: number = 180)
       withoutTs.startsWith("[Verse") ||
       withoutTs.startsWith("[Refrain") ||
       withoutTs.startsWith("[Bridge") ||
-      withoutTs.startsWith("[Outro")
+      withoutTs.startsWith("[Outro") ||
+      withoutTs.startsWith("[Intro")
     ) {
       continue;
     }
@@ -67,14 +74,14 @@ export function autoTimePacingLyrics(raw: string, durationSeconds: number = 180)
 
   // Dynamic pacing based on audio duration
   const totalDuration = Math.max(durationSeconds, 60);
-  const introTime = Math.min(Math.max(totalDuration * 0.065, 7.5), 15.0); // 7.5s to 15s intro
-  const outroTime = Math.min(Math.max(totalDuration * 0.05, 5.0), 12.0); // 5s to 12s outro
+  const introTime = Math.min(Math.max(totalDuration * 0.08, 9.0), 16.0); // 9s to 16s intro
+  const outroTime = Math.min(Math.max(totalDuration * 0.06, 6.0), 14.0); // 6s to 14s outro
   const singingDuration = Math.max(totalDuration - introTime - outroTime, 30.0);
 
   // Weight each line by syllable / word length
   const weights = cleanLines.map((line) => {
     const words = line.split(/\s+/).filter(Boolean).length;
-    return Math.max(words * 1.5 + line.length * 0.1, 4.0);
+    return Math.max(words * 1.6 + line.length * 0.12, 4.5);
   });
 
   const totalWeight = weights.reduce((sum, w) => sum + w, 0) || 1;
@@ -103,8 +110,12 @@ export function autoTimePacingLyrics(raw: string, durationSeconds: number = 180)
   return result.join("\n");
 }
 
-export function formatRawLyricsToLrc(raw: string, durationSeconds: number = 180): string {
-  return autoTimePacingLyrics(raw, durationSeconds);
+export function formatRawLyricsToLrc(
+  raw: string,
+  durationSeconds: number = 180,
+  forceRepace: boolean = false
+): string {
+  return autoTimePacingLyrics(raw, durationSeconds, forceRepace);
 }
 
 function decodeId3Text(view: DataView, offset: number, frameSize: number): string {

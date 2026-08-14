@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, Image, Loader2, Mic, Scissors, Sparkles, UploadCloud, Zap } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Image, Loader2, Mic, Rewind, Scissors, Sparkles, UploadCloud, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { ArtworkCropModal } from "../components/ArtworkCropModal";
@@ -20,7 +20,7 @@ import {
   updateUploadState,
   type UploadState,
 } from "../lib/upload-store";
-import { beautifyLrcString } from "../lib/lyrics-formatter";
+import { beautifyLrcString, shiftLrcTime } from "../lib/lyrics-formatter";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/upload")({
@@ -425,25 +425,41 @@ function UploadPage() {
                 </button>
               )}
               {lyricsText.trim() && (
-                <button
-                  type="button"
-                  disabled={isUploading}
-                  onClick={async () => {
-                    const duration = selectedFile ? await getAudioFileDuration(selectedFile) : 180;
-                    const paced = autoTimePacingLyrics(lyricsText, duration);
-                    if (paced) {
+                <>
+                  <button
+                    type="button"
+                    disabled={isUploading}
+                    onClick={async () => {
+                      const duration = selectedFile ? await getAudioFileDuration(selectedFile) : 180;
+                      const paced = autoTimePacingLyrics(lyricsText, duration, true);
+                      if (paced) {
+                        updateUploadState({
+                          lyricsText: beautifyLrcString(paced),
+                          successMessage: `⚡ Đã tự động canh nhịp mượt mà theo thời lượng bài hát (${Math.floor(duration / 60)}:${Math.floor(duration % 60).toString().padStart(2, "0")})!`,
+                        });
+                      }
+                    }}
+                    className="text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1 text-xs font-semibold cursor-pointer transition-colors"
+                    title="Tự động tính toán và chia đều mốc thời gian [mm:ss.xx] theo độ dài bài hát"
+                  >
+                    <Zap className="size-3" />
+                    <span>Canh nhịp</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isUploading}
+                    onClick={() => {
                       updateUploadState({
-                        lyricsText: beautifyLrcString(paced),
-                        successMessage: `⚡ Đã tự động canh nhịp mượt mà theo thời lượng bài hát (${Math.floor(duration / 60)}:${Math.floor(duration % 60).toString().padStart(2, "0")})!`,
+                        lyricsText: beautifyLrcString(lyricsText),
+                        successMessage: "✨ Đã chuẩn hoá chính tả & định dạng lời bài hát!",
                       });
-                    }
-                  }}
-                  className="text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1 text-xs font-semibold cursor-pointer transition-colors"
-                  title="Tự động tính toán và chia đều mốc thời gian [mm:ss.xx] theo độ dài bài hát"
-                >
-                  <Zap className="size-3" />
-                  <span>Canh nhịp tự động</span>
-                </button>
+                    }}
+                    className="text-muted-foreground hover:text-foreground underline flex items-center gap-1 text-xs cursor-pointer transition-colors"
+                    title="Sửa lỗi chính tả tiếng Việt & định dạng chuẩn"
+                  >
+                    Sửa chính tả
+                  </button>
+                </>
               )}
               <button
                 type="button"
@@ -457,6 +473,42 @@ function UploadPage() {
               </button>
             </div>
           </div>
+
+          {/* Quick Time Shift Micro-Adjuster in Upload */}
+          {lyricsText.trim() && lyricsText.includes("[") && (
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5 bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px]">
+              <span className="text-muted-foreground text-[10px] uppercase font-mono tracking-wider flex items-center gap-1">
+                <Rewind className="size-3" /> Dịch chuyển thời gian LRC:
+              </span>
+              <div className="flex items-center gap-1">
+                {[
+                  { label: "-2s", val: -2 },
+                  { label: "-1s", val: -1 },
+                  { label: "-0.5s", val: -0.5 },
+                  { label: "+0.5s", val: 0.5 },
+                  { label: "+1s", val: 1 },
+                  { label: "+2s", val: 2 },
+                ].map((btn) => (
+                  <button
+                    key={btn.label}
+                    type="button"
+                    disabled={isUploading}
+                    onClick={() => {
+                      const shifted = shiftLrcTime(lyricsText, btn.val);
+                      updateUploadState({
+                        lyricsText: shifted,
+                        successMessage: `⏩ Đã dịch chuyển toàn bộ mốc thời gian ${btn.label}!`,
+                      });
+                    }}
+                    className="bg-card hover:bg-primary/20 hover:text-primary border border-border px-1.5 py-0.5 rounded text-[10px] font-mono transition-colors cursor-pointer"
+                  >
+                    {btn.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <textarea
             id="field-lyrics"
             rows={5}

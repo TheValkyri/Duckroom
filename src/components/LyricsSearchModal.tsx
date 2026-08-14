@@ -112,7 +112,7 @@ export function LyricsSearchModal({
     if (item.syncedLyrics) {
       finalLrc = beautifyLrcString(item.syncedLyrics);
     } else if (item.plainLyrics) {
-      finalLrc = beautifyLrcString(autoTimePacingLyrics(item.plainLyrics, audioDuration));
+      finalLrc = beautifyLrcString(autoTimePacingLyrics(item.plainLyrics, audioDuration, true));
     }
 
     if (finalLrc) {
@@ -126,13 +126,13 @@ export function LyricsSearchModal({
 
   const handleAutoPacePasted = () => {
     if (!pastedText.trim()) return;
-    const paced = autoTimePacingLyrics(pastedText, audioDuration);
+    const paced = autoTimePacingLyrics(pastedText, audioDuration, true);
     const beautified = beautifyLrcString(paced);
     setPastedPacedLrc(beautified);
   };
 
   const handleApplyPasted = () => {
-    const finalContent = pastedPacedLrc || autoTimePacingLyrics(pastedText, audioDuration);
+    const finalContent = pastedPacedLrc || autoTimePacingLyrics(pastedText, audioDuration, true);
     if (finalContent.trim()) {
       onSelectLyrics(beautifyLrcString(finalContent), {
         title: initialTitle,

@@ -120,6 +120,43 @@ export function parseLrcWithAutoCorrect(lrcText: string): LyricLine[] {
 }
 
 /**
+ * Shifts all LRC timestamps in a text by `offsetSec` seconds (+/-).
+ * Ensures timestamps never go below 00:00.00.
+ */
+export function shiftLrcTime(lrcText: string, offsetSec: number): string {
+  if (!lrcText || typeof lrcText !== "string" || offsetSec === 0) return lrcText;
+  const lines = lrcText.split(/\r?\n/);
+  const regex = /^\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\](.*)$/;
+
+  const shifted = lines.map((line) => {
+    const trimmed = line.trim();
+    const match = regex.exec(trimmed);
+    if (!match) return line;
+
+    const min = parseInt(match[1]!, 10);
+    const sec = parseInt(match[2]!, 10);
+    const msStr = match[3] || "00";
+    const ms = parseFloat(`0.${msStr}`);
+    const originalTime = min * 60 + sec + ms;
+
+    const newTime = Math.max(0, originalTime + offsetSec);
+    const newMin = Math.floor(newTime / 60)
+      .toString()
+      .padStart(2, "0");
+    const newSec = Math.floor(newTime % 60)
+      .toString()
+      .padStart(2, "0");
+    const newMs = Math.floor((newTime % 1) * 100)
+      .toString()
+      .padStart(2, "0");
+
+    return `[${newMin}:${newSec}.${newMs}]${match[4]}`;
+  });
+
+  return shifted.join("\n");
+}
+
+/**
  * Beautifies entire LRC content string for display in edit textareas.
  */
 export function beautifyLrcString(lrcText: string): string {
@@ -139,3 +176,4 @@ export function beautifyLrcString(lrcText: string): string {
 
   return beautified.join("\n");
 }
+

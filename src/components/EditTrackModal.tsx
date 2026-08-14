@@ -1,4 +1,4 @@
-import { Image, Loader2, Scissors, Sparkles, X, Zap } from "lucide-react";
+import { Image, Loader2, Scissors, Sparkles, Wand2, X, Zap, FastForward, Rewind } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { ArtworkCropModal } from "./ArtworkCropModal";
@@ -7,7 +7,7 @@ import { albums, saveStoredLibrary, type Track } from "../data/library";
 import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import { createPresignedUrl } from "../lib/s3";
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
-import { beautifyLrcString, parseLrcWithAutoCorrect } from "../lib/lyrics-formatter";
+import { beautifyLrcString, parseLrcWithAutoCorrect, shiftLrcTime } from "../lib/lyrics-formatter";
 import { autoTimePacingLyrics } from "../lib/metadata";
 import { useAuth } from "../lib/useAuth";
 import { cn } from "../lib/utils";
@@ -37,6 +37,7 @@ export function EditTrackModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isFetchingLyrics, setIsFetchingLyrics] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [noticeMsg, setNoticeMsg] = useState("");
 
   // Close modal if user is confirmed not logged in (deferred to avoid setState-during-render)
   useEffect(() => {
@@ -314,41 +315,91 @@ export function EditTrackModal({
               <label className="text-muted-foreground text-xs font-medium uppercase tracking-wider block">
                 Lời bài hát (.LRC)
               </label>
-              <button
-                type="button"
-                disabled={isSaving}
-                onClick={() => setShowLyricsSearchModal(true)}
-                className="text-primary hover:underline text-xs flex items-center gap-1 font-semibold cursor-pointer"
-                title="Mở kho tìm kiếm lời bài hát & file LRC đồng bộ đa nguồn"
-              >
-                <Sparkles className="size-3" />
-                <span>Tìm lời Online (Kho LRC)</span>
-              </button>
-              {lyricsText.trim() && (
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    const paced = autoTimePacingLyrics(lyricsText, track.duration || 180);
-                    if (paced) setLyricsText(beautifyLrcString(paced));
-                  }}
-                  className="text-amber-400 hover:text-amber-300 hover:underline text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
-                  title="Tự động tính toán và chia đều mốc thời gian [mm:ss.xx] theo độ dài bài hát"
+                  disabled={isSaving}
+                  onClick={() => setShowLyricsSearchModal(true)}
+                  className="text-primary hover:underline text-xs flex items-center gap-1 font-semibold cursor-pointer"
+                  title="Mở kho tìm kiếm lời bài hát & file LRC đồng bộ đa nguồn"
                 >
-                  <Zap className="size-3" />
-                  <span>Canh nhịp</span>
+                  <Sparkles className="size-3" />
+                  <span>Tìm lời Online (Kho LRC)</span>
                 </button>
-              )}
-              {lyricsText.trim() && (
-                <button
-                  type="button"
-                  onClick={() => setLyricsText(beautifyLrcString(lyricsText))}
-                  className="text-muted-foreground hover:text-foreground text-[11px] underline cursor-pointer"
-                  title="Sửa lỗi chính tả & định dạng lại lời bài hát"
-                >
-                  Sửa chính tả
-                </button>
-              )}
+                {lyricsText.trim() && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const paced = autoTimePacingLyrics(lyricsText, track.duration || 180, true);
+                        if (paced) {
+                          setLyricsText(beautifyLrcString(paced));
+                          setNoticeMsg("⚡ Đã tự động chia đều mốc thời gian [mm:ss.xx] theo độ dài bài hát!");
+                          setTimeout(() => setNoticeMsg(""), 3500);
+                        }
+                      }}
+                      className="text-amber-400 hover:text-amber-300 hover:underline text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
+                      title="Tự động tính toán và chia đều mốc thời gian [mm:ss.xx] theo độ dài bài hát"
+                    >
+                      <Zap className="size-3" />
+                      <span>Canh nhịp</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLyricsText(beautifyLrcString(lyricsText));
+                        setNoticeMsg("✨ Đã chuẩn hoá chính tả tiếng Việt & định dạng!");
+                        setTimeout(() => setNoticeMsg(""), 3500);
+                      }}
+                      className="text-muted-foreground hover:text-foreground text-[11px] underline cursor-pointer"
+                      title="Sửa lỗi chính tả & định dạng lại lời bài hát"
+                    >
+                      Sửa chính tả
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
+
+            {/* Quick Time Shift Micro-Adjuster */}
+            {lyricsText.trim() && lyricsText.includes("[") && (
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5 bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px]">
+                <span className="text-muted-foreground text-[10px] uppercase font-mono tracking-wider flex items-center gap-1">
+                  <Rewind className="size-3" /> Lệch nhịp? Dịch chuyển thời gian:
+                </span>
+                <div className="flex items-center gap-1">
+                  {[
+                    { label: "-2s", val: -2 },
+                    { label: "-1s", val: -1 },
+                    { label: "-0.5s", val: -0.5 },
+                    { label: "+0.5s", val: 0.5 },
+                    { label: "+1s", val: 1 },
+                    { label: "+2s", val: 2 },
+                  ].map((btn) => (
+                    <button
+                      key={btn.label}
+                      type="button"
+                      onClick={() => {
+                        const shifted = shiftLrcTime(lyricsText, btn.val);
+                        setLyricsText(shifted);
+                        setNoticeMsg(`⏩ Đã dịch chuyển toàn bộ lời ${btn.label} so với bản nhạc!`);
+                        setTimeout(() => setNoticeMsg(""), 3000);
+                      }}
+                      className="bg-card hover:bg-primary/20 hover:text-primary border border-border px-1.5 py-0.5 rounded text-[10px] font-mono transition-colors cursor-pointer"
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {noticeMsg && (
+              <div className="mb-2 text-xs text-primary font-medium bg-primary/10 border border-primary/20 rounded-md px-2.5 py-1 animate-fadeIn">
+                {noticeMsg}
+              </div>
+            )}
+
             <textarea
               rows={5}
               value={lyricsText}
