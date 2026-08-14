@@ -6,8 +6,10 @@ export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -33,9 +35,9 @@ export function useAuth() {
 
   return {
     session,
-    user,
-    isLoggedIn: !!session?.user,
-    isLoading,
+    user: isMounted ? user : null,
+    isLoggedIn: isMounted && !!session?.user,
+    isLoading: !isMounted || isLoading,
     accessToken: session?.access_token ?? null,
     signOut,
   };
