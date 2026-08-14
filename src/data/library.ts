@@ -67,7 +67,7 @@ export function subscribeLibrary(callback: () => void): () => void {
   return () => librarySubscribers.delete(callback);
 }
 
-function notifyLibrarySubscribers() {
+export function notifyLibrarySubscribers() {
   librarySubscribers.forEach((cb) => {
     try {
       cb();
