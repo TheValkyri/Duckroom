@@ -112,12 +112,15 @@
   }
 
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
   }
   ::-webkit-scrollbar-thumb {
-    background: oklch(0.99 0 0 / 12%);
+    background: oklch(0.99 0 0 / 18%);
     border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.99 0 0 / 30%);
   }
   ::-webkit-scrollbar-track {
     background: transparent;
