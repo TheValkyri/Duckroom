@@ -95,6 +95,7 @@ function AlbumCard({ album, onDelete, onPlay }: { album: Album; onDelete: () => 
 }
 
 function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { isLoggedIn } = useAuth();
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [year, setYear] = useState(new Date().getFullYear().toString());
@@ -118,6 +119,11 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
     e.preventDefault();
     if (!title.trim() || isUploading) return;
 
+    if (artworkFile && !isLoggedIn) {
+      setErrorMsg("Bạn cần đăng nhập tài khoản thành viên để tải ảnh lên Pikamc S3.");
+      return;
+    }
+
     setIsUploading(true);
     setErrorMsg("");
 
@@ -132,15 +138,24 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
         const artKey = `artworks/album-${Date.now()}-${cleanName}.${artExt}`;
         const artContentType = artworkFile.type || "image/jpeg";
 
-        const { uploadUrl } = await requestPresignedUploadUrlServer({
+        const res = await requestPresignedUploadUrlServer({
           data: { key: artKey, contentType: artContentType },
         });
 
-        await fetch(uploadUrl, {
+        const uploadUrl = res?.uploadUrl;
+        if (!uploadUrl) {
+          throw new Error("Không nhận được URL tải lên từ máy chủ S3.");
+        }
+
+        const putRes = await fetch(uploadUrl, {
           method: "PUT",
           headers: { "Content-Type": artContentType },
           body: artworkFile,
         });
+
+        if (!putRes.ok) {
+          throw new Error(`S3 Error HTTP ${putRes.status}`);
+        }
 
         const newS3Url = await createPresignedUrl(artKey);
         if (newS3Url) {
@@ -163,7 +178,8 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
       void navigate({ to: "/albums/$albumId", params: { albumId: album.id } });
     } catch (err: any) {
       console.error("Create album upload error:", err);
-      setErrorMsg(`Lỗi khi tải ảnh lên S3: ${err.message || "Kết nối thất bại"}`);
+      const msg = err?.message || err?.error || "Kết nối máy chủ S3 thất bại";
+      setErrorMsg(`Lỗi khi tải ảnh lên S3: ${msg}`);
     } finally {
       setIsUploading(false);
       setUploadStatus("");

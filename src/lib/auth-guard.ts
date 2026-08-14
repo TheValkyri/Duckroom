@@ -66,18 +66,28 @@ export const serverSecurityMiddleware = createMiddleware().server(async ({ next,
   return next();
 });
 
+import { getAccessToken } from "./useAuth";
+
 /**
  * Server middleware enforcing REAL Supabase Auth & allowed_emails Authorization.
  */
-export const requireMemberMiddleware = createMiddleware().server(async ({ next, request }) => {
-  const auth = await verifyMemberAuthorization(request);
+export const requireMemberMiddleware = createMiddleware()
+  .client(async ({ next }) => {
+    const token = typeof window !== "undefined" ? await getAccessToken() : null;
+    return next({
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  })
+  .server(async ({ next, request }) => {
+    const auth = await verifyMemberAuthorization(request);
 
-  if (!auth.isAuthorized) {
-    throw new Response(
-      JSON.stringify({ error: auth.error || "Unauthorized: Member email required" }),
-      { status: 401, headers: { "Content-Type": "application/json" } }
-    );
-  }
+    if (!auth.isAuthorized) {
+      throw new Response(
+        JSON.stringify({ error: auth.error || "Unauthorized: Member email required" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
-  return next({ context: { auth } });
-});
+    return next({ context: { auth } });
+  });
+
