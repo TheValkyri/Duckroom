@@ -95,7 +95,7 @@ function AlbumCard({ album, onDelete, onPlay }: { album: Album; onDelete: () => 
   );
 }
 
-function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreated?: () => void }) {
   const { isLoggedIn } = useAuth();
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
@@ -174,7 +174,7 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
       });
 
       saveStoredLibrary(true);
-      onCreated();
+      onCreated?.();
       onClose();
       void navigate({ to: "/albums/$albumId", params: { albumId: album.id } });
     } catch (err: any) {
@@ -430,7 +430,7 @@ import { useLibrary } from "../lib/useLibrary";
 
 function AlbumsPage() {
   const { playQueue } = usePlayer();
-  const { albums, refresh } = useLibrary();
+  const { albums } = useLibrary();
   const { isLoggedIn } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
 
@@ -496,7 +496,6 @@ function AlbumsPage() {
         {showCreate && (
           <CreateAlbumModal
             onClose={() => setShowCreate(false)}
-            onCreated={refresh}
           />
         )}
       </AnimatePresence>
