@@ -1,61 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40" fill="none">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stopColor="#18181b" />
-      <stop offset="100%" stopColor="#09090b" />
+    <linearGradient id="duck-beak-grad" x1="26" y1="18" x2="35" y2="24" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fb923c" />
+      <stop offset="100%" stop-color="#ea580c" />
     </linearGradient>
-    <linearGradient id="beak" x1="41" y1="28" x2="56" y2="38" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stopColor="#fb923c" />
-      <stop offset="100%" stopColor="#ea580c" />
+    <linearGradient id="duck-phone-grad" x1="9" y1="5" x2="31" y2="23" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#d97706" />
     </linearGradient>
-    <linearGradient id="headphone" x1="14" y1="10" x2="50" y2="36" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stopColor="#fbbf24" />
-      <stop offset="100%" stopColor="#d97706" />
-    </linearGradient>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#f59e0b" flood-opacity="0.35" />
-    </filter>
   </defs>
-
-  <rect width="64" height="64" rx="16" fill="url(#bg)" />
-  <rect width="62" height="62" x="1" y="1" rx="15" fill="none" stroke="#27272a" stroke-width="1.5" />
-
-  <g transform="translate(2, 2)">
-    <!-- Duck Beak -->
-    <path
-      d="M41 28C46 28 54 30.5 56 34.5C53.5 38.5 44.5 38 41 37V28Z"
-      fill="url(#beak)"
-      filter="url(#glow)"
-    />
-
-    <!-- Duck Head & Neck -->
-    <path
-      d="M19 44C19 32 25 19 36 19C42 19 45 23 45 28C45 36 36 39 33 44C31 47 25 50 19 44Z"
-      fill="#ffffff"
-    />
-
-    <!-- DJ Headphone Band -->
-    <path
-      d="M20 13C28 8 43 8 49 16"
-      stroke="url(#headphone)"
-      stroke-width="5.5"
-      stroke-linecap="round"
-      fill="none"
-    />
-
-    <!-- DJ Ear Cup -->
-    <rect
-      x="14"
-      y="21"
-      width="10"
-      height="16"
-      rx="5"
-      fill="url(#headphone)"
-      filter="url(#glow)"
-    />
-
-    <!-- Duck Eye -->
-    <circle cx="33" cy="25" r="3" fill="#09090b" />
-    <circle cx="34" cy="24" r="1" fill="#ffffff" />
-  </g>
+  <!-- Duck Beak -->
+  <path
+    d="M26 18C29 18 34 19.5 35 22C33.5 24.5 28 24 26 23.5V18Z"
+    fill="url(#duck-beak-grad)"
+  />
+  <!-- Duck Head & Neck -->
+  <path
+    d="M12 28C12 20 16 12 23 12C26.5 12 28.5 14.5 28.5 18C28.5 23 23 25 21 28C19.5 30 16 32 12 28Z"
+    fill="#ffffff"
+  />
+  <!-- DJ Headphone Band -->
+  <path
+    d="M13 8C18 5 27 5 31 10"
+    stroke="url(#duck-phone-grad)"
+    stroke-width="3.5"
+    stroke-linecap="round"
+  />
+  <!-- DJ Ear Cup -->
+  <rect
+    x="9"
+    y="13"
+    width="6"
+    height="10"
+    rx="3"
+    fill="url(#duck-phone-grad)"
+  />
+  <!-- Duck Eye -->
+  <circle cx="21" cy="16" r="2" fill="#09090b" />
 </svg>

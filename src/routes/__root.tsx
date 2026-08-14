@@ -89,9 +89,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://duckroom.vercel.app" },
       { property: "og:image", content: "https://duckroom.vercel.app/og-image.jpg" },
+      { property: "og:image:secure_url", content: "https://duckroom.vercel.app/og-image.jpg" },
+      { property: "og:image:type", content: "image/jpeg" },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "675" },
       { property: "og:image:alt", content: "Duckroom — Kho nhạc Lossless & MV bản gốc cá nhân" },
+      { name: "thumbnail", content: "https://duckroom.vercel.app/og-image.jpg" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Duckroom — Kho nhạc lossless riêng" },
       {
