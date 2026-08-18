@@ -28,6 +28,8 @@ export function SmoothImage({
       <img
         src={finalSrc}
         alt={alt || ""}
+        decoding="async"
+        loading="lazy"
         onLoad={() => setLoaded(true)}
         onError={() => {
           if (!error) {

@@ -60,6 +60,7 @@ export function PlayerBar() {
               <img
                 src={coverUrl}
                 alt={`Bìa album ${album?.title || current.title}`}
+                decoding="async"
                 onLoad={() => setCoverLoaded(true)}
                 onError={(e) => {
                   const target = e.currentTarget;

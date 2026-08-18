@@ -1,10 +1,10 @@
 import { Image, Loader2, Scissors, Sparkles, Wand2, X, Zap, FastForward, Rewind } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArtworkCropModal } from "./ArtworkCropModal";
 import { LyricsSearchModal } from "./LyricsSearchModal";
 import { albums, saveStoredLibrary, type Track } from "../data/library";
-import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
+import { compressAndResizeImageFile, cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import { modalOverlayVariants, modalPanelVariants, springSnappy, tapScale } from "../lib/motion";
 import { createPresignedUrl } from "../lib/s3";
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
@@ -47,6 +47,11 @@ export function EditTrackModal({
   const [isFetchingLyrics, setIsFetchingLyrics] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [noticeMsg, setNoticeMsg] = useState("");
+
+  const availableAlbums = useMemo(
+    () => albums.filter((a) => a.id !== "singles" && a.id !== "single-collection"),
+    []
+  );
 
   // Close modal if user is confirmed not logged in (deferred to avoid setState-during-render)
   useEffect(() => {
@@ -193,6 +198,7 @@ export function EditTrackModal({
                 <img
                   src={artworkPreview}
                   alt="Artwork Preview"
+                  decoding="async"
                   className="size-20 rounded-xl object-cover border border-white/10 shadow-md shrink-0"
                 />
               ) : (
@@ -232,11 +238,11 @@ export function EditTrackModal({
                     if (e.target.files && e.target.files[0]) {
                       const img = e.target.files[0];
                       const croppedUrl = await cropBlackLetterbox(img);
-                      const cleanFile = croppedUrl.startsWith("data:")
-                        ? dataURLtoFile(croppedUrl, img.name)
-                        : img;
-                      setArtworkFile(cleanFile);
-                      setArtworkPreview(croppedUrl);
+                      const { file: compressedFile, dataUrl: compressedDataUrl } = await compressAndResizeImageFile(
+                        croppedUrl.startsWith("data:") ? dataURLtoFile(croppedUrl, img.name) : img
+                      );
+                      setArtworkFile(compressedFile);
+                      setArtworkPreview(compressedDataUrl);
                     }
                   }}
                 />
@@ -289,25 +295,23 @@ export function EditTrackModal({
                 placeholder="Để trống nếu là Đĩa đơn (Single)"
                 className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
               />
-              {albums.filter((a) => a.id !== "singles" && a.id !== "single-collection").length > 0 && (
+              {availableAlbums.length > 0 && (
                 <div className="mt-1.5 flex flex-wrap gap-1">
-                  {albums
-                    .filter((a) => a.id !== "singles" && a.id !== "single-collection")
-                    .map((a) => (
-                      <button
-                        key={a.id}
-                        type="button"
-                        onClick={() => setAlbumName(a.title)}
-                        className={cn(
-                          "px-2 py-0.5 rounded text-[10px] border transition-colors cursor-pointer",
-                          albumName.toLowerCase() === a.title.toLowerCase()
-                            ? "bg-primary/20 text-primary border-primary/40 font-medium"
-                            : "border-border text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        {a.title}
-                      </button>
-                    ))}
+                  {availableAlbums.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => setAlbumName(a.title)}
+                      className={cn(
+                        "px-2 py-0.5 rounded text-[10px] border transition-colors cursor-pointer",
+                        albumName.toLowerCase() === a.title.toLowerCase()
+                          ? "bg-primary/20 text-primary border-primary/40 font-medium"
+                          : "border-border text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {a.title}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>

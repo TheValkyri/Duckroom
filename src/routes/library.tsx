@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Music2, RefreshCw, Trash2, UploadCloud } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { TrackRow } from "../components/TrackRow";
-import { deleteTrack, saveStoredLibrary, syncLibraryWithS3 } from "../data/library";
+import { deleteTrack, saveStoredLibrary, syncLibraryWithS3, type Track } from "../data/library";
 import { springPill, springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { usePlayer } from "../lib/player";
 import { useLibrary } from "../lib/useLibrary";
@@ -48,49 +48,71 @@ function LibraryPage() {
     setIsSyncing(false);
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = useCallback(() => {
     if (!isLoggedIn) return;
     if (confirm("Bạn có chắc chắn muốn xóa toàn bộ danh sách bài hát không?")) {
       tracks.length = 0;
       saveStoredLibrary(true);
     }
-  };
+  }, [isLoggedIn, tracks]);
 
-  const handleDelete = (id: string) => {
+  const handleDelete = useCallback((id: string) => {
     if (!isLoggedIn) return;
     void deleteTrack(id);
-  };
+  }, [isLoggedIn]);
 
-  const hasSingles = tracks.some((t) => !t.albumId || t.albumId === "singles" || t.albumId === "single-collection");
-  const filteredAlbums = albums.filter((a) => a.id !== "singles" && a.id !== "single-collection");
+  const hasSingles = useMemo(
+    () => tracks.some((t) => !t.albumId || t.albumId === "singles" || t.albumId === "single-collection"),
+    [tracks]
+  );
 
-  const list = tracks
-    .filter((t) => {
-      const isSingle = !t.albumId || t.albumId === "singles" || t.albumId === "single-collection";
-      const matchesFilter =
-        filter === "all"
-          ? true
-          : filter === "singles"
-          ? isSingle
-          : t.albumId === filter;
+  const filteredAlbums = useMemo(
+    () => albums.filter((a) => a.id !== "singles" && a.id !== "single-collection"),
+    [albums]
+  );
 
-      const matchesSearch =
-        t.title.toLowerCase().includes(q.toLowerCase()) ||
-        t.artist.toLowerCase().includes(q.toLowerCase());
+  const list = useMemo(() => {
+    const qLower = q.trim().toLowerCase();
+    return tracks
+      .filter((t) => {
+        const isSingle = !t.albumId || t.albumId === "singles" || t.albumId === "single-collection";
+        const matchesFilter =
+          filter === "all"
+            ? true
+            : filter === "singles"
+            ? isSingle
+            : t.albumId === filter;
 
-      return matchesFilter && matchesSearch;
-    })
-    .sort((a, b) => {
-      const timeA = parseInt(a.id.split("-")[0] || "0", 10) || a.trackNo;
-      const timeB = parseInt(b.id.split("-")[0] || "0", 10) || b.trackNo;
-      return timeA - timeB;
-    });
+        const matchesSearch =
+          !qLower ||
+          t.title.toLowerCase().includes(qLower) ||
+          t.artist.toLowerCase().includes(qLower);
 
-  const filterTabs = [
+        return matchesFilter && matchesSearch;
+      })
+      .sort((a, b) => {
+        const timeA = parseInt(a.id.split("-")[0] || "0", 10) || a.trackNo;
+        const timeB = parseInt(b.id.split("-")[0] || "0", 10) || b.trackNo;
+        return timeA - timeB;
+      });
+  }, [tracks, filter, q]);
+
+  const totalSizeGB = useMemo(() => {
+    return (tracks.reduce((a, t) => a + (t.sizeMB || 0), 0) / 1024).toFixed(1);
+  }, [tracks]);
+
+  const filterTabs = useMemo(() => [
     { id: "all", title: "Tất cả" },
     ...(hasSingles ? [{ id: "singles", title: "🎵 Đĩa đơn" }] : []),
     ...filteredAlbums,
-  ];
+  ], [hasSingles, filteredAlbums]);
+
+  const handlePlayTrack = useCallback(
+    (_: Track, trackIdx: number) => {
+      playQueue(list, trackIdx);
+    },
+    [playQueue, list]
+  );
 
   return (
     <motion.div
@@ -103,8 +125,7 @@ function LibraryPage() {
         <div>
           <h1 className="font-display text-5xl">Thư viện</h1>
           <p className="text-muted-foreground mt-2 text-sm">
-            {tracks.length} bản thu · tổng {(tracks.reduce((a, t) => a + t.sizeMB, 0) / 1024).toFixed(1)}{" "}
-            GB · không nén lại
+            {tracks.length} bản thu · tổng {totalSizeGB} GB · không nén lại
           </p>
         </div>
         {isLoggedIn && (
@@ -185,8 +206,9 @@ function LibraryPage() {
               <TrackRow
                 track={t}
                 n={i + 1}
-                onPlay={() => playQueue(list, i)}
-                onDelete={() => handleDelete(t.id)}
+                index={i}
+                onPlayTrack={handlePlayTrack}
+                onDeleteTrack={handleDelete}
               />
             </motion.div>
           ))}

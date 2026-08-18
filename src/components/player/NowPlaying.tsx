@@ -97,6 +97,7 @@ export function NowPlaying() {
                 src={cleanCoverUrl || fallbackCover}
                 alt=""
                 aria-hidden
+                decoding="async"
                 className="absolute inset-0 size-full scale-110 object-cover opacity-15 blur-3xl"
               />
             </motion.div>
@@ -210,6 +211,7 @@ export function NowPlaying() {
                       <motion.img
                         src={cleanCoverUrl || fallbackCover}
                         alt={`Bìa ${current.title}`}
+                        decoding="async"
                         onLoad={handleImageLoad}
                         onError={(e) => {
                           const target = e.currentTarget;

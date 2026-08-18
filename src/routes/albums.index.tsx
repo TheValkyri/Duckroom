@@ -5,7 +5,7 @@ import { useState } from "react";
 import { albumTracks, albums, createAlbum, deleteAlbum, saveStoredLibrary, type Album } from "../data/library";
 import { usePlayer } from "../lib/player";
 import { ArtworkCropModal } from "../components/ArtworkCropModal";
-import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
+import { compressAndResizeImageFile, cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import {
   listContainerVariants,
   listItemVariants,
@@ -188,6 +188,7 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
                     <img
                       src={previewSrc}
                       alt="Xem trước ảnh bìa"
+                      decoding="async"
                       className="size-full object-cover"
                       onError={() => setCoverPreviewError(true)}
                     />
@@ -240,11 +241,11 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
                         const img = e.target.files[0];
                         setCoverPreviewError(false);
                         const croppedUrl = await cropBlackLetterbox(img);
-                        const cleanFile = croppedUrl.startsWith("data:")
-                          ? dataURLtoFile(croppedUrl, img.name)
-                          : img;
-                        setArtworkFile(cleanFile);
-                        setArtworkPreview(croppedUrl);
+                        const { file: compressedFile, dataUrl: compressedDataUrl } = await compressAndResizeImageFile(
+                          croppedUrl.startsWith("data:") ? dataURLtoFile(croppedUrl, img.name) : img
+                        );
+                        setArtworkFile(compressedFile);
+                        setArtworkPreview(compressedDataUrl);
                       }
                     }}
                   />

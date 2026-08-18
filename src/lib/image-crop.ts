@@ -150,3 +150,86 @@ export function dataURLtoFile(dataurl: string, filename: string): File {
   }
   return new File([u8arr], filename, { ...(mime ? { type: mime } : {}) });
 }
+
+/**
+ * PERF A2 — Tối ưu kích thước & nén ảnh trước khi tải lên S3:
+ * Nếu ảnh gốc có kích thước quá lớn (> 1200px hoặc vài MB),
+ * tự động scale về tối đa 1200px và nén JPEG chất lượng 0.85.
+ * Giảm dung lượng từ 5-15MB xuống ~200-400KB, tăng tốc độ tải và decode ảnh.
+ */
+export function compressAndResizeImageFile(
+  fileOrUrl: File | string,
+  maxDimension = 1200,
+  quality = 0.85
+): Promise<{ file: File; dataUrl: string }> {
+  return new Promise((resolve) => {
+    const filename =
+      typeof fileOrUrl === "string"
+        ? `artwork-${Date.now()}.jpg`
+        : fileOrUrl.name.replace(/\.[^/.]+$/, "") + ".jpg";
+
+    if (typeof window === "undefined") {
+      const dummyFile = typeof fileOrUrl === "string" ? new File([], filename) : fileOrUrl;
+      return resolve({ file: dummyFile, dataUrl: typeof fileOrUrl === "string" ? fileOrUrl : "" });
+    }
+
+    const img = new Image();
+    if (typeof fileOrUrl === "string" && (fileOrUrl.startsWith("http://") || fileOrUrl.startsWith("https://"))) {
+      img.crossOrigin = "anonymous";
+    }
+
+    img.onload = () => {
+      try {
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+
+        if (!width || !height) {
+          const fallbackFile = typeof fileOrUrl === "string" ? new File([], filename) : fileOrUrl;
+          return resolve({ file: fallbackFile, dataUrl: img.src });
+        }
+
+        // Tính tỉ lệ thu nhỏ nếu vượt quá maxDimension
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+
+        if (!ctx) {
+          const fallbackFile = typeof fileOrUrl === "string" ? new File([], filename) : fileOrUrl;
+          return resolve({ file: fallbackFile, dataUrl: img.src });
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        const compressedFile = dataURLtoFile(dataUrl, filename);
+
+        resolve({ file: compressedFile, dataUrl });
+      } catch (err) {
+        console.warn("Resize image warning:", err);
+        const fallbackFile = typeof fileOrUrl === "string" ? new File([], filename) : fileOrUrl;
+        resolve({ file: fallbackFile, dataUrl: typeof fileOrUrl === "string" ? fileOrUrl : img.src });
+      }
+    };
+
+    img.onerror = () => {
+      const fallbackFile = typeof fileOrUrl === "string" ? new File([], filename) : fileOrUrl;
+      resolve({ file: fallbackFile, dataUrl: typeof fileOrUrl === "string" ? fileOrUrl : "" });
+    };
+
+    if (typeof fileOrUrl === "string") {
+      img.src = fileOrUrl;
+    } else {
+      img.src = URL.createObjectURL(fileOrUrl);
+    }
+  });
+}

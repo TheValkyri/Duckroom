@@ -1,7 +1,7 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Disc3, ListPlus, Pencil, Play, Shuffle, Trash2, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { TrackRow } from "../components/TrackRow";
 import { EditAlbumModal } from "../components/EditAlbumModal";
 import {
@@ -13,6 +13,7 @@ import {
   formatTime,
   removeTrackFromAlbum,
   tracks,
+  type Track,
 } from "../data/library";
 import {
   listContainerVariants,
@@ -64,7 +65,10 @@ function AddTracksModal({
   onClose: () => void;
   onAdded: () => void;
 }) {
-  const available = tracks.filter((t) => !currentTrackIds.has(t.id));
+  const available = useMemo(
+    () => tracks.filter((t) => !currentTrackIds.has(t.id)),
+    [currentTrackIds]
+  );
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const toggle = (id: string) => {
@@ -194,25 +198,32 @@ function AlbumPage() {
   const total = list.reduce((a, t) => a + t.duration, 0);
   const currentIds = new Set(list.map((t) => t.id));
 
-  const handleDeleteAlbum = () => {
+  const handleDeleteAlbum = useCallback(() => {
     if (!isLoggedIn) return;
     if (confirm(`Xóa album "${album.title}"? Các bài hát sẽ chuyển về Single Collection.`)) {
       deleteAlbum(album.id);
       void navigate({ to: "/albums" });
     }
-  };
+  }, [isLoggedIn, album.title, album.id, navigate]);
 
-  const handleRemoveFromAlbum = (trackId: string) => {
+  const handleRemoveFromAlbum = useCallback((trackId: string) => {
     if (!isLoggedIn) return;
     removeTrackFromAlbum(trackId);
     refresh();
-  };
+  }, [isLoggedIn, refresh]);
 
-  const handleDeleteTrack = async (trackId: string) => {
+  const handleDeleteTrack = useCallback(async (trackId: string) => {
     if (!isLoggedIn) return;
     await deleteTrack(trackId);
     refresh();
-  };
+  }, [isLoggedIn, refresh]);
+
+  const handlePlayTrack = useCallback(
+    (_: Track, idx: number) => {
+      playQueue(list, idx, false);
+    },
+    [playQueue, list]
+  );
 
   return (
     <motion.div
@@ -272,6 +283,7 @@ function AlbumPage() {
                 alt={`Bìa album ${album.title}`}
                 width={320}
                 height={320}
+                decoding="async"
                 onLoad={() => setImgLoaded(true)}
                 onError={() => {
                   setImgError(true);
@@ -371,8 +383,9 @@ function AlbumPage() {
                 <TrackRow
                   track={t}
                   n={i + 1}
+                  index={i}
                   showAlbum={false}
-                  onPlay={() => playQueue(list, i, false)}
+                  onPlayTrack={handlePlayTrack}
                   onDelete={() => handleDeleteTrack(t.id)}
                   extraActions={
                     <motion.button

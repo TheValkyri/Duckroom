@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { updateAlbum, type Album } from "../data/library";
 import { ArtworkCropModal } from "./ArtworkCropModal";
-import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
+import { compressAndResizeImageFile, cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import { modalOverlayVariants, modalPanelVariants, springSnappy, tapScale } from "../lib/motion";
 import { createPresignedUrl } from "../lib/s3";
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
@@ -169,6 +169,7 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
                     <img
                       src={previewSrc}
                       alt="Xem trước ảnh bìa"
+                      decoding="async"
                       className="size-full object-cover"
                       onError={() => setCoverPreviewError(true)}
                     />
@@ -216,11 +217,11 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
                         const img = e.target.files[0];
                         setCoverPreviewError(false);
                         const croppedUrl = await cropBlackLetterbox(img);
-                        const cleanFile = croppedUrl.startsWith("data:")
-                          ? dataURLtoFile(croppedUrl, img.name)
-                          : img;
-                        setArtworkFile(cleanFile);
-                        setArtworkPreview(croppedUrl);
+                        const { file: compressedFile, dataUrl: compressedDataUrl } = await compressAndResizeImageFile(
+                          croppedUrl.startsWith("data:") ? dataURLtoFile(croppedUrl, img.name) : img
+                        );
+                        setArtworkFile(compressedFile);
+                        setArtworkPreview(compressedDataUrl);
                       }
                     }}
                   />

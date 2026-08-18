@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Disc, Disc3, Music2, Pencil, Play, Shuffle, UploadCloud } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AlbumCard } from "../components/AlbumCard";
 import { EditAlbumModal } from "../components/EditAlbumModal";
 import { TrackRow } from "../components/TrackRow";
@@ -87,6 +87,7 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
             src={track.cover && !track.cover.startsWith("blob:") ? track.cover : "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"}
             alt={track.title}
             loading="lazy"
+            decoding="async"
             onLoad={() => setImgLoaded(true)}
             onError={(e) => {
               const target = e.currentTarget;
@@ -142,17 +143,28 @@ function Index() {
   const [editingHeroAlbum, setEditingHeroAlbum] = useState<Album | null>(null);
 
   const hero = albums[0];
-  const heroTracks = hero ? albumTracks(hero.id) : [];
-  const recent = tracks.slice(0, 5);
+  const heroTracks = useMemo(() => (hero ? albumTracks(hero.id) : []), [hero]);
+  const recent = useMemo(() => tracks.slice(0, 5), [tracks]);
 
-  const singles = tracks.filter(
-    (t) =>
-      !t.albumId ||
-      t.albumId === "singles" ||
-      t.albumId === "single-collection" ||
-      t.albumId === "single"
+  const singles = useMemo(
+    () =>
+      tracks.filter(
+        (t) =>
+          !t.albumId ||
+          t.albumId === "singles" ||
+          t.albumId === "single-collection" ||
+          t.albumId === "single"
+      ),
+    [tracks]
   );
-  const featuredSingles = singles.slice(0, 5);
+  const featuredSingles = useMemo(() => singles.slice(0, 5), [singles]);
+
+  const handlePlayRecentTrack = useCallback(
+    (_: Track, idx: number) => {
+      playQueue(recent, idx);
+    },
+    [playQueue, recent]
+  );
 
   if (!hero || albums.length === 0) {
     return (
@@ -224,6 +236,7 @@ function Index() {
           src={hero.cover || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"}
           alt=""
           aria-hidden
+          decoding="async"
           onError={(e) => {
             const target = e.currentTarget;
             const fallback = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
@@ -238,6 +251,7 @@ function Index() {
           <img
             src={hero.cover || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"}
             alt={`Bìa album ${hero.title}`}
+            decoding="async"
             onError={(e) => {
               const target = e.currentTarget;
               const fallback = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
@@ -332,7 +346,7 @@ function Index() {
         <motion.div variants={listContainerVariants} initial="hidden" animate="show" className="mt-6">
           {recent.map((t, i) => (
             <motion.div key={t.id} variants={listItemVariants}>
-              <TrackRow track={t} n={i + 1} onPlay={() => playQueue(recent, i)} />
+              <TrackRow track={t} n={i + 1} index={i} onPlayTrack={handlePlayRecentTrack} />
             </motion.div>
           ))}
         </motion.div>
@@ -355,6 +369,7 @@ function Index() {
                     src={v.thumb}
                     alt={`Ảnh nền MV ${v.title}`}
                     loading="lazy"
+                    decoding="async"
                     width={800}
                     height={456}
                     className="aspect-video w-full rounded-xl object-cover transition-transform duration-500 group-hover:scale-[1.02]"

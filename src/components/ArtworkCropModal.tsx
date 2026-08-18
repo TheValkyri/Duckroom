@@ -96,7 +96,7 @@ export function ArtworkCropModal({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
     const filename = `artwork-${aspectMode}-${Date.now()}.jpg`;
     const file = dataURLtoFile(dataUrl, filename);
 

@@ -1,6 +1,6 @@
 import { Pencil, Play, Trash2, Volume2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { memo, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { albumById, formatTime, type Track } from "../data/library";
 import { springSnappy, tapScale } from "../lib/motion";
 import { usePlayer } from "../lib/player";
@@ -12,16 +12,22 @@ import { useAuth } from "../lib/useAuth";
 export const TrackRow = memo(function TrackRow({
   track,
   n,
+  index,
   onPlay,
+  onPlayTrack,
   onDelete,
+  onDeleteTrack,
   onUpdate,
   extraActions,
   showAlbum = true,
 }: {
   track: Track;
   n: number;
-  onPlay: () => void;
+  index?: number;
+  onPlay?: () => void;
+  onPlayTrack?: (track: Track, index: number) => void;
   onDelete?: () => void;
+  onDeleteTrack?: (trackId: string) => void;
   onUpdate?: () => void;
   extraActions?: React.ReactNode;
   showAlbum?: boolean;
@@ -32,6 +38,24 @@ export const TrackRow = memo(function TrackRow({
   const album = albumById(track.albumId);
   const [showEditModal, setShowEditModal] = useState(false);
 
+  const handlePlayClick = useCallback(() => {
+    if (onPlay) {
+      onPlay();
+    } else if (onPlayTrack) {
+      onPlayTrack(track, index ?? (n - 1));
+    }
+  }, [onPlay, onPlayTrack, track, index, n]);
+
+  const handleDeleteClick = useCallback(() => {
+    if (onDelete) {
+      onDelete();
+    } else if (onDeleteTrack) {
+      onDeleteTrack(track.id);
+    }
+  }, [onDelete, onDeleteTrack, track.id]);
+
+  const hasDelete = Boolean(onDelete || onDeleteTrack);
+
   return (
     <>
       <div
@@ -41,7 +65,7 @@ export const TrackRow = memo(function TrackRow({
         )}
       >
         <button
-          onClick={onPlay}
+          onClick={handlePlayClick}
           className="flex flex-1 items-center gap-4 min-w-0 text-left cursor-pointer"
         >
           <span className="text-muted-foreground grid place-items-center text-sm tabular-nums shrink-0">
@@ -92,13 +116,13 @@ export const TrackRow = memo(function TrackRow({
 
         {isLoggedIn && extraActions}
 
-        {isLoggedIn && onDelete && (
+        {isLoggedIn && hasDelete && (
           <motion.button
             type="button"
             title="Xóa bài hát khỏi thư viện"
             onClick={(e) => {
               e.stopPropagation();
-              onDelete();
+              handleDeleteClick();
             }}
             whileTap={tapScale}
             transition={springSnappy}

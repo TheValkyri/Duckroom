@@ -14,7 +14,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { EditTrackModal } from "../components/EditTrackModal";
 import { TrackRow } from "../components/TrackRow";
 import { deleteTrack, syncLibraryWithS3, type Track } from "../data/library";
@@ -149,6 +149,7 @@ function SingleCard({
             src={validCover}
             alt={track.title}
             loading="lazy"
+            decoding="async"
             onLoad={() => setImgLoaded(true)}
             onError={(e) => {
               const target = e.currentTarget;
@@ -240,21 +241,32 @@ function SinglesPage() {
   const [isSyncing, setIsSyncing] = useState(false);
 
   // Singles are defined as tracks where albumId === 'singles' or track has no album
-  const singles = tracks.filter(
-    (t) =>
-      !t.albumId ||
-      t.albumId === "singles" ||
-      t.albumId === "single-collection" ||
-      t.albumId === "single"
+  const singles = useMemo(
+    () =>
+      tracks.filter(
+        (t) =>
+          !t.albumId ||
+          t.albumId === "singles" ||
+          t.albumId === "single-collection" ||
+          t.albumId === "single"
+      ),
+    [tracks]
   );
 
-  const filteredSingles = singles.filter(
-    (t) =>
-      t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.artist.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredSingles = useMemo(() => {
+    const qLower = searchQuery.trim().toLowerCase();
+    if (!qLower) return singles;
+    return singles.filter(
+      (t) =>
+        t.title.toLowerCase().includes(qLower) ||
+        t.artist.toLowerCase().includes(qLower)
+    );
+  }, [singles, searchQuery]);
 
-  const totalSizeMB = singles.reduce((acc, t) => acc + (t.sizeMB || 0), 0);
+  const totalSizeMB = useMemo(
+    () => singles.reduce((acc, t) => acc + (t.sizeMB || 0), 0),
+    [singles]
+  );
 
   const handleSyncS3 = async () => {
     if (!isLoggedIn) return;
@@ -263,12 +275,22 @@ function SinglesPage() {
     setIsSyncing(false);
   };
 
-  const handleDelete = (id: string) => {
-    if (!isLoggedIn) return;
-    if (confirm("Bạn có chắc muốn xóa đĩa đơn này khỏi kho nhạc không?")) {
-      void deleteTrack(id);
-    }
-  };
+  const handleDelete = useCallback(
+    (id: string) => {
+      if (!isLoggedIn) return;
+      if (confirm("Bạn có chắc muốn xóa đĩa đơn này khỏi kho nhạc không?")) {
+        void deleteTrack(id);
+      }
+    },
+    [isLoggedIn]
+  );
+
+  const handlePlayTrack = useCallback(
+    (_: Track, idx: number) => {
+      playQueue(filteredSingles, idx);
+    },
+    [playQueue, filteredSingles]
+  );
 
   return (
     <motion.div
@@ -447,11 +469,9 @@ function SinglesPage() {
                       <TrackRow
                         track={track}
                         n={i + 1}
-                        onPlay={() => {
-                          const idx = filteredSingles.findIndex((t) => t.id === track.id);
-                          playQueue(filteredSingles, idx >= 0 ? idx : 0);
-                        }}
-                        onDelete={() => handleDelete(track.id)}
+                        index={i}
+                        onPlayTrack={handlePlayTrack}
+                        onDeleteTrack={handleDelete}
                         extraActions={
                           <motion.button
                             onClick={() => setEditingTrack(track)}

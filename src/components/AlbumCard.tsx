@@ -101,6 +101,7 @@ export const AlbumCard = memo(function AlbumCard({
               src={album.cover || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"}
               alt={`Bìa album ${album.title}`}
               loading="lazy"
+              decoding="async"
               onLoad={() => setImgLoaded(true)}
               onError={(e) => {
                 const target = e.currentTarget;

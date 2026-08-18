@@ -69,6 +69,7 @@ export function QueuePanel() {
                 src={albumById(t.albumId)?.cover}
                 alt=""
                 loading="lazy"
+                decoding="async"
                 className="size-9 rounded object-cover"
                 width={36}
                 height={36}

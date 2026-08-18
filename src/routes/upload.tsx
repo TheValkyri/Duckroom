@@ -6,7 +6,7 @@ import { ArtworkCropModal } from "../components/ArtworkCropModal";
 import { LrcLiveSyncModal } from "../components/LrcLiveSyncModal";
 import { LyricsSearchModal } from "../components/LyricsSearchModal";
 import { type Album } from "../data/library";
-import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
+import { compressAndResizeImageFile, cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import {
   autoTimePacingLyrics,
   extractAudioMetadata,
@@ -248,7 +248,12 @@ function UploadPage() {
       {selectedFile && (
         <div className="border-border bg-card/60 mt-4 flex items-center gap-4 rounded-xl border p-4">
           {artworkPreview || extractedCover ? (
-            <img src={artworkPreview || extractedCover || ""} alt="Cover preview" className="size-14 rounded-lg object-cover" />
+            <img
+              src={artworkPreview || extractedCover || ""}
+              alt="Cover preview"
+              decoding="async"
+              className="size-14 rounded-lg object-cover"
+            />
           ) : (
             <div className="bg-muted grid size-14 place-items-center rounded-lg">
               <UploadCloud className="text-muted-foreground size-6" />
@@ -388,6 +393,7 @@ function UploadPage() {
               <img
                 src={artworkPreview || extractedCover || ""}
                 alt="Artwork Preview"
+                decoding="async"
                 className="size-16 rounded-xl object-cover border border-white/10 shadow-md shrink-0"
               />
             ) : (
@@ -430,12 +436,12 @@ function UploadPage() {
                   if (e.target.files && e.target.files[0]) {
                     const img = e.target.files[0];
                     const croppedUrl = await cropBlackLetterbox(img);
-                    const cleanFile = croppedUrl.startsWith("data:")
-                      ? dataURLtoFile(croppedUrl, img.name)
-                      : img;
+                    const { file: compressedFile, dataUrl: compressedDataUrl } = await compressAndResizeImageFile(
+                      croppedUrl.startsWith("data:") ? dataURLtoFile(croppedUrl, img.name) : img
+                    );
                     updateUploadState({
-                      artworkFile: cleanFile,
-                      artworkPreview: croppedUrl,
+                      artworkFile: compressedFile,
+                      artworkPreview: compressedDataUrl,
                     });
                   }
                 }}

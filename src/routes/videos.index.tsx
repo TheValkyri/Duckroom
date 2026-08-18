@@ -38,6 +38,7 @@ function VideoCard({ v }: { v: any }) {
             src={v.thumb}
             alt={`Ảnh nền MV ${v.title}`}
             loading="lazy"
+            decoding="async"
             onLoad={() => setImgLoaded(true)}
             onError={() => setImgLoaded(true)}
             width={800}
