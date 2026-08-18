@@ -127,6 +127,20 @@
   }
 }
 
+/* Tôn trọng cờ "Reduce Motion" của hệ điều hành cho các animation CSS thuần
+   nằm ngoài phạm vi Framer Motion / MotionConfig (transition-colors, hover
+   states, .glass...). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @theme inline {
   --font-display: var(--font-display);
   --font-sans: var(--font-sans);
@@ -140,7 +154,13 @@
 
 @utility glass {
   background: color-mix(in oklab, var(--background) 72%, transparent);
-  backdrop-filter: blur(28px) saturate(150%);
+  /* Giảm từ 28px -> 20px: mắt gần như không phân biệt được độ blur ở mức
+     này, nhưng chi phí GPU compositing giảm đáng kể — các phần tử "glass"
+     này luôn hiển thị cố định (thanh player, nav mobile) nên bất kỳ thứ gì
+     đè lên/di chuyển bên dưới đều buộc trình duyệt tính lại blur mỗi frame. */
+  backdrop-filter: blur(20px) saturate(150%);
+  /* Cô lập vùng repaint của lớp kính này khỏi phần còn lại của trang. */
+  contain: paint;
 }
 
 @utility grain {

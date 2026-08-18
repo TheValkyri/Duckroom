@@ -14,12 +14,12 @@ export async function verifyMemberAuthorization(
   error?: string;
 }> {
   const supabaseUrl =
-    (typeof process !== "undefined" && process.env?.SUPABASE_URL) ||
-    (typeof import.meta !== "undefined" && (import.meta.env?.VITE_SUPABASE_URL as string));
+    (typeof process !== "undefined" && process.env?.["SUPABASE_URL"]) ||
+    (typeof import.meta !== "undefined" && (import.meta.env?.["VITE_SUPABASE_URL"] as string));
 
   const supabaseServiceKey =
-    (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) ||
-    (typeof import.meta !== "undefined" && (import.meta.env?.VITE_SUPABASE_SERVICE_ROLE_KEY as string));
+    (typeof process !== "undefined" && process.env?.["SUPABASE_SERVICE_ROLE_KEY"]) ||
+    (typeof import.meta !== "undefined" && (import.meta.env?.["VITE_SUPABASE_SERVICE_ROLE_KEY"] as string));
 
   // If Supabase is not configured yet on env, allow dev mode with warning
   if (!supabaseUrl || !supabaseServiceKey || supabaseUrl.includes("your-supabase-project")) {
@@ -60,7 +60,7 @@ export async function verifyMemberAuthorization(
     const userEmail = data.user.email.toLowerCase().trim();
 
     // Check env fallback for admin emails
-    const allowedEnv = (process.env.ALLOWED_ADMIN_EMAILS || "")
+    const allowedEnv = (process.env?.["ALLOWED_ADMIN_EMAILS"] || "")
       .toLowerCase()
       .split(",")
       .map((e) => e.trim())

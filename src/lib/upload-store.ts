@@ -1,8 +1,7 @@
 import { createPresignedUrl } from "./s3";
 import { requestPresignedUploadUrlServer } from "./s3-functions";
 import { BUCKET_NAME } from "./s3-constants";
-import { dataURLtoFile } from "./image-crop";
-import { albums, tracks, videos, saveStoredLibrary, type LyricLine, type Video } from "../data/library";
+import { albums, tracks, videos, saveStoredLibrary, createAlbum, type Track, type LyricLine, type Video } from "../data/library";
 
 export type UploadState = {
   isUploading: boolean;
@@ -198,6 +197,14 @@ export async function executeGlobalUpload() {
         finalThumb = await createPresignedUrl(artworkKey);
       }
 
+      let finalVideoSrc = pikamcS3Url;
+      try {
+        const fresh = await createPresignedUrl(storageKey);
+        if (fresh) finalVideoSrc = fresh;
+      } catch (err) {
+        console.warn("Could not generate initial presigned video URL:", err);
+      }
+
       const newVideo = {
         id: fileId,
         title: title.trim(),
@@ -209,7 +216,7 @@ export async function executeGlobalUpload() {
         codec: "H.264 / AAC",
         bitrate: "12.5 Mbps",
         sizeMB,
-        src: pikamcS3Url,
+        src: finalVideoSrc,
       };
       videos.push(newVideo);
       saveStoredLibrary(true);
@@ -245,11 +252,12 @@ export async function executeGlobalUpload() {
         if (existingAlbum) {
           albumId = existingAlbum.id;
         } else {
+          const createdCover = artworkPreview || extractedCover;
           const created = createAlbum({
             title: album.trim(),
             artist: artist.trim() || "Nghệ sĩ",
             year: parseInt(year, 10) || new Date().getFullYear(),
-            cover: artworkPreview || extractedCover || undefined,
+            ...(createdCover ? { cover: createdCover } : {}),
             note: "Album tự tạo",
           });
           albumId = created.id;
@@ -312,7 +320,8 @@ export async function executeGlobalUpload() {
       };
       const audioFormat = formatMap[fileExt] || "FLAC";
 
-      const newTrack = {
+      const parsedYear = parseInt(year, 10);
+      const newTrack: Track = {
         id: fileId,
         title: title.trim(),
         artist: artist.trim() || "Nghệ sĩ",
@@ -323,7 +332,8 @@ export async function executeGlobalUpload() {
         bitDepth: 24,
         sampleRate: 96,
         sizeMB,
-        cover: finalCover,
+        ...(finalCover ? { cover: finalCover } : {}),
+        ...(parsedYear ? { year: parsedYear } : {}),
         lyrics: parsedLyrics,
         src: pikamcS3Url,
       };

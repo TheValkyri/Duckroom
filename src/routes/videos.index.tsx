@@ -3,6 +3,7 @@ import { Film, Play, RefreshCw, UploadCloud } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { formatTime, syncLibraryWithS3 } from "../data/library";
+import { listContainerVariants, listItemVariants, springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { useLibrary } from "../lib/useLibrary";
 import { cn } from "../lib/utils";
 
@@ -33,7 +34,12 @@ function VideosPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-12">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={tweenBase}
+      className="mx-auto max-w-6xl px-6 py-12"
+    >
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-5xl">MV & Video</h1>
@@ -41,21 +47,28 @@ function VideosPage() {
             Lưu bản master, phát nguyên codec và bitrate gốc.
           </p>
         </div>
-        <button
+        <motion.button
           type="button"
           onClick={handleSyncS3}
           disabled={isSyncing}
+          whileTap={tapScale}
+          transition={springSnappy}
           className="border-border text-muted-foreground hover:text-foreground flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
           title="Kiểm tra Pikamc S3 và dọn dẹp các MV đã bị xóa trên Storage"
         >
           <RefreshCw className={cn("size-3.5", isSyncing && "animate-spin")} />
           <span>{isSyncing ? "Đang quét S3..." : "Đồng bộ Kho S3"}</span>
-        </button>
+        </motion.button>
       </div>
       {videos.length > 0 ? (
-        <div className="mt-10 grid gap-8 md:grid-cols-2">
+        <motion.div
+          variants={listContainerVariants}
+          initial="hidden"
+          animate="show"
+          className="mt-10 grid gap-8 md:grid-cols-2"
+        >
           {videos.map((v) => (
-            <motion.div key={v.id} whileHover={{ y: -6 }} transition={{ type: "spring", stiffness: 300, damping: 24 }}>
+            <motion.div key={v.id} variants={listItemVariants} whileHover={{ y: -6 }} transition={springSnappy}>
               <Link to="/videos/$videoId" params={{ videoId: v.id }} className="group block">
                 <div className="relative overflow-hidden rounded-lg">
                   <motion.img
@@ -83,7 +96,7 @@ function VideosPage() {
               </Link>
             </motion.div>
           ))}
-        </div>
+        </motion.div>
       ) : (
         <div className="border-border bg-card/30 mt-10 flex flex-col items-center gap-4 rounded-xl border p-16 text-center">
           <Film className="text-muted-foreground size-12" />
@@ -91,14 +104,16 @@ function VideosPage() {
           <p className="text-muted-foreground max-w-md text-sm">
             Duckroom hiện tại chưa có video MV nào. Hãy tải lên các video 4K bản gốc ProRes hoặc H.265 của bạn.
           </p>
-          <Link
-            to="/upload"
-            className="bg-primary text-primary-foreground mt-2 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium transition-transform hover:scale-105"
-          >
-            <UploadCloud className="size-4" /> Tải lên MV ngay
-          </Link>
+          <motion.div whileTap={tapScale} transition={springSnappy} className="mt-2">
+            <Link
+              to="/upload"
+              className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium cursor-pointer"
+            >
+              <UploadCloud className="size-4" /> Tải lên MV ngay
+            </Link>
+          </motion.div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

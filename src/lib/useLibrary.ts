@@ -14,12 +14,14 @@ type LibraryStoreState = {
   tracks: Track[];
   albums: Album[];
   videos: Video[];
+  refresh: () => void;
 };
 
 const initialSnapshot: LibraryStoreState = {
   tracks: [...tracks],
   albums: [...albums],
   videos: [...videos],
+  refresh: notifyLibrarySubscribers,
 };
 
 let currentSnapshot: LibraryStoreState = initialSnapshot;
@@ -41,6 +43,7 @@ function getSnapshot(): LibraryStoreState {
       tracks: [...tracks],
       albums: [...albums],
       videos: [...videos],
+      refresh: notifyLibrarySubscribers,
     };
   }
   return currentSnapshot;

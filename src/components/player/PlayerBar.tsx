@@ -2,7 +2,8 @@ import { ChevronUp, ListMusic, Mic2, Sparkles, Volume2, VolumeX } from "lucide-r
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { albumById, formatTime } from "../../data/library";
-import { usePlayer } from "../../lib/player";
+import { springGentle, springSnappy, tapScale } from "../../lib/motion";
+import { usePlayer, usePlayerTime } from "../../lib/player";
 import { cn } from "../../lib/utils";
 import { Visualizer } from "../Visualizer";
 import { SeekBar, TransportControls } from "./Controls";
@@ -12,7 +13,6 @@ export function PlayerBar() {
   const {
     current,
     isPlaying,
-    time,
     volume,
     isMuted,
     setVolume,
@@ -26,6 +26,7 @@ export function PlayerBar() {
     queueOpen,
     setQueueOpen,
   } = usePlayer();
+  const time = usePlayerTime();
 
   if (!current) return null;
   const album = albumById(current.albumId);
@@ -40,7 +41,7 @@ export function PlayerBar() {
       <motion.footer
         initial={{ y: 90 }}
         animate={{ y: 0 }}
-        transition={{ type: "spring", stiffness: 200, damping: 26 }}
+        transition={springGentle}
         className="glass border-border fixed inset-x-0 bottom-0 z-40 border-t"
       >
         <div className="w-full grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 sm:px-8 py-3">
@@ -105,7 +106,7 @@ export function PlayerBar() {
                 className="size-full"
               />
             </div>
-            <button
+            <motion.button
               aria-label="Hòa âm Crossfade"
               title={`Hòa trộn bài (Crossfade): ${
                 crossfade > 0
@@ -115,11 +116,14 @@ export function PlayerBar() {
               onClick={() => {
                 const presets = [10, 12, 5, 3, 0];
                 const curIdx = presets.indexOf(crossfade);
-                const nextVal = presets[(curIdx + 1) % presets.length];
+                const nextVal = presets[(curIdx + 1) % presets.length] ?? 0;
                 setCrossfade(nextVal);
               }}
+              whileTap={tapScale}
+              whileHover={{ y: -1 }}
+              transition={springSnappy}
               className={cn(
-                "text-muted-foreground hover:text-foreground transition-all flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border border-white/10 cursor-pointer shadow-sm active:scale-95",
+                "text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border border-white/10 cursor-pointer shadow-sm",
                 crossfade > 0
                   ? "text-amber-400 border-amber-500/40 bg-amber-500/10 shadow-[0_0_12px_rgba(245,158,11,0.15)]"
                   : "hover:bg-accent/50",
@@ -129,8 +133,8 @@ export function PlayerBar() {
               <span className="hidden sm:inline font-mono">
                 {crossfade > 0 ? `${crossfade}s` : "Mix Off"}
               </span>
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               aria-label="Lời bài hát"
               title={lyricsOpen ? "Ẩn lời bài hát" : "Xem lời bài hát"}
               onClick={() => {
@@ -141,23 +145,29 @@ export function PlayerBar() {
                   setLyricsOpen(!lyricsOpen);
                 }
               }}
+              whileTap={tapScale}
+              whileHover={{ y: -1 }}
+              transition={springSnappy}
               className={cn(
                 "text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-1.5 rounded-full hover:bg-accent/50",
                 lyricsOpen && expanded && "text-primary bg-primary/10",
               )}
             >
               <Mic2 className="size-4" />
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               aria-label="Hàng đợi"
               onClick={() => setQueueOpen(!queueOpen)}
+              whileTap={tapScale}
+              whileHover={{ y: -1 }}
+              transition={springSnappy}
               className={cn(
                 "text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-1.5 rounded-full hover:bg-accent/50",
                 queueOpen && "text-primary bg-primary/10",
               )}
             >
               <ListMusic className="size-4" />
-            </button>
+            </motion.button>
             <VolumeBar />
           </div>
         </div>
@@ -174,9 +184,11 @@ function VolumeBar() {
 
   return (
     <div className="hidden items-center gap-2 md:flex">
-      <button
+      <motion.button
         onClick={toggleMute}
         aria-label={isMuted ? "Bật âm thanh" : "Tắt âm thanh"}
+        whileTap={tapScale}
+        transition={springSnappy}
         className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
       >
         {isMuted || volume === 0 ? (
@@ -184,7 +196,7 @@ function VolumeBar() {
         ) : (
           <Volume2 className="size-4" />
         )}
-      </button>
+      </motion.button>
       <div
         className="group relative flex h-6 w-24 items-center select-none cursor-pointer"
         onPointerDown={() => setIsDragging(true)}

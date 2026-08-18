@@ -170,8 +170,8 @@ export function beautifyLrcString(lrcText: string): string {
   const beautified = lines.map((line) => {
     const match = regex.exec(line.trim());
     if (match) {
-      const tag = match[1];
-      const content = correctVietnameseLyrics(match[2]);
+      const tag = match[1] || "";
+      const content = correctVietnameseLyrics(match[2] || "");
       return `${tag} ${content}`.trim();
     }
     return correctVietnameseLyrics(line);

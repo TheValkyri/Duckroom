@@ -17,11 +17,19 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
+import { easeDuck, springPill, springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { getUploadState, subscribeUploadState, updateUploadState, type UploadState } from "../lib/upload-store";
 import { useAuth } from "../lib/useAuth";
 import { cn } from "../lib/utils";
 import { NowPlaying } from "./player/NowPlaying";
 import { PlayerBar } from "./player/PlayerBar";
+
+// Sidebar co giãn dùng tween (không dùng spring) và main content padding
+// dùng CSS transition CÙNG duration + easing ("easeDuck") — để 2 hệ thống
+// animation khác nhau (Framer Motion vs CSS transition) luôn khớp khung hình
+// với nhau, tránh hiện tượng nội dung "chạy trước/sau" mép sidebar khi thu/mở.
+const SIDEBAR_TRANSITION_MS = 320;
+const sidebarTween = { duration: SIDEBAR_TRANSITION_MS / 1000, ease: easeDuck };
 
 const nav = [
   { to: "/", label: "Trang chủ", icon: Home },
@@ -127,7 +135,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </div>
                 <button
                   onClick={() => updateUploadState({ successMessage: "" })}
-                  className="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
+                  className="text-muted-foreground hover:text-foreground p-1 cursor-pointer active:scale-90 transition-transform"
                 >
                   <X className="size-3.5" />
                 </button>
@@ -140,7 +148,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Desktop Animated Collapsible Sidebar */}
       <motion.aside
         animate={{ width: collapsed ? 80 : 256 }}
-        transition={{ type: "spring", stiffness: 240, damping: 26 }}
+        transition={sidebarTween}
+        style={{ willChange: "width" }}
         className="border-border bg-sidebar/95 backdrop-blur-xl fixed inset-y-0 left-0 z-30 hidden flex-col border-r px-3 py-6 lg:flex overflow-hidden select-none"
       >
         <div className="flex items-center justify-between px-2 mb-8">
@@ -157,13 +166,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               </motion.span>
             )}
           </Link>
-          <button
+          <motion.button
             onClick={() => setCollapsed(!collapsed)}
             title={collapsed ? "Mở rộng Sidebar" : "Thu gọn Sidebar"}
+            whileTap={tapScale}
+            whileHover={{ scale: 1.08 }}
+            transition={springSnappy}
             className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-accent/60 transition-colors cursor-pointer shrink-0"
           >
             {collapsed ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
-          </button>
+          </motion.button>
         </div>
 
         <nav className="flex flex-col gap-1.5 relative">
@@ -183,7 +195,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {isActive && (
                   <motion.div
                     layoutId="sidebar-active-pill"
-                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                    transition={springPill}
                     className="absolute inset-0 rounded-xl bg-accent/80 border border-white/10 shadow-sm z-0"
                   />
                 )}
@@ -262,17 +274,29 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
         </Link>
         <div className="flex items-center gap-1 overflow-x-auto">
-          {nav.map(({ to, label }) => (
-            <Link
-              key={to}
-              to={to}
-              activeOptions={{ exact: to === "/" }}
-              className="text-muted-foreground rounded-full px-3 py-1 text-xs whitespace-nowrap"
-              activeProps={{ className: "bg-accent text-foreground font-medium" }}
-            >
-              {label}
-            </Link>
-          ))}
+          {nav.map(({ to, label }) => {
+            const isActive = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
+            return (
+              <Link
+                key={to}
+                to={to}
+                activeOptions={{ exact: to === "/" }}
+                className={cn(
+                  "relative rounded-full px-3 py-1 text-xs whitespace-nowrap transition-colors",
+                  isActive ? "text-foreground font-medium" : "text-muted-foreground",
+                )}
+              >
+                {isActive && (
+                  <motion.span
+                    layoutId="mobile-tab-pill"
+                    transition={springPill}
+                    className="absolute inset-0 rounded-full bg-accent -z-10"
+                  />
+                )}
+                {label}
+              </Link>
+            );
+          })}
           {isLoggedIn ? (
             <button
               onClick={() => signOut()}
@@ -295,13 +319,22 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Main Content Area */}
       <main
         className={cn(
-          "pt-14 pb-32 lg:pt-0 overflow-x-hidden transition-[padding] duration-200 ease-out",
+          "pt-14 pb-32 lg:pt-0 overflow-x-hidden transition-[padding] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
           collapsed ? "lg:pl-20" : "lg:pl-64"
         )}
       >
-        <div key={location.pathname} className="min-h-screen">
-          {children}
-        </div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={tweenBase}
+            className="min-h-screen"
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
       </main>
       <PlayerBar />
       <NowPlaying />

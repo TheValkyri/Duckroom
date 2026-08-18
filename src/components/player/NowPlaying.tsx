@@ -3,14 +3,27 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { albumById, formatTime } from "../../data/library";
 import { cropBlackLetterbox } from "../../lib/image-crop";
-import { usePlayer } from "../../lib/player";
+import { springGentle, springSmooth, springSnappy, tapScale, tweenBase } from "../../lib/motion";
+import { usePlayer, usePlayerTime } from "../../lib/player";
 import { cn } from "../../lib/utils";
 import { Visualizer } from "../Visualizer";
 import { SeekBar, TransportControls } from "./Controls";
 import { LyricsPane } from "./Lyrics";
 
+// Tách nhãn thời gian ra component riêng: chỉ phần này re-render mỗi tick
+// (~4-15 lần/giây), toàn bộ đĩa than/ảnh bìa/gradient không cần tính lại.
+function NowPlayingTimeLabel({ duration }: { duration: number }) {
+  const time = usePlayerTime();
+  return (
+    <div className="text-muted-foreground flex justify-between text-xs tabular-nums mt-1">
+      <span>{formatTime(time)}</span>
+      <span>-{formatTime(duration - time)}</span>
+    </div>
+  );
+}
+
 export function NowPlaying() {
-  const { current, queue, index, expanded, setExpanded, isPlaying, time, lyricsOpen, setLyricsOpen, next } =
+  const { current, queue, index, expanded, setExpanded, isPlaying, lyricsOpen, setLyricsOpen, next } =
     usePlayer();
   const open = expanded;
   const album = current ? albumById(current.albumId) : undefined;
@@ -56,7 +69,7 @@ export function NowPlaying() {
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 40 }}
-          transition={{ type: "spring", stiffness: 180, damping: 26 }}
+          transition={springGentle}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               handleMinimize();
@@ -85,33 +98,40 @@ export function NowPlaying() {
             }}
             className="relative z-20 flex items-center justify-between px-6 py-4 shrink-0"
           >
-            <button
+            <motion.button
               onClick={handleMinimize}
+              whileTap={tapScale}
+              transition={springSnappy}
               className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm transition-colors cursor-pointer"
             >
               <ChevronDown className="size-5" /> Thu nhỏ
-            </button>
+            </motion.button>
 
             {/* Next Track Indicator Pill */}
             {nextTrack && queue.length > 1 && (
-              <button
+              <motion.button
                 onClick={() => next(true)}
+                whileTap={tapScale}
+                whileHover={{ y: -1 }}
+                transition={springSnappy}
                 className="hidden md:flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground bg-card/60 hover:bg-card/90 border border-white/10 px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-sm group"
               >
                 <SkipForward className="size-3.5 text-primary group-hover:translate-x-0.5 transition-transform" />
                 <span>Tiếp theo: <strong className="text-foreground font-medium">{nextTrack.title}</strong> — {nextTrack.artist}</span>
-              </button>
+              </motion.button>
             )}
 
-            <button
+            <motion.button
               onClick={() => setLyricsOpen(!lyricsOpen)}
+              whileTap={tapScale}
+              transition={springSnappy}
               className={cn(
                 "text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm transition-colors cursor-pointer px-3.5 py-1.5 rounded-full border border-transparent",
                 lyricsOpen && "text-primary border-primary/30 bg-primary/10 font-medium",
               )}
             >
               <Mic2 className="size-4" /> Lời
-            </button>
+            </motion.button>
           </div>
 
           {/* Main Content Stage */}
@@ -125,20 +145,23 @@ export function NowPlaying() {
               {/* Left Column: Cover + Vinyl Disc + Title + Controls */}
               <motion.div
                 layout
-                transition={{ type: "spring", stiffness: 220, damping: 28 }}
+                transition={springSmooth}
                 className={cn(
                   "flex flex-col items-center justify-center gap-6 w-full max-w-md shrink-0 z-10",
                   lyricsOpen ? "lg:mr-auto lg:ml-0" : "mx-auto"
                 )}
               >
-                {/* Vinyl Record & Cover Container with Crisp Ejection & Insertion Motion */}
-                <AnimatePresence mode="wait">
+                {/* Vinyl Record & Cover Container. mode="popLayout" (thay vì "wait"):
+                    ảnh bìa mới bắt đầu bay vào NGAY khi ảnh cũ bắt đầu bay ra (chạy
+                    song song) thay vì đợi ảnh cũ biến mất hết mới hiện ảnh mới —
+                    loại bỏ khoảng "đứng hình" ~150-200ms mỗi lần chuyển bài. */}
+                <AnimatePresence mode="popLayout" initial={false}>
                   <motion.div
                     key={current.id}
                     initial={{ opacity: 0, scale: 0.82, x: -90, rotate: -12 }}
                     animate={{ opacity: 1, scale: 1, x: 0, rotate: 0 }}
                     exit={{ opacity: 0, scale: 0.82, x: 130, rotate: 18 }}
-                    transition={{ type: "spring", stiffness: 260, damping: 22 }}
+                    transition={springSmooth}
                     className="relative flex items-center justify-center my-2 w-full"
                   >
                     {/* Spinning Vinyl Record Disc - Continuous Center Rotation */}
@@ -192,13 +215,13 @@ export function NowPlaying() {
                 </AnimatePresence>
 
                 {/* Track Title, Visualizer & Controls */}
-                <AnimatePresence mode="wait">
+                <AnimatePresence mode="popLayout" initial={false}>
                   <motion.div
                     key={`info-${current.id}`}
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.2 }}
+                    transition={tweenBase}
                     className="w-full max-w-sm text-center"
                   >
                     <h1 className="font-display text-2xl md:text-4xl truncate">{current.title}</h1>
@@ -210,10 +233,7 @@ export function NowPlaying() {
 
                     <div className="mt-2">
                       <SeekBar />
-                      <div className="text-muted-foreground flex justify-between text-xs tabular-nums mt-1">
-                        <span>{formatTime(time)}</span>
-                        <span>-{formatTime(current.duration - time)}</span>
-                      </div>
+                      <NowPlayingTimeLabel duration={current.duration} />
                     </div>
 
                     <div className="mt-4 flex justify-center">
@@ -230,7 +250,7 @@ export function NowPlaying() {
                     initial={{ opacity: 0, x: 60 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 60 }}
-                    transition={{ type: "spring", stiffness: 220, damping: 28 }}
+                    transition={springSmooth}
                     className="w-full lg:w-1/2 h-[60vh] lg:h-[72vh] lg:absolute lg:right-0 flex flex-col justify-center overflow-hidden z-20"
                   >
                     <LyricsPane />

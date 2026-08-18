@@ -1,14 +1,15 @@
 import { Pencil, Play, Trash2, Volume2 } from "lucide-react";
-import { AnimatePresence } from "motion/react";
-import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { memo, useState } from "react";
 import { albumById, formatTime, type Track } from "../data/library";
+import { springSnappy, tapScale } from "../lib/motion";
 import { usePlayer } from "../lib/player";
 import { cn } from "../lib/utils";
 import { EditTrackModal } from "./EditTrackModal";
 
 import { useAuth } from "../lib/useAuth";
 
-export function TrackRow({
+export const TrackRow = memo(function TrackRow({
   track,
   n,
   onPlay,
@@ -74,33 +75,37 @@ export function TrackRow({
 
         {/* Edit Track & Artwork Button - Only for logged-in members */}
         {isLoggedIn && (
-          <button
+          <motion.button
             type="button"
             title="Chỉnh sửa thông tin bài hát & Artwork"
             onClick={(e) => {
               e.stopPropagation();
               setShowEditModal(true);
             }}
+            whileTap={tapScale}
+            transition={springSnappy}
             className="text-muted-foreground/40 hover:text-primary p-1 rounded transition-colors opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
           >
             <Pencil className="size-4" />
-          </button>
+          </motion.button>
         )}
 
         {isLoggedIn && extraActions}
 
         {isLoggedIn && onDelete && (
-          <button
+          <motion.button
             type="button"
             title="Xóa bài hát khỏi thư viện"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
+            whileTap={tapScale}
+            transition={springSnappy}
             className="text-muted-foreground/40 hover:text-destructive p-1 rounded transition-colors opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
           >
             <Trash2 className="size-4" />
-          </button>
+          </motion.button>
         )}
       </div>
 
@@ -117,4 +122,4 @@ export function TrackRow({
       </AnimatePresence>
     </>
   );
-}
+});

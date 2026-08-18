@@ -33,7 +33,7 @@ export function getAudioAnalyser(audioEl: HTMLAudioElement | null): AnalyserNode
       void audioCtx.resume().catch(() => undefined);
     }
 
-    if (!mediaSourceMap.has(audioEl)) {
+    if (!mediaSourceMap.has(audioEl) && analyserNode) {
       const source = audioCtx.createMediaElementSource(audioEl);
       source.connect(analyserNode);
       analyserNode.connect(audioCtx.destination);

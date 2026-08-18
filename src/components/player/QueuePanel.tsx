@@ -2,6 +2,7 @@ import { GripVertical, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useRef, useState } from "react";
 import { albumById, formatTime } from "../../data/library";
+import { springGentle, springSnappy, tapScale } from "../../lib/motion";
 import { usePlayer } from "../../lib/player";
 import { cn } from "../../lib/utils";
 
@@ -15,7 +16,7 @@ export function QueuePanel() {
       initial={{ x: 380, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 380, opacity: 0 }}
-      transition={{ type: "spring", stiffness: 240, damping: 30 }}
+      transition={springGentle}
       className="glass border-border fixed top-0 right-0 bottom-[73px] z-40 flex w-[360px] max-w-[88vw] flex-col border-l"
     >
       <header className="border-border flex items-center justify-between border-b px-5 py-4">
@@ -25,14 +26,25 @@ export function QueuePanel() {
             {queue.length} bài {shuffle ? "· đang trộn" : ""}
           </p>
         </div>
-        <button onClick={() => setQueueOpen(false)} aria-label="Đóng hàng đợi">
+        <motion.button
+          onClick={() => setQueueOpen(false)}
+          aria-label="Đóng hàng đợi"
+          whileTap={tapScale}
+          transition={springSnappy}
+          className="p-1 rounded-full hover:bg-accent/60 cursor-pointer"
+        >
           <X className="text-muted-foreground hover:text-foreground size-4" />
-        </button>
+        </motion.button>
       </header>
+      {/* motion.li + layout: khi moveInQueue() đổi thứ tự mảng, mỗi hàng tự
+          động FLIP-animate sang vị trí mới thay vì "nhảy" tức thời — cảm giác
+          kéo-thả có trọng lượng, mượt như các app nhạc lớn. */}
       <ol className="flex-1 overflow-y-auto p-2">
         {queue.map((t, i) => (
-          <li
+          <motion.li
             key={t.id}
+            layout
+            transition={springSnappy}
             draggable
             onDragStart={() => (dragFrom.current = i)}
             onDragOver={(e) => {
@@ -46,13 +58,13 @@ export function QueuePanel() {
             }}
             onDragEnd={() => setOver(null)}
             className={cn(
-              "group hover:bg-accent/50 flex cursor-grab items-center gap-3 rounded-md px-3 py-2",
+              "group hover:bg-accent/50 flex cursor-grab items-center gap-3 rounded-md px-3 py-2 active:cursor-grabbing",
               i === index && "bg-accent/60",
               over === i && "ring-primary/60 ring-1",
             )}
           >
-            <GripVertical className="text-muted-foreground size-3.5 opacity-0 group-hover:opacity-100" />
-            <button onClick={() => jumpTo(i)} className="flex min-w-0 flex-1 items-center gap-3">
+            <GripVertical className="text-muted-foreground size-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
+            <button onClick={() => jumpTo(i)} className="flex min-w-0 flex-1 items-center gap-3 cursor-pointer">
               <img
                 src={albumById(t.albumId)?.cover}
                 alt=""
@@ -73,7 +85,7 @@ export function QueuePanel() {
                 {formatTime(t.duration)}
               </span>
             </button>
-          </li>
+          </motion.li>
         ))}
       </ol>
     </motion.aside>

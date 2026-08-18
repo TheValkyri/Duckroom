@@ -6,6 +6,7 @@ import { AlbumCard } from "../components/AlbumCard";
 import { TrackRow } from "../components/TrackRow";
 import { Visualizer } from "../components/Visualizer";
 import { albumTracks, type Track } from "../data/library";
+import { listContainerVariants, listItemVariants, springSnappy, tweenBase } from "../lib/motion";
 import { usePlayer } from "../lib/player";
 import { useLibrary } from "../lib/useLibrary";
 import { cn } from "../lib/utils";
@@ -43,8 +44,9 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
 
   return (
     <motion.div
+      variants={listItemVariants}
       whileHover={{ y: -4 }}
-      transition={{ type: "spring", stiffness: 300, damping: 24 }}
+      transition={springSnappy}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       className="group flex flex-col relative"
@@ -201,25 +203,35 @@ function Index() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-    >
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={tweenBase}>
       {/* Hero Featured Album */}
       <section className="grain relative overflow-hidden">
         <img
           key={hero.cover}
-          src={hero.cover}
+          src={hero.cover || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"}
           alt=""
           aria-hidden
+          onError={(e) => {
+            const target = e.currentTarget;
+            const fallback = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+            if (target.src !== fallback) {
+              target.src = fallback;
+            }
+          }}
           className="absolute inset-0 size-full scale-110 object-cover opacity-25 blur-3xl transition-opacity duration-700 ease-in-out animate-fade-in"
         />
         <div className="from-background absolute inset-0 bg-gradient-to-t via-transparent to-transparent" />
         <div className="relative mx-auto flex max-w-6xl flex-col gap-10 px-6 py-24 md:flex-row md:items-end">
           <img
-            src={hero.cover}
+            src={hero.cover || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"}
             alt={`Bìa album ${hero.title}`}
+            onError={(e) => {
+              const target = e.currentTarget;
+              const fallback = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+              if (target.src !== fallback) {
+                target.src = fallback;
+              }
+            }}
             width={512}
             height={512}
             className="aspect-square w-60 rounded-xl object-cover shadow-[0_40px_100px_-30px_oklch(0_0_0/0.9)] md:w-80"
@@ -250,18 +262,30 @@ function Index() {
       {/* Albums Section */}
       <section className="mx-auto max-w-6xl px-6 py-14">
         <SectionHead title="Albums" to="/albums" />
-        <div className="mt-8 grid grid-cols-2 gap-8 md:grid-cols-3">
+        <motion.div
+          variants={listContainerVariants}
+          initial="hidden"
+          animate="show"
+          className="mt-8 grid grid-cols-2 gap-8 md:grid-cols-3"
+        >
           {albums.map((a) => (
-            <AlbumCard key={a.id} album={a} />
+            <motion.div key={a.id} variants={listItemVariants}>
+              <AlbumCard album={a} />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </section>
 
       {/* Singles Section (If available) */}
       {featuredSingles.length > 0 && (
         <section className="mx-auto max-w-6xl px-6 pb-14">
           <SectionHead title="Đĩa đơn & Single" to="/singles" badge={`${singles.length} bài`} />
-          <div className="mt-8 grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <motion.div
+            variants={listContainerVariants}
+            initial="hidden"
+            animate="show"
+            className="mt-8 grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+          >
             {featuredSingles.map((track) => (
               <SingleMiniCard
                 key={track.id}
@@ -272,42 +296,51 @@ function Index() {
                 }}
               />
             ))}
-          </div>
+          </motion.div>
         </section>
       )}
 
       {/* Recent Tracks Section */}
       <section className="mx-auto max-w-6xl px-6 pb-14">
         <SectionHead title="Nghe gần đây" to="/library" />
-        <div className="mt-6">
+        <motion.div variants={listContainerVariants} initial="hidden" animate="show" className="mt-6">
           {recent.map((t, i) => (
-            <TrackRow key={t.id} track={t} n={i + 1} onPlay={() => playQueue(recent, i)} />
+            <motion.div key={t.id} variants={listItemVariants}>
+              <TrackRow track={t} n={i + 1} onPlay={() => playQueue(recent, i)} />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </section>
 
       {/* Videos Section */}
       {videos.length > 0 && (
         <section className="mx-auto max-w-6xl px-6 pb-24">
           <SectionHead title="MV Bản Gốc" to="/videos" />
-          <div className="mt-8 grid gap-8 md:grid-cols-2">
+          <motion.div
+            variants={listContainerVariants}
+            initial="hidden"
+            animate="show"
+            className="mt-8 grid gap-8 md:grid-cols-2"
+          >
             {videos.map((v) => (
-              <Link key={v.id} to="/videos/$videoId" params={{ videoId: v.id }} className="group">
-                <img
-                  src={v.thumb}
-                  alt={`Ảnh nền MV ${v.title}`}
-                  loading="lazy"
-                  width={800}
-                  height={456}
-                  className="aspect-video w-full rounded-xl object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-                />
-                <h3 className="font-display mt-3 text-xl">{v.title}</h3>
-                <p className="text-muted-foreground text-xs">
-                  {v.resolution} · {v.codec}
-                </p>
-              </Link>
+              <motion.div key={v.id} variants={listItemVariants}>
+                <Link to="/videos/$videoId" params={{ videoId: v.id }} className="group block">
+                  <img
+                    src={v.thumb}
+                    alt={`Ảnh nền MV ${v.title}`}
+                    loading="lazy"
+                    width={800}
+                    height={456}
+                    className="aspect-video w-full rounded-xl object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                  />
+                  <h3 className="font-display mt-3 text-xl">{v.title}</h3>
+                  <p className="text-muted-foreground text-xs">
+                    {v.resolution} · {v.codec}
+                  </p>
+                </Link>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </section>
       )}
     </motion.div>

@@ -6,6 +6,15 @@ import { albumTracks, albums, createAlbum, deleteAlbum, saveStoredLibrary, type 
 import { usePlayer } from "../lib/player";
 import { ArtworkCropModal } from "../components/ArtworkCropModal";
 import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
+import {
+  listContainerVariants,
+  listItemVariants,
+  modalOverlayVariants,
+  modalPanelVariants,
+  springSnappy,
+  tapScale,
+  tweenBase,
+} from "../lib/motion";
 import { createPresignedUrl } from "../lib/s3";
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
 import { cn } from "../lib/utils";
@@ -35,26 +44,29 @@ function AlbumCard({ album, onDelete, onPlay }: { album: Album; onDelete: () => 
 
   return (
     <motion.div
+      variants={listItemVariants}
       whileHover={{ y: -6 }}
-      transition={{ type: "spring", stiffness: 300, damping: 24 }}
+      transition={springSnappy}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       className="relative group"
     >
       {/* Delete button - Only for logged in members */}
       {isLoggedIn && (
-        <button
+        <motion.button
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             onDelete();
           }}
+          whileTap={tapScale}
+          transition={springSnappy}
           aria-label={`Xoá album ${album.title}`}
-          className="absolute top-2.5 right-2.5 z-20 size-8 rounded-full bg-black/60 hover:bg-destructive text-white/80 hover:text-white grid place-items-center opacity-0 group-hover:opacity-100 transition-all duration-200 backdrop-blur-sm shadow-md cursor-pointer"
+          className="absolute top-2.5 right-2.5 z-20 size-8 rounded-full bg-black/60 hover:bg-destructive text-white/80 hover:text-white grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 backdrop-blur-sm shadow-md cursor-pointer"
           title="Xoá album này"
         >
           <Trash2 className="size-4" />
-        </button>
+        </motion.button>
       )}
 
       <Link
@@ -78,13 +90,14 @@ function AlbumCard({ album, onDelete, onPlay }: { album: Album; onDelete: () => 
           )}
 
           {/* Quick Play Button on Hover */}
-          <button
+          <motion.button
             onClick={(e) => { e.preventDefault(); onPlay(); }}
+            whileTap={tapScale}
             aria-label={`Phát ${album.title}`}
             className="bg-primary text-primary-foreground absolute right-3 bottom-3 grid size-11 translate-y-3 place-items-center rounded-full opacity-0 shadow-lg transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 cursor-pointer"
           >
             <Play className="size-4 translate-x-px" fill="currentColor" />
-          </button>
+          </motion.button>
         </div>
         <h3 className="font-display mt-3 text-lg leading-tight">{album.title}</h3>
         <p className="text-muted-foreground text-xs">
@@ -169,8 +182,8 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
         title: title.trim(),
         artist: artist.trim() || "Nghệ sĩ",
         year: parseInt(year, 10) || new Date().getFullYear(),
-        cover: finalCover || undefined,
-        note: note.trim(),
+        ...(finalCover ? { cover: finalCover } : {}),
+        ...(note.trim() ? { note: note.trim() } : {}),
       });
 
       saveStoredLibrary(true);
@@ -190,19 +203,20 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
   return (
     <>
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+        variants={modalOverlayVariants}
+        initial="hidden"
+        animate="show"
+        exit="exit"
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4"
         onClick={(e) => {
           if (e.target === e.currentTarget && !isUploading) onClose();
         }}
       >
         <motion.div
-          initial={{ scale: 0.92, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.92, opacity: 0, y: 20 }}
-          transition={{ type: "spring", stiffness: 300, damping: 28 }}
+          variants={modalPanelVariants}
+          initial="hidden"
+          animate="show"
+          exit="exit"
           className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
         >
           <div className="flex items-center justify-between pb-3 border-b border-border">
@@ -380,18 +394,22 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
             </div>
 
             <div className="flex gap-3 pt-3 border-t border-border">
-              <button
+              <motion.button
                 type="button"
                 disabled={isUploading}
                 onClick={onClose}
+                whileTap={tapScale}
+                transition={springSnappy}
                 className="flex-1 border border-border rounded-full py-2.5 text-sm transition-colors hover:bg-accent cursor-pointer disabled:opacity-50"
               >
                 Huỷ
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="submit"
                 disabled={!title.trim() || isUploading}
-                className="flex-1 bg-primary text-primary-foreground rounded-full py-2.5 text-sm font-medium transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                whileTap={tapScale}
+                transition={springSnappy}
+                className="flex-1 bg-primary text-primary-foreground rounded-full py-2.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
               >
                 {isUploading ? (
                   <>
@@ -404,7 +422,7 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
                     <span>Tạo Album</span>
                   </>
                 )}
-              </button>
+              </motion.button>
             </div>
           </form>
         </motion.div>
@@ -440,25 +458,38 @@ function AlbumsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-12">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={tweenBase}
+      className="mx-auto max-w-6xl px-6 py-12"
+    >
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-5xl">Albums</h1>
           <p className="text-muted-foreground mt-2 text-sm">{albums.length} album đã lưu trữ</p>
         </div>
         {isLoggedIn && (
-          <button
+          <motion.button
             onClick={() => setShowCreate(true)}
-            className="bg-primary text-primary-foreground flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-transform hover:scale-105 cursor-pointer"
+            whileTap={tapScale}
+            whileHover={{ y: -1 }}
+            transition={springSnappy}
+            className="bg-primary text-primary-foreground flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium cursor-pointer"
           >
             <Plus className="size-4" />
             Tạo Album
-          </button>
+          </motion.button>
         )}
       </div>
 
       {albums.length > 0 ? (
-        <div className="mt-10 grid grid-cols-2 gap-8 md:grid-cols-3">
+        <motion.div
+          variants={listContainerVariants}
+          initial="hidden"
+          animate="show"
+          className="mt-10 grid grid-cols-2 gap-8 md:grid-cols-3"
+        >
           {albums.map((a) => (
             <AlbumCard
               key={a.id}
@@ -467,7 +498,7 @@ function AlbumsPage() {
               onPlay={() => playQueue(albumTracks(a.id), 0)}
             />
           ))}
-        </div>
+        </motion.div>
       ) : (
         <div className="border-border bg-card/30 mt-10 flex flex-col items-center gap-4 rounded-xl border p-16 text-center">
           <Disc3 className="text-muted-foreground size-12" />
@@ -476,12 +507,14 @@ function AlbumsPage() {
             Bạn có thể tạo album mới và thêm bài hát vào, hoặc tải lên bài hát mới.
           </p>
           <div className="flex gap-3">
-            <button
+            <motion.button
               onClick={() => setShowCreate(true)}
-              className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium transition-transform hover:scale-105"
+              whileTap={tapScale}
+              transition={springSnappy}
+              className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium cursor-pointer"
             >
               <Plus className="size-4" /> Tạo Album
-            </button>
+            </motion.button>
             <Link
               to="/upload"
               className="border-border inline-flex items-center gap-2 rounded-full border px-6 py-2.5 text-sm transition-colors hover:bg-accent"
@@ -499,6 +532,6 @@ function AlbumsPage() {
           />
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

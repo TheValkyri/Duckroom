@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Music2, RefreshCw, Trash2, UploadCloud } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { TrackRow } from "../components/TrackRow";
 import { deleteTrack, saveStoredLibrary, syncLibraryWithS3 } from "../data/library";
+import { springPill, springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { usePlayer } from "../lib/player";
 import { useLibrary } from "../lib/useLibrary";
 import { cn } from "../lib/utils";
@@ -95,7 +96,7 @@ function LibraryPage() {
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+      transition={tweenBase}
       className="mx-auto max-w-6xl px-6 py-12"
     >
       <div className="flex items-center justify-between">
@@ -108,25 +109,29 @@ function LibraryPage() {
         </div>
         {isLoggedIn && (
           <div className="flex items-center gap-2">
-            <button
+            <motion.button
               type="button"
               onClick={handleSyncS3}
               disabled={isSyncing}
+              whileTap={tapScale}
+              transition={springSnappy}
               className="border-border text-muted-foreground hover:text-foreground flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
               title="Kiểm tra Pikamc S3 và dọn dẹp các bài hát đã bị xóa trên Storage"
             >
               <RefreshCw className={cn("size-3.5", isSyncing && "animate-spin")} />
               <span>{isSyncing ? "Đang quét S3..." : "Đồng bộ Kho S3"}</span>
-            </button>
+            </motion.button>
             {tracks.length > 0 && (
-              <button
+              <motion.button
                 type="button"
                 onClick={handleClearAll}
+                whileTap={tapScale}
+                transition={springSnappy}
                 className="text-muted-foreground hover:text-destructive border-border flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
               >
                 <Trash2 className="size-3.5" />
                 <span>Xóa sạch bài cũ</span>
-              </button>
+              </motion.button>
             )}
           </div>
         )}
@@ -145,26 +150,47 @@ function LibraryPage() {
               key={a.id}
               onClick={() => setFilter(a.id)}
               className={cn(
-                "border-border text-muted-foreground rounded-full border px-3 py-1.5 text-xs transition-colors cursor-pointer",
-                filter === a.id && "bg-primary text-primary-foreground border-transparent font-medium",
+                "relative border-border rounded-full border px-3 py-1.5 text-xs transition-colors cursor-pointer",
+                filter === a.id ? "text-primary-foreground font-medium border-transparent" : "text-muted-foreground hover:text-foreground",
               )}
             >
+              {filter === a.id && (
+                <motion.span
+                  layoutId="library-filter-pill"
+                  transition={springPill}
+                  className="absolute inset-0 rounded-full bg-primary -z-10"
+                />
+              )}
               {a.title}
             </button>
           ))}
         </div>
       )}
 
+      {/* AnimatePresence theo key={t.id}: hàng đã hiển thị sẵn không bị "chạy
+          lại" animation khi gõ tìm kiếm/đổi filter — chỉ hàng THỰC SỰ mới
+          xuất hiện (khớp filter mới) mới animate vào, hàng bị lọc ra sẽ fade
+          out. Nếu dùng stagger container thông thường, mỗi lần gõ phím tìm
+          kiếm cả danh sách sẽ "nháy" lại toàn bộ — phản tác dụng, gây rối mắt. */}
       <div className="mt-6 space-y-1">
-        {list.map((t, i) => (
-          <TrackRow
-            key={t.id}
-            track={t}
-            n={i + 1}
-            onPlay={() => playQueue(list, i)}
-            onDelete={() => handleDelete(t.id)}
-          />
-        ))}
+        <AnimatePresence initial={false}>
+          {list.map((t, i) => (
+            <motion.div
+              key={t.id}
+              layout
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0, transition: { ...tweenBase, delay: Math.min(i, 14) * 0.02 } }}
+              exit={{ opacity: 0, transition: { duration: 0.12 } }}
+            >
+              <TrackRow
+                track={t}
+                n={i + 1}
+                onPlay={() => playQueue(list, i)}
+                onDelete={() => handleDelete(t.id)}
+              />
+            </motion.div>
+          ))}
+        </AnimatePresence>
         {tracks.length === 0 ? (
           <div className="border-border bg-card/30 mt-10 flex flex-col items-center gap-4 rounded-xl border p-16 text-center">
             <Music2 className="text-muted-foreground size-12" />

@@ -2,7 +2,8 @@ import { Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward } from "lu
 import { motion } from "motion/react";
 import { useState } from "react";
 import { formatTime } from "../../data/library";
-import { usePlayer } from "../../lib/player";
+import { springSnappy, tapScale } from "../../lib/motion";
+import { usePlayer, usePlayerTime } from "../../lib/player";
 import { cn } from "../../lib/utils";
 
 export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
@@ -15,18 +16,27 @@ export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
 
   return (
     <div className={cn("flex items-center", big ? "gap-6" : "gap-4")}>
-      <button
+      <motion.button
         aria-label="Trộn bài"
         title={shuffle ? "Trộn bài: Đang Bật (nhấn phím 'S')" : "Trộn bài: Đang Tắt (nhấn phím 'S')"}
         onClick={toggleShuffle}
+        whileTap={tapScale}
+        transition={springSnappy}
         className={cn(iconBtn, big ? "size-10" : "size-8", shuffle && "text-primary relative font-bold")}
       >
         <Shuffle className={big ? "size-5" : "size-4"} />
         {shuffle && <span className="absolute -bottom-1 size-1 rounded-full bg-primary" />}
-      </button>
-      <button aria-label="Bài trước" title="Bài trước (Shift + Mũi tên trái)" onClick={prev} className={cn(iconBtn, "size-9")}>
+      </motion.button>
+      <motion.button
+        aria-label="Bài trước"
+        title="Bài trước (Shift + Mũi tên trái)"
+        onClick={prev}
+        whileTap={tapScale}
+        transition={springSnappy}
+        className={cn(iconBtn, "size-9")}
+      >
         <SkipBack className={big ? "size-6" : "size-5"} fill="currentColor" />
-      </button>
+      </motion.button>
       <motion.button
         aria-label={isPlaying ? "Tạm dừng" : "Phát"}
         title={isPlaying ? "Tạm dừng (Phím cách Space)" : "Phát (Phím cách Space)"}
@@ -45,10 +55,17 @@ export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
           <Play className={cn(big ? "size-7" : "size-5", "translate-x-[1px]")} fill="currentColor" />
         )}
       </motion.button>
-      <button aria-label="Bài sau" title="Bài sau (Shift + Mũi tên phải)" onClick={() => next(true)} className={cn(iconBtn, "size-9")}>
+      <motion.button
+        aria-label="Bài sau"
+        title="Bài sau (Shift + Mũi tên phải)"
+        onClick={() => next(true)}
+        whileTap={tapScale}
+        transition={springSnappy}
+        className={cn(iconBtn, "size-9")}
+      >
         <SkipForward className={big ? "size-6" : "size-5"} fill="currentColor" />
-      </button>
-      <button
+      </motion.button>
+      <motion.button
         aria-label="Lặp lại"
         title={
           repeat === "one"
@@ -58,6 +75,8 @@ export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
             : "Lặp lại: Đang Tắt (nhấn phím 'R')"
         }
         onClick={cycleRepeat}
+        whileTap={tapScale}
+        transition={springSnappy}
         className={cn(iconBtn, big ? "size-10" : "size-8", repeat !== "off" && "text-primary relative font-bold")}
       >
         {repeat === "one" ? (
@@ -66,13 +85,14 @@ export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
           <Repeat className={big ? "size-5" : "size-4"} />
         )}
         {repeat !== "off" && <span className="absolute -bottom-1 size-1 rounded-full bg-primary" />}
-      </button>
+      </motion.button>
     </div>
   );
 }
 
 export function SeekBar({ compact = false }: { compact?: boolean }) {
-  const { time, current, seek } = usePlayer();
+  const { current, seek } = usePlayer();
+  const time = usePlayerTime();
   const duration = current?.duration ?? 1;
 
   const [isDragging, setIsDragging] = useState(false);

@@ -1,14 +1,49 @@
 import { useEffect, useMemo, useRef } from "react";
-import { usePlayer } from "../../lib/player";
+import { usePlayer, usePlayerTime } from "../../lib/player";
 import { cn } from "../../lib/utils";
 
+/**
+ * Cuộn mượt tự viết (thay cho `scrollTo({behavior:"smooth"})` của trình duyệt).
+ *
+ * Native smooth-scroll phó mặc easing/tốc độ cho từng trình duyệt (Chrome,
+ * Safari, Firefox mỗi nơi một khác) và quan trọng hơn: KHÔNG THỂ ngắt mượt
+ * giữa chừng. Nếu dòng active đổi trước khi lần cuộn trước xong (bài nhịp
+ * nhanh, nhiều dòng lyric sát nhau), trình duyệt giật thẳng sang đích mới.
+ * Tự chạy bằng requestAnimationFrame cho phép hủy/nối animation đang chạy dở
+ * mượt mà (interrupt-safe), đồng thời dùng chung easing "duck glide" với
+ * toàn bộ app (xem lib/motion.ts -> easeDuck).
+ */
+function animateScrollTo(el: HTMLElement, target: number, duration = 520) {
+  const start = el.scrollTop;
+  const distance = target - start;
+  if (Math.abs(distance) < 1) return () => {};
+
+  const startTime = performance.now();
+  let raf = 0;
+
+  // ease-out cubic — khớp với "duck glide" easeDuck dùng trong lib/motion.ts
+  const ease = (t: number) => 1 - Math.pow(1 - t, 3);
+
+  const tick = (now: number) => {
+    const elapsed = now - startTime;
+    const t = Math.min(1, elapsed / duration);
+    el.scrollTop = start + distance * ease(t);
+    if (t < 1) raf = requestAnimationFrame(tick);
+  };
+  raf = requestAnimationFrame(tick);
+
+  return () => cancelAnimationFrame(raf);
+}
+
 export function LyricsPane({ compact = false }: { compact?: boolean }) {
-  const { current, time, seek } = usePlayer();
+  const { current, seek } = usePlayer();
+  const time = usePlayerTime();
   const lines = current?.lyrics ?? [];
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const isUserScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<any>(null);
+  const cancelScrollRef = useRef<() => void>(() => {});
 
   const activeIndex = useMemo(() => {
     let idx = -1;
@@ -20,6 +55,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
 
   const handleUserScroll = () => {
     isUserScrollingRef.current = true;
+    cancelScrollRef.current(); // người dùng chủ động cuộn -> hủy animation tự động đang chạy dở
     if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     scrollTimeoutRef.current = setTimeout(() => {
       isUserScrollingRef.current = false;
@@ -29,31 +65,33 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   // Reset scroll to top when track changes
   useEffect(() => {
     isUserScrollingRef.current = false;
+    cancelScrollRef.current();
     if (containerRef.current) {
-      containerRef.current.scrollTo({ top: 0, behavior: "instant" as any });
+      containerRef.current.scrollTop = 0;
     }
   }, [current?.id]);
 
-  // Smoothly scroll active lyrics into center of view without jitter
+  // Smoothly scroll active lyrics into center of view (tự viết, interrupt-safe)
   useEffect(() => {
     if (isUserScrollingRef.current) return;
     const container = containerRef.current;
     if (!container) return;
 
+    cancelScrollRef.current();
+
     if (activeIndex <= 0) {
-      container.scrollTo({ top: 0, behavior: "smooth" });
+      cancelScrollRef.current = animateScrollTo(container, 0);
     } else if (itemRefs.current[activeIndex]) {
       const el = itemRefs.current[activeIndex];
       if (el) {
         const elTop = el.offsetTop - container.offsetTop;
         const targetScroll = elTop - container.clientHeight / 2.8;
-        container.scrollTo({
-          top: Math.max(0, targetScroll),
-          behavior: "smooth",
-        });
+        cancelScrollRef.current = animateScrollTo(container, Math.max(0, targetScroll));
       }
     }
   }, [activeIndex]);
+
+  useEffect(() => () => cancelScrollRef.current(), []);
 
   if (!lines.length) {
     return (
@@ -85,7 +123,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
         ref={containerRef}
         onWheel={handleUserScroll}
         onTouchMove={handleUserScroll}
-        className="flex h-full flex-col gap-6 md:gap-7 overflow-y-auto pt-16 pb-48 px-4 md:px-8 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className="flex h-full flex-col gap-6 md:gap-7 overflow-y-auto pt-16 pb-48 px-4 md:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
         {lines.map((line, i) => {
           const isActive = i === activeIndex;

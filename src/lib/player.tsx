@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { tracks as allTracks, type Track } from "../data/library";
@@ -15,12 +16,33 @@ import { useLibrary } from "./useLibrary";
 
 export type RepeatMode = "off" | "all" | "one";
 
+/**
+ * PERF — Tách "time" khỏi Context chính (xem audit animation).
+ * `time` đổi ~4-15 lần/giây trong lúc phát nhạc. Nếu để chung trong object
+ * Context, MỌI component gọi usePlayer() sẽ re-render theo mỗi tick — kể cả
+ * TrackRow, AlbumCard, PlayerBar shell... không hề dùng time. Đây là nguyên
+ * nhân gốc gây "khựng" toàn app. Giải pháp: store riêng qua pub/sub +
+ * useSyncExternalStore, chỉ nơi thật sự cần hiển thị thời gian sống động mới
+ * subscribe (SeekBar, Lyrics, nhãn thời gian).
+ */
+type TimeListener = () => void;
+
+const PlayerTimeCtx = createContext<{
+  subscribe: (fn: TimeListener) => () => void;
+  getTime: () => number;
+} | null>(null);
+
+export function usePlayerTime(): number {
+  const store = useContext(PlayerTimeCtx);
+  if (!store) throw new Error("usePlayerTime must be used inside PlayerProvider");
+  return useSyncExternalStore(store.subscribe, store.getTime, () => 0);
+}
+
 type PlayerState = {
   queue: Track[];
   index: number;
   current: Track | undefined;
   isPlaying: boolean;
-  time: number;
   volume: number;
   isMuted: boolean;
   shuffle: boolean;
@@ -72,7 +94,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<Track[]>(() => (libraryTracks.length > 0 ? libraryTracks : allTracks));
   const [index, setIndex] = useState(0);
   const [isPlaying, setPlaying] = useState(false);
-  const [time, setTime] = useState(0);
+
+  // Store thời gian phát nhạc tách biệt khỏi React state chính (xem PERF note ở trên)
+  const timeRef = useRef(0);
+  const timeListenersRef = useRef<Set<TimeListener>>(new Set());
+  const setTime = useCallback((t: number) => {
+    timeRef.current = t;
+    timeListenersRef.current.forEach((fn) => fn());
+  }, []);
+  const timeStore = useRef({
+    subscribe: (fn: TimeListener) => {
+      timeListenersRef.current.add(fn);
+      return () => timeListenersRef.current.delete(fn);
+    },
+    getTime: () => timeRef.current,
+  }).current;
+
   const [volume, setVolumeState] = useState(0.8);
   const [isMuted, setIsMuted] = useState(false);
   const [prevVolume, setPrevVolume] = useState(0.8);
@@ -225,11 +262,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (primaryAudioRef.current) {
       primaryAudioRef.current.currentTime = 0;
     }
-    if (time > 4) {
+    if (timeRef.current > 4) {
       return;
     }
     setIndex((i) => (i - 1 + queue.length) % queue.length);
-  }, [queue.length, time, activeChannel, primaryAudioRef, secondaryAudioRef]);
+  }, [queue.length, activeChannel, primaryAudioRef, secondaryAudioRef]);
 
   const toggleShuffle = useCallback(() => {
     setShuffle((s) => {
@@ -333,10 +370,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     let isCancelled = false;
 
     async function syncAudioSource() {
-      let targetSrc = current!.src;
+      let targetSrc = current?.src || "";
       const s3Key = extractS3KeyFromUrl(targetSrc);
 
-      if (s3Key && !targetSrc.includes("X-Amz-Signature")) {
+      if (s3Key && targetSrc && !targetSrc.includes("X-Amz-Signature")) {
         try {
           const freshSignedUrl = await createPresignedUrl(s3Key);
           if (isCancelled) return;
@@ -348,7 +385,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (isCancelled || !el) return;
+      if (isCancelled || !el || !targetSrc) return;
 
       el.src = targetSrc;
       el.preload = "auto";
@@ -555,7 +592,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       index,
       current,
       isPlaying,
-      time,
       volume,
       isMuted,
       shuffle,
@@ -598,7 +634,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       index,
       current,
       isPlaying,
-      time,
       volume,
       isMuted,
       shuffle,
@@ -625,10 +660,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider value={value}>
-      {children}
-      {/* Pure imperative dual audio elements for zero-latency seamless crossfade */}
-      <audio ref={audioRefA} crossOrigin="anonymous" preload="auto" />
-      <audio ref={audioRefB} crossOrigin="anonymous" preload="auto" />
+      <PlayerTimeCtx.Provider value={timeStore}>
+        {children}
+        {/* Pure imperative dual audio elements for zero-latency seamless crossfade */}
+        <audio ref={audioRefA} crossOrigin="anonymous" preload="auto" />
+        <audio ref={audioRefB} crossOrigin="anonymous" preload="auto" />
+      </PlayerTimeCtx.Provider>
     </Ctx.Provider>
   );
 }

@@ -5,6 +5,7 @@ import { ArtworkCropModal } from "./ArtworkCropModal";
 import { LyricsSearchModal } from "./LyricsSearchModal";
 import { albums, saveStoredLibrary, type Track } from "../data/library";
 import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
+import { modalOverlayVariants, modalPanelVariants, springSnappy, tapScale } from "../lib/motion";
 import { createPresignedUrl } from "../lib/s3";
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
 import { beautifyLrcString, parseLrcWithAutoCorrect, shiftLrcTime } from "../lib/lyrics-formatter";
@@ -119,8 +120,11 @@ export function EditTrackModal({
       track.title = title.trim();
       track.artist = artist.trim() || "Nghệ sĩ";
       track.albumId = targetAlbumId;
-      track.trackNo = Math.max(1, parseInt(trackNo, 10) || 1);
-      track.cover = finalCover;
+      if (finalCover) {
+        track.cover = finalCover;
+      } else {
+        delete track.cover;
+      }
       track.lyrics = parseLrcWithAutoCorrect(lyricsText);
 
       saveStoredLibrary(true);
@@ -136,37 +140,47 @@ export function EditTrackModal({
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      variants={modalOverlayVariants}
+      initial="hidden"
+      animate="show"
+      exit="exit"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isSaving) onClose();
       }}
     >
       <motion.div
-        initial={{ scale: 0.94, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.94, opacity: 0, y: 20 }}
-        transition={{ type: "spring", stiffness: 300, damping: 28 }}
+        variants={modalPanelVariants}
+        initial="hidden"
+        animate="show"
+        exit="exit"
         className="bg-card border border-border rounded-2xl p-6 w-full max-w-xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
       >
         <div className="flex items-center justify-between pb-4 border-b border-border">
           <h2 className="font-display text-xl">Chỉnh sửa thông tin bài hát & Artwork</h2>
-          <button
+          <motion.button
             onClick={onClose}
             disabled={isSaving}
+            whileTap={tapScale}
+            transition={springSnappy}
             className="text-muted-foreground hover:text-foreground transition-colors p-1"
           >
             <X className="size-5" />
-          </button>
+          </motion.button>
         </div>
 
-        {errorMsg && (
-          <div className="bg-destructive/10 text-destructive border border-destructive/30 rounded-lg p-3 text-xs mt-4">
-            {errorMsg}
-          </div>
-        )}
+        <AnimatePresence>
+          {errorMsg && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="bg-destructive/10 text-destructive border border-destructive/30 rounded-lg text-xs overflow-hidden"
+            >
+              <div className="p-3 mt-4">{errorMsg}</div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="overflow-y-auto flex-1 space-y-4 py-4 pr-1">
           {/* Custom Artwork Upload Section */}
@@ -413,17 +427,21 @@ export function EditTrackModal({
         </div>
 
         <div className="flex gap-3 pt-4 border-t border-border">
-          <button
+          <motion.button
             onClick={onClose}
             disabled={isSaving}
+            whileTap={tapScale}
+            transition={springSnappy}
             className="flex-1 border border-border rounded-full py-2.5 text-sm transition-colors hover:bg-accent cursor-pointer"
           >
             Huỷ
-          </button>
-          <button
+          </motion.button>
+          <motion.button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex-1 bg-primary text-primary-foreground rounded-full py-2.5 text-sm font-medium transition-transform hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-2"
+            whileTap={tapScale}
+            transition={springSnappy}
+            className="flex-1 bg-primary text-primary-foreground rounded-full py-2.5 text-sm font-medium cursor-pointer flex items-center justify-center gap-2"
           >
             {isSaving ? (
               <>
@@ -433,7 +451,7 @@ export function EditTrackModal({
             ) : (
               <span>Lưu thay đổi</span>
             )}
-          </button>
+          </motion.button>
         </div>
       </motion.div>
 

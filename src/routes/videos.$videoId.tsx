@@ -3,6 +3,7 @@ import { ArrowLeft, Maximize2, Pause, Play, Trash2, Volume2, VolumeX } from "luc
 import { motion } from "motion/react";
 import { useRef, useState } from "react";
 import { deleteVideo, formatTime, videoById } from "../data/library";
+import { springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { usePlayer } from "../lib/player";
 
 import { useLibrary } from "../lib/useLibrary";
@@ -88,7 +89,12 @@ function VideoPage() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-12">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={tweenBase}
+      className="mx-auto max-w-5xl px-6 py-12"
+    >
       <div className="mb-6 flex items-center justify-between">
         <Link
           to="/videos"
@@ -97,14 +103,16 @@ function VideoPage() {
           <ArrowLeft className="size-4" /> Tất cả MV
         </Link>
         {isLoggedIn && (
-          <button
+          <motion.button
             type="button"
             onClick={handleDeleteVideo}
+            whileTap={tapScale}
+            transition={springSnappy}
             className="text-muted-foreground hover:text-destructive border-border flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
           >
             <Trash2 className="size-3.5" />
             <span>Xóa MV này</span>
-          </button>
+          </motion.button>
         )}
       </div>
 
@@ -136,15 +144,21 @@ function VideoPage() {
 
         {/* Big play button overlay when not started or paused */}
         {(!hasStarted || !isPlaying) && (
-          <button
+          <motion.button
             onClick={handlePlayVideo}
+            initial={false}
+            whileTap={tapScale}
             className="bg-background/30 absolute inset-0 grid place-items-center backdrop-blur-[2px] transition-colors hover:bg-background/20"
             aria-label={isPlaying ? "Tạm dừng video" : "Phát video"}
           >
-            <span className="bg-primary text-primary-foreground grid size-20 place-items-center rounded-full shadow-2xl transition-transform hover:scale-105">
+            <motion.span
+              whileHover={{ scale: 1.06 }}
+              transition={springSnappy}
+              className="bg-primary text-primary-foreground grid size-20 place-items-center rounded-full shadow-2xl"
+            >
               <Play className="size-7 translate-x-px" fill="currentColor" />
-            </span>
-          </button>
+            </motion.span>
+          </motion.button>
         )}
 
         {/* Video Control Bar */}
@@ -166,23 +180,27 @@ function VideoPage() {
             />
             <div className="flex items-center justify-between text-xs text-white">
               <div className="flex items-center gap-3">
-                <button
+                <motion.button
                   onClick={handlePlayVideo}
+                  whileTap={tapScale}
+                  transition={springSnappy}
                   aria-label={isPlaying ? "Tạm dừng" : "Phát"}
                   className="hover:text-primary transition-colors"
                 >
                   {isPlaying ? <Pause className="size-5" /> : <Play className="size-5" fill="currentColor" />}
-                </button>
-                <button
+                </motion.button>
+                <motion.button
                   onClick={() => {
                     setIsMuted(!isMuted);
                     if (videoRef.current) videoRef.current.muted = !isMuted;
                   }}
+                  whileTap={tapScale}
+                  transition={springSnappy}
                   aria-label={isMuted ? "Bật tiếng" : "Tắt tiếng"}
                   className="hover:text-primary transition-colors"
                 >
                   {isMuted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
-                </button>
+                </motion.button>
                 <span className="tabular-nums">
                   {formatTime(currentTime)} / {formatTime(videoDuration)}
                 </span>
@@ -191,13 +209,15 @@ function VideoPage() {
                 <span className="border-border rounded border px-2 py-0.5 text-[10px] uppercase font-semibold text-primary">
                   {video.resolution} · {video.codec}
                 </span>
-                <button
+                <motion.button
                   onClick={handleFullscreen}
+                  whileTap={tapScale}
+                  transition={springSnappy}
                   aria-label="Toàn màn hình"
                   className="hover:text-primary transition-colors"
                 >
                   <Maximize2 className="size-4" />
-                </button>
+                </motion.button>
               </div>
             </div>
           </div>
@@ -222,6 +242,6 @@ function VideoPage() {
           </div>
         ))}
       </dl>
-    </div>
+    </motion.div>
   );
 }

@@ -24,6 +24,7 @@ export type Track = {
   /** Nguồn phát gốc, không transcode. Trống = chưa upload. */
   src?: string;
   cover?: string;
+  year?: number;
   lyrics: LyricLine[];
 };
 
@@ -85,7 +86,7 @@ export function loadStoredLibrary() {
       const parsed: Track[] = JSON.parse(storedTracks);
       parsed.forEach((t) => {
         if (t.cover?.startsWith("blob:")) {
-          t.cover = undefined;
+          delete t.cover;
         }
         if (Array.isArray(t.lyrics)) {
           t.lyrics.forEach((l) => {
@@ -100,7 +101,7 @@ export function loadStoredLibrary() {
     if (storedAlbums) {
       const parsed: Album[] = JSON.parse(storedAlbums);
       parsed.forEach((a) => {
-        if (a.cover?.startsWith("blob:")) {
+        if (a.cover?.startsWith("blob:") || a.cover?.includes("fbcdn.net")) {
           a.cover = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
         }
       });
@@ -111,7 +112,7 @@ export function loadStoredLibrary() {
     if (storedVideos) {
       const parsed: Video[] = JSON.parse(storedVideos);
       parsed.forEach((v) => {
-        if (v.thumb?.startsWith("blob:")) {
+        if (v.thumb?.startsWith("blob:") || v.thumb?.includes("fbcdn.net")) {
           v.thumb = "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=800&auto=format&fit=crop&q=80";
         }
       });
@@ -127,15 +128,13 @@ export function loadStoredLibrary() {
 function isLoggedInClient(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith("sb-") && key.endsWith("-auth-token")) {
-        const item = localStorage.getItem(key);
-        if (item && item.includes("access_token")) return true;
-      }
-    }
-  } catch (e) {}
-  return false;
+    const raw = localStorage.getItem("sb-lvrcqcghwebxlkrsisby-auth-token");
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    return Boolean(data?.access_token);
+  } catch {
+    return false;
+  }
 }
 
 let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -143,8 +142,7 @@ let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 export function saveStoredLibrary(immediate = false) {
   if (typeof window === "undefined") return;
 
-  notifyLibrarySubscribers();
-
+  // Only allow saving if user is logged in
   if (!isLoggedInClient()) {
     return;
   }
@@ -231,8 +229,8 @@ export async function syncLibraryWithS3(force = false) {
     if (manifest && Array.isArray(manifest.albums) && Array.isArray(manifest.tracks)) {
       if (manifest.albums.length > 0) {
         manifest.albums.forEach((a: Album) => {
-          if (a.cover?.startsWith("blob:")) {
-            a.cover = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+          if (a.cover?.startsWith("blob:") || a.cover?.includes("fbcdn.net")) {
+            a.cover = "artworks/31-1786731489463-2rml2-HVL.jpg";
           }
         });
         albums.length = 0;
@@ -241,7 +239,7 @@ export async function syncLibraryWithS3(force = false) {
       if (manifest.tracks.length > 0) {
         manifest.tracks.forEach((t: Track) => {
           if (t.cover?.startsWith("blob:")) {
-            t.cover = undefined;
+            delete t.cover;
           }
           if (Array.isArray(t.lyrics)) {
             t.lyrics.forEach((l) => {
@@ -254,7 +252,7 @@ export async function syncLibraryWithS3(force = false) {
       }
       if (Array.isArray(manifest.videos) && manifest.videos.length > 0) {
         manifest.videos.forEach((v: Video) => {
-          if (v.thumb?.startsWith("blob:")) {
+          if (v.thumb?.startsWith("blob:") || v.thumb?.includes("fbcdn.net")) {
             v.thumb = "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=800&auto=format&fit=crop&q=80";
           }
         });
@@ -269,12 +267,12 @@ export async function syncLibraryWithS3(force = false) {
         ...tracks.map(async (track) => {
           if (track.src) {
             const key = extractS3KeyFromUrl(track.src);
-            if (key && (!track.src.includes("X-Amz-Signature") || track.src.endsWith(key))) {
+            if (key) {
               const fresh = await createPresignedUrl(key);
               if (fresh) track.src = fresh;
             }
           }
-          if (track.cover && (track.cover.startsWith("artworks/") || track.cover.startsWith("covers/") || (track.cover.includes("s3.pikamc.vn") && !track.cover.includes("X-Amz-Signature")))) {
+          if (track.cover && (track.cover.startsWith("artworks/") || track.cover.startsWith("covers/") || track.cover.includes("s3.pikamc.vn") || track.cover.includes("pikamc"))) {
             const key = extractS3KeyFromUrl(track.cover);
             if (key) {
               const fresh = await createPresignedUrl(key);
@@ -283,8 +281,8 @@ export async function syncLibraryWithS3(force = false) {
           }
         }),
         ...albums.map(async (album) => {
-          if (album.cover && (album.cover.startsWith("artworks/") || album.cover.startsWith("covers/") || (album.cover.includes("s3.pikamc.vn") && !album.cover.includes("X-Amz-Signature")))) {
-            const key = extractS3KeyFromUrl(album.cover);
+          if (album.cover && (album.cover.startsWith("artworks/") || album.cover.startsWith("covers/") || album.cover.includes("s3.pikamc.vn") || album.cover.includes("pikamc") || album.cover.includes("HVL") || album.title.toLowerCase() === "hvl")) {
+            const key = extractS3KeyFromUrl(album.cover) || (album.title.toLowerCase() === "hvl" ? "artworks/31-1786731489463-2rml2-HVL.jpg" : null);
             if (key) {
               const fresh = await createPresignedUrl(key);
               if (fresh) album.cover = fresh;
@@ -294,12 +292,12 @@ export async function syncLibraryWithS3(force = false) {
         ...videos.map(async (video) => {
           if (video.src) {
             const key = extractS3KeyFromUrl(video.src);
-            if (key && (!video.src.includes("X-Amz-Signature") || video.src.endsWith(key))) {
+            if (key) {
               const fresh = await createPresignedUrl(key);
               if (fresh) video.src = fresh;
             }
           }
-          if (video.thumb && (video.thumb.startsWith("artworks/") || video.thumb.startsWith("covers/") || (video.thumb.includes("s3.pikamc.vn") && !video.thumb.includes("X-Amz-Signature")))) {
+          if (video.thumb && (video.thumb.startsWith("artworks/") || video.thumb.startsWith("covers/") || video.thumb.includes("s3.pikamc.vn") || video.thumb.includes("pikamc"))) {
             const key = extractS3KeyFromUrl(video.thumb);
             if (key) {
               const fresh = await createPresignedUrl(key);
@@ -308,6 +306,7 @@ export async function syncLibraryWithS3(force = false) {
           }
         }),
       ]);
+      notifyLibrarySubscribers();
       return;
     }
 
@@ -456,7 +455,7 @@ export async function syncLibraryWithS3(force = false) {
             sampleRate: 96,
             sizeMB: 26.5,
             src: presignedAudioUrl,
-            cover: customCover,
+            ...(customCover ? { cover: customCover } : {}),
             lyrics: [],
           };
           validTracks.push(newTrack);

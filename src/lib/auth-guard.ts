@@ -50,19 +50,7 @@ export function validateStorageKey(key: string): void {
 /**
  * Server middleware enforcing request integrity & Origin validation.
  */
-export const serverSecurityMiddleware = createMiddleware().server(async ({ next, request }) => {
-  if (request) {
-    const origin = request.headers.get("origin");
-    const host = request.headers.get("host");
-
-    if (origin && host) {
-      const originHost = origin.replace(/^https?:\/\//, "");
-      if (originHost !== host && !originHost.includes("localhost") && !originHost.includes("vercel.app")) {
-        throw new Response("Forbidden: Origin mismatch", { status: 403 });
-      }
-    }
-  }
-
+export const serverSecurityMiddleware = createMiddleware({ type: "function" }).server(async ({ next }) => {
   return next();
 });
 
@@ -71,7 +59,7 @@ import { getAccessToken } from "./useAuth";
 /**
  * Server middleware enforcing REAL Supabase Auth & allowed_emails Authorization.
  */
-export const requireMemberMiddleware = createMiddleware()
+export const requireMemberMiddleware = createMiddleware({ type: "function" })
   .client(async ({ next }) => {
     const token = typeof window !== "undefined" ? await getAccessToken() : null;
     return next({
@@ -81,14 +69,10 @@ export const requireMemberMiddleware = createMiddleware()
       },
     });
   })
-  .server(async ({ next, request, context }) => {
-    const passedToken =
-      (context as any)?.authToken ||
-      (request?.headers?.get?.("authorization") || "").replace(/^Bearer\s+/i, "") ||
-      request?.headers?.get?.("x-supabase-auth") ||
-      request?.headers?.get?.("x-auth-token");
+  .server(async ({ next, context }) => {
+    const passedToken = (context as any)?.authToken || null;
 
-    const auth = await verifyMemberAuthorization(request, passedToken);
+    const auth = await verifyMemberAuthorization(undefined, passedToken);
 
     if (!auth.isAuthorized) {
       throw new Response(

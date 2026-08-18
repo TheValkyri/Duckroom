@@ -2,6 +2,7 @@ import { Check, Move, RotateCcw, Scissors, Sparkles, X, ZoomIn } from "lucide-re
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
+import { modalOverlayVariants, modalPanelVariants, springPill, springSnappy, tapScale } from "../lib/motion";
 
 export function ArtworkCropModal({
   imageSrc,
@@ -105,18 +106,20 @@ export function ArtworkCropModal({
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      variants={modalOverlayVariants}
+      initial="hidden"
+      animate="show"
+      exit="exit"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <motion.div
-        initial={{ scale: 0.94, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.94, opacity: 0, y: 20 }}
+        variants={modalPanelVariants}
+        initial="hidden"
+        animate="show"
+        exit="exit"
         className="bg-card border border-border rounded-2xl p-6 w-full max-w-xl shadow-2xl flex flex-col gap-5 max-h-[95vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between border-b border-border pb-3">
@@ -124,12 +127,14 @@ export function ArtworkCropModal({
             <Scissors className="size-5 text-primary" />
             <h2 className="font-display text-lg font-semibold">Căn chỉnh & Cắt ảnh Artwork</h2>
           </div>
-          <button
+          <motion.button
             onClick={onClose}
+            whileTap={tapScale}
+            transition={springSnappy}
             className="text-muted-foreground hover:text-foreground transition-colors p-1"
           >
             <X className="size-5" />
-          </button>
+          </motion.button>
         </div>
 
         {/* Live Preview Canvas */}
@@ -156,38 +161,54 @@ export function ArtworkCropModal({
               <button
                 type="button"
                 onClick={() => setAspectMode("square")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                className={`relative px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
                   aspectMode === "square"
-                    ? "border-primary bg-primary/20 text-primary"
+                    ? "border-primary text-primary"
                     : "border-border text-muted-foreground hover:bg-accent"
                 }`}
               >
+                {aspectMode === "square" && (
+                  <motion.span
+                    layoutId="crop-aspect-pill"
+                    transition={springPill}
+                    className="absolute inset-0 rounded-lg bg-primary/20 -z-10"
+                  />
+                )}
                 🟩 Vuông (1:1 - Chuẩn Bìa Album)
               </button>
               <button
                 type="button"
                 onClick={() => setAspectMode("video")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                className={`relative px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
                   aspectMode === "video"
-                    ? "border-primary bg-primary/20 text-primary"
+                    ? "border-primary text-primary"
                     : "border-border text-muted-foreground hover:bg-accent"
                 }`}
               >
+                {aspectMode === "video" && (
+                  <motion.span
+                    layoutId="crop-aspect-pill"
+                    transition={springPill}
+                    className="absolute inset-0 rounded-lg bg-primary/20 -z-10"
+                  />
+                )}
                 ▭ Ngang (16:9 - Chuẩn MV Wallpaper)
               </button>
             </div>
           </div>
 
           {/* Auto Black Bar Crop Button */}
-          <button
+          <motion.button
             type="button"
             disabled={isProcessing}
             onClick={handleAutoCropBlackBars}
-            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-all cursor-pointer"
+            whileTap={tapScale}
+            transition={springSnappy}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
           >
             <Sparkles className="size-4" />
             <span>Tự động nhận diện & Cắt sạch viền đen gốc</span>
-          </button>
+          </motion.button>
 
           {/* Zoom Slider */}
           <div>
@@ -249,34 +270,40 @@ export function ArtworkCropModal({
 
         {/* Footer Actions */}
         <div className="flex gap-3 pt-3 border-t border-border">
-          <button
+          <motion.button
             type="button"
             onClick={() => {
               setZoom(1);
               setOffsetX(0);
               setOffsetY(0);
             }}
+            whileTap={tapScale}
+            transition={springSnappy}
             className="border border-border rounded-xl px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
           >
             <RotateCcw className="size-3.5" /> Đặt lại
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
             type="button"
             onClick={onClose}
+            whileTap={tapScale}
+            transition={springSnappy}
             className="border border-border rounded-xl px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex-1 cursor-pointer"
           >
             Hủy
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
             type="button"
             onClick={handleSave}
-            className="bg-primary text-primary-foreground font-semibold rounded-xl px-6 py-2.5 text-xs transition-transform hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-2 flex-1"
+            whileTap={tapScale}
+            transition={springSnappy}
+            className="bg-primary text-primary-foreground font-semibold rounded-xl px-6 py-2.5 text-xs cursor-pointer flex items-center justify-center gap-2 flex-1"
           >
             <Check className="size-4" />
             <span>Áp dụng ảnh cắt</span>
-          </button>
+          </motion.button>
         </div>
       </motion.div>
     </motion.div>

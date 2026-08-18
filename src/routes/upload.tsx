@@ -21,6 +21,7 @@ import {
   type UploadState,
 } from "../lib/upload-store";
 import { beautifyLrcString, shiftLrcTime } from "../lib/lyrics-formatter";
+import { springPill, springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/upload")({
@@ -137,33 +138,60 @@ function UploadPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={tweenBase}
+      className="mx-auto max-w-3xl px-6 py-12"
+    >
       <h1 className="font-display text-5xl">Tải lên</h1>
       <p className="text-muted-foreground mt-2 text-sm">
         Lưu trữ bản thu master gốc, giữ nguyên độ phân giải và chất lượng âm thanh.
       </p>
 
-      {successMessage && (
-        <div className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 mt-6 flex items-center justify-between gap-4 rounded-xl border p-4 text-sm">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="size-5 shrink-0" />
-            <span>{successMessage}</span>
-          </div>
-          <button
-            onClick={() => navigate({ to: isVideo ? "/videos" : "/library" })}
-            className="bg-emerald-500 text-black rounded-full px-4 py-1.5 text-xs font-semibold hover:bg-emerald-400 cursor-pointer"
+      <AnimatePresence initial={false}>
+        {successMessage && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: "auto", marginTop: 24 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            transition={tweenBase}
+            className="overflow-hidden"
           >
-            Xem kho ngay
-          </button>
-        </div>
-      )}
+            <div className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 flex items-center justify-between gap-4 rounded-xl border p-4 text-sm">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="size-5 shrink-0" />
+                <span>{successMessage}</span>
+              </div>
+              <motion.button
+                onClick={() => navigate({ to: isVideo ? "/videos" : "/library" })}
+                whileTap={tapScale}
+                transition={springSnappy}
+                className="bg-emerald-500 text-black rounded-full px-4 py-1.5 text-xs font-semibold hover:bg-emerald-400 cursor-pointer"
+              >
+                Xem kho ngay
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {errorMessage && (
-        <div className="border-destructive/30 bg-destructive/10 text-destructive mt-6 flex items-center gap-3 rounded-xl border p-4 text-sm">
-          <AlertTriangle className="size-5 shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {errorMessage && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: "auto", marginTop: 24 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            transition={tweenBase}
+            className="overflow-hidden"
+          >
+            <div className="border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-3 rounded-xl border p-4 text-sm">
+              <AlertTriangle className="size-5 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <motion.label
         htmlFor="file-upload-input"
@@ -178,6 +206,7 @@ function UploadPage() {
           if (!isUploading && e.dataTransfer.files) handleSelectFiles(Array.from(e.dataTransfer.files));
         }}
         animate={{ scale: over ? 1.01 : 1 }}
+        transition={springSnappy}
         className={cn(
           "border-border mt-8 flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-14 text-center transition-colors select-none",
           isUploading ? "opacity-60 cursor-not-allowed border-muted" : "cursor-pointer",
@@ -268,12 +297,19 @@ function UploadPage() {
                 disabled={isUploading}
                 onClick={() => updateUploadState({ album: "" })}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer",
+                  "relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border transition-colors cursor-pointer",
                   !album.trim() || album.toLowerCase() === "singles" || album.toLowerCase() === "single collection"
-                    ? "border-primary bg-primary/20 text-primary shadow-sm"
+                    ? "border-primary text-primary"
                     : "border-border text-muted-foreground hover:text-foreground hover:bg-accent/40"
                 )}
               >
+                {(!album.trim() || album.toLowerCase() === "singles" || album.toLowerCase() === "single collection") && (
+                  <motion.span
+                    layoutId="release-type-pill"
+                    transition={springPill}
+                    className="absolute inset-0 rounded-xl bg-primary/20 shadow-sm -z-10"
+                  />
+                )}
                 <span>🎵 Đĩa đơn (Single)</span>
               </button>
               <button
@@ -286,12 +322,19 @@ function UploadPage() {
                   updateUploadState({ album: defaultAlbum ? defaultAlbum.title : "Album mới" });
                 }}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer",
+                  "relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border transition-colors cursor-pointer",
                   album.trim() && album.toLowerCase() !== "singles" && album.toLowerCase() !== "single collection"
-                    ? "border-primary bg-primary/20 text-primary shadow-sm"
+                    ? "border-primary text-primary"
                     : "border-border text-muted-foreground hover:text-foreground hover:bg-accent/40"
                 )}
               >
+                {(album.trim() && album.toLowerCase() !== "singles" && album.toLowerCase() !== "single collection") && (
+                  <motion.span
+                    layoutId="release-type-pill"
+                    transition={springPill}
+                    className="absolute inset-0 rounded-xl bg-primary/20 shadow-sm -z-10"
+                  />
+                )}
                 <span>💿 Thuộc Album</span>
               </button>
             </div>
@@ -536,10 +579,13 @@ function UploadPage() {
             </div>
           )}
 
-          <button
+          <motion.button
             onClick={handleUploadSubmit}
             disabled={isUploading}
-            className="bg-primary text-primary-foreground w-full flex items-center justify-center gap-2 rounded-full py-3.5 text-sm font-medium transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            whileTap={tapScale}
+            whileHover={{ y: -1 }}
+            transition={springSnappy}
+            className="bg-primary text-primary-foreground w-full flex items-center justify-center gap-2 rounded-full py-3.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {isUploading ? (
               <>
@@ -552,7 +598,7 @@ function UploadPage() {
                 <span>Tải lên bài hát</span>
               </>
             )}
-          </button>
+          </motion.button>
         </div>
       </fieldset>
 
@@ -589,7 +635,7 @@ function UploadPage() {
             onClose={() => setShowLyricsSearchModal(false)}
             initialTitle={title}
             initialArtist={artist}
-            audioDuration={selectedFile ? undefined : 180}
+            audioDuration={180}
             onSelectLyrics={(lrc, trackInfo) => {
               const updates: Partial<UploadState> = {
                 lyricsText: lrc,
@@ -602,7 +648,7 @@ function UploadPage() {
           />
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
 

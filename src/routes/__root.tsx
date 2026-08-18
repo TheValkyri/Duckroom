@@ -7,6 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { MotionConfig } from "motion/react";
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
@@ -153,12 +154,16 @@ function RootComponent() {
   return (
     <RootDocument>
       <QueryClientProvider client={queryClient}>
-        <PlayerProvider>
-          <AppShell>
-            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-            <Outlet />
-          </AppShell>
-        </PlayerProvider>
+        {/* reducedMotion="user": tự động tôn trọng cài đặt "Giảm chuyển động"
+            của hệ điều hành cho MỌI animation Framer Motion trong app. */}
+        <MotionConfig reducedMotion="user">
+          <PlayerProvider>
+            <AppShell>
+              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+              <Outlet />
+            </AppShell>
+          </PlayerProvider>
+        </MotionConfig>
       </QueryClientProvider>
     </RootDocument>
   );

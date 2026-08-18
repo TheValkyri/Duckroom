@@ -1,7 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlertCircle, Loader2, Lock, Mail } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useState, useEffect } from "react";
 import { ModernDuckLogo } from "../components/AppShell";
+import { springSmooth, springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { supabase } from "../lib/supabase-client";
 import { useAuth } from "../lib/useAuth";
 
@@ -72,7 +74,12 @@ function LoginPage() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-16 flex flex-col items-center justify-center min-h-[75vh]">
-      <div className="w-full bg-card/60 border border-border rounded-2xl p-8 shadow-2xl backdrop-blur-md">
+      <motion.div
+        initial={{ opacity: 0, y: 16, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={springSmooth}
+        className="w-full bg-card/60 border border-border rounded-2xl p-8 shadow-2xl backdrop-blur-md"
+      >
         <div className="flex flex-col items-center mb-6 text-center">
           <ModernDuckLogo className="size-12 mb-3 text-primary" />
           <h1 className="font-display text-2xl tracking-tight">
@@ -83,12 +90,20 @@ function LoginPage() {
           </p>
         </div>
 
-        {errorMsg && (
-          <div className="bg-destructive/10 border border-destructive/30 text-destructive text-xs p-3.5 rounded-xl mb-5 flex items-start gap-2.5 leading-relaxed">
-            <AlertCircle className="size-4 shrink-0 mt-0.5" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
+        <AnimatePresence>
+          {errorMsg && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+              animate={{ opacity: 1, height: "auto", marginBottom: 20 }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              transition={tweenBase}
+              className="bg-destructive/10 border border-destructive/30 text-destructive text-xs p-3.5 rounded-xl flex items-start gap-2.5 leading-relaxed overflow-hidden"
+            >
+              <AlertCircle className="size-4 shrink-0 mt-0.5" />
+              <span>{errorMsg}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
@@ -104,7 +119,7 @@ function LoginPage() {
                 placeholder="name@example.com"
                 required
                 disabled={isSubmitting}
-                className="w-full bg-background/80 border border-border rounded-xl pl-10 pr-3.5 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                className="w-full bg-background/80 border border-border rounded-xl pl-10 pr-3.5 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 transition-shadow"
               />
             </div>
           </div>
@@ -122,15 +137,17 @@ function LoginPage() {
                 placeholder="••••••••"
                 required
                 disabled={isSubmitting}
-                className="w-full bg-background/80 border border-border rounded-xl pl-10 pr-3.5 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                className="w-full bg-background/80 border border-border rounded-xl pl-10 pr-3.5 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 transition-shadow"
               />
             </div>
           </div>
 
-          <button
+          <motion.button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-primary text-primary-foreground font-semibold rounded-xl py-3 text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-[0.99] disabled:opacity-50 cursor-pointer mt-6 shadow-md"
+            whileTap={tapScale}
+            transition={springSnappy}
+            className="w-full bg-primary text-primary-foreground font-semibold rounded-xl py-3 text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer mt-6 shadow-md"
           >
             {isSubmitting ? (
               <>
@@ -140,9 +157,9 @@ function LoginPage() {
             ) : (
               <span>Đăng nhập</span>
             )}
-          </button>
+          </motion.button>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }
