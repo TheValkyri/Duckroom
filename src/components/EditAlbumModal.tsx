@@ -1,81 +1,69 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Disc3, Image as ImageIcon, Loader2, Play, Plus, Scissors, Trash2, UploadCloud, X } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
-import { useState } from "react";
-import { albumTracks, albums, createAlbum, deleteAlbum, saveStoredLibrary, type Album } from "../data/library";
-import { usePlayer } from "../lib/player";
-import { ArtworkCropModal } from "../components/ArtworkCropModal";
+import { Disc3, Image as ImageIcon, Loader2, Scissors, Trash2, UploadCloud, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { updateAlbum, type Album } from "../data/library";
+import { ArtworkCropModal } from "./ArtworkCropModal";
 import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
-import {
-  listContainerVariants,
-  listItemVariants,
-  modalOverlayVariants,
-  modalPanelVariants,
-  springSnappy,
-  tapScale,
-  tweenBase,
-} from "../lib/motion";
+import { modalOverlayVariants, modalPanelVariants, springSnappy, tapScale } from "../lib/motion";
 import { createPresignedUrl } from "../lib/s3";
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
+import { useAuth } from "../lib/useAuth";
 import { cn } from "../lib/utils";
 
-export const Route = createFileRoute("/albums/")({
-  head: () => ({
-    meta: [
-      { title: "Albums — Duckroom" },
-      { name: "description", content: "Tất cả album trong kho lưu trữ Duckroom, master nguyên gốc." },
-      { property: "og:site_name", content: "Duckroom" },
-      { property: "og:title", content: "Albums — Duckroom" },
-      { property: "og:description", content: "Tất cả album trong kho lưu trữ Duckroom, master nguyên gốc." },
-      { property: "og:image", content: "https://duckroom.vercel.app/og-image.jpg" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:image", content: "https://duckroom.vercel.app/og-image.jpg" },
-    ],
-  }),
-  component: AlbumsPage,
-});
+interface EditAlbumModalProps {
+  album: Album;
+  onClose: () => void;
+  onUpdated?: (updatedAlbum: Album) => void;
+}
 
-import { AlbumCard } from "../components/AlbumCard";
-import { EditAlbumModal } from "../components/EditAlbumModal";
-import { useAuth } from "../lib/useAuth";
-
-function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreated?: () => void }) {
-  const { isLoggedIn } = useAuth();
-  const [title, setTitle] = useState("");
-  const [artist, setArtist] = useState("");
-  const [year, setYear] = useState(new Date().getFullYear().toString());
+export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProps) {
+  const { isLoggedIn, isLoading } = useAuth();
+  const [title, setTitle] = useState(album.title);
+  const [artist, setArtist] = useState(album.artist);
+  const [year, setYear] = useState(album.year ? album.year.toString() : new Date().getFullYear().toString());
+  const [note, setNote] = useState(album.note || "");
   const [coverUrl, setCoverUrl] = useState("");
   const [artworkFile, setArtworkFile] = useState<File | null>(null);
   const [artworkPreview, setArtworkPreview] = useState<string | null>(null);
   const [showCropModal, setShowCropModal] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
-  const [note, setNote] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [coverPreviewError, setCoverPreviewError] = useState(false);
-  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading && !isLoggedIn) {
+      onClose();
+    }
+  }, [isLoading, isLoggedIn, onClose]);
+
+  if (isLoading || !isLoggedIn) {
+    return null;
+  }
 
   const previewSrc =
     artworkPreview ||
     coverUrl.trim() ||
+    album.cover ||
     "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&auto=format&fit=crop&q=80";
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || isUploading) return;
+    if (!title.trim() || isSaving) return;
 
-    if (artworkFile && !isLoggedIn) {
-      setErrorMsg("Bạn cần đăng nhập tài khoản thành viên để tải ảnh lên Pikamc S3.");
+    if (!isLoggedIn) {
+      setErrorMsg("Bạn cần đăng nhập tài khoản thành viên để chỉnh sửa album.");
       return;
     }
 
-    setIsUploading(true);
+    setIsSaving(true);
     setErrorMsg("");
 
     try {
-      let finalCover = coverUrl.trim();
+      let finalCover = album.cover;
 
-      // If user chose an artwork file, upload directly to Pikamc S3
+      // If user uploaded a new artwork image, send directly to Pikamc S3
       if (artworkFile) {
         setUploadStatus("Đang tải ảnh bìa lên Pikamc S3...");
         const artExt = artworkFile.name.split(".").pop() || "jpg";
@@ -106,27 +94,29 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
         if (newS3Url) {
           finalCover = newS3Url;
         }
+      } else if (coverUrl.trim()) {
+        finalCover = coverUrl.trim();
       }
 
-      setUploadStatus("Đang khởi tạo album...");
-      const album = createAlbum({
+      setUploadStatus("Đang cập nhật thông tin album...");
+      const updated = updateAlbum(album.id, {
         title: title.trim(),
         artist: artist.trim() || "Nghệ sĩ",
         year: parseInt(year, 10) || new Date().getFullYear(),
-        ...(finalCover ? { cover: finalCover } : {}),
-        ...(note.trim() ? { note: note.trim() } : {}),
+        cover: finalCover,
+        note: note.trim(),
       });
 
-      saveStoredLibrary(true);
-      onCreated?.();
+      if (updated) {
+        onUpdated?.(updated);
+      }
       onClose();
-      void navigate({ to: "/albums/$albumId", params: { albumId: album.id } });
     } catch (err: any) {
-      console.error("Create album upload error:", err);
+      console.error("Edit album upload error:", err);
       const msg = err?.message || err?.error || "Kết nối máy chủ S3 thất bại";
-      setErrorMsg(`Lỗi khi tải ảnh lên S3: ${msg}`);
+      setErrorMsg(`Lỗi khi cập nhật album: ${msg}`);
     } finally {
-      setIsUploading(false);
+      setIsSaving(false);
       setUploadStatus("");
     }
   };
@@ -140,7 +130,7 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
         exit="exit"
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4"
         onClick={(e) => {
-          if (e.target === e.currentTarget && !isUploading) onClose();
+          if (e.target === e.currentTarget && !isSaving) onClose();
         }}
       >
         <motion.div
@@ -151,10 +141,10 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
           className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
         >
           <div className="flex items-center justify-between pb-3 border-b border-border">
-            <h2 className="font-display text-2xl">Tạo Album mới</h2>
+            <h2 className="font-display text-2xl font-semibold">Chỉnh sửa Album</h2>
             <button
               onClick={onClose}
-              disabled={isUploading}
+              disabled={isSaving}
               className="text-muted-foreground hover:text-foreground transition-colors p-1 cursor-pointer"
             >
               <X className="size-5" />
@@ -167,20 +157,11 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
             </div>
           )}
 
-          {!isLoggedIn && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-300 flex items-center justify-between gap-3 mt-3">
-              <span>💡 Bạn chưa đăng nhập. Để tải ảnh bìa lên Pikamc S3, vui lòng đăng nhập tài khoản.</span>
-              <Link to="/login" className="underline font-semibold hover:text-white shrink-0">
-                Đăng nhập
-              </Link>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 space-y-4 py-3 pr-1">
+          <form onSubmit={handleSave} className="overflow-y-auto flex-1 space-y-4 py-3 pr-1">
             {/* Cover upload & preview */}
             <div className="border border-border/80 rounded-xl p-4 bg-accent/20">
               <label className="text-muted-foreground text-xs font-semibold uppercase tracking-wider block mb-2">
-                Ảnh bìa Album (Tải lên Pikamc S3)
+                Ảnh bìa Album (Lưu trữ trên Pikamc S3)
               </label>
               <div className="flex items-center gap-4">
                 <div className="relative size-20 rounded-xl overflow-hidden bg-muted shrink-0 border border-white/10 shadow-md">
@@ -201,25 +182,20 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <label
-                      htmlFor={isLoggedIn ? "album-cover-upload" : undefined}
-                      onClick={() => {
-                        if (!isLoggedIn) {
-                          setErrorMsg("Vui lòng đăng nhập tài khoản thành viên để tải ảnh lên Pikamc S3.");
-                        }
-                      }}
+                      htmlFor="edit-album-cover-upload"
                       className={cn(
                         "inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-all cursor-pointer",
-                        isUploading && "opacity-50 cursor-not-allowed"
+                        isSaving && "opacity-50 cursor-not-allowed"
                       )}
                     >
                       <ImageIcon className="size-4" />
-                      <span>{artworkFile ? `Đổi ảnh (${artworkFile.name})` : "Tải ảnh lên S3..."}</span>
+                      <span>{artworkFile ? `Đổi ảnh (${artworkFile.name})` : "Tải ảnh mới..."}</span>
                     </label>
 
-                    {(artworkPreview || coverUrl) && (
+                    {(artworkPreview || previewSrc) && (
                       <button
                         type="button"
-                        disabled={isUploading}
+                        disabled={isSaving}
                         onClick={() => setShowCropModal(true)}
                         className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-white/10 bg-accent hover:bg-accent/80 text-foreground transition-all cursor-pointer shadow-sm"
                       >
@@ -230,9 +206,9 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
                   </div>
 
                   <input
-                    id="album-cover-upload"
+                    id="edit-album-cover-upload"
                     type="file"
-                    disabled={isUploading}
+                    disabled={isSaving}
                     accept="image/*"
                     className="hidden"
                     onChange={async (e) => {
@@ -251,7 +227,7 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
                   <p className="text-[11px] text-muted-foreground mt-1.5 truncate">
                     {artworkFile
                       ? `Đã chọn: ${artworkFile.name} (${(artworkFile.size / 1024 / 1024).toFixed(2)} MB)`
-                      : "Ảnh sẽ được tự động lưu lên Pikamc S3 (/artworks/)."}
+                      : "Tải ảnh mới để tự động lưu vào S3 và đồng bộ toàn bộ thiết bị."}
                   </p>
                 </div>
               </div>
@@ -261,8 +237,8 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
               <label className="text-xs text-muted-foreground mb-1 block">Hoặc URL ảnh bìa tùy chỉnh (tùy chọn)</label>
               <input
                 type="url"
-                disabled={isUploading}
-                placeholder="https://... (để trống nếu đã chọn ảnh ở trên)"
+                disabled={isSaving}
+                placeholder="https://... (để trống nếu đã tải ảnh ở trên)"
                 value={coverUrl}
                 onChange={(e) => {
                   setCoverUrl(e.target.value);
@@ -277,7 +253,7 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
               <input
                 required
                 type="text"
-                disabled={isUploading}
+                disabled={isSaving}
                 placeholder="Nhập tên album..."
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -290,8 +266,8 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
                 <label className="text-xs text-muted-foreground mb-1 block">Nghệ sĩ</label>
                 <input
                   type="text"
-                  disabled={isUploading}
-                  placeholder="Tên nghệ sĩ..."
+                  disabled={isSaving}
+                  placeholder="MCK, Vũ..."
                   value={artist}
                   onChange={(e) => setArtist(e.target.value)}
                   className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
@@ -301,33 +277,31 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
                 <label className="text-xs text-muted-foreground mb-1 block">Năm phát hành</label>
                 <input
                   type="number"
-                  disabled={isUploading}
-                  placeholder={new Date().getFullYear().toString()}
+                  disabled={isSaving}
+                  placeholder="2024"
                   value={year}
                   onChange={(e) => setYear(e.target.value)}
-                  min={1900}
-                  max={2099}
                   className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Ghi chú (tuỳ chọn)</label>
-              <input
-                type="text"
-                disabled={isUploading}
-                placeholder="Mô tả ngắn về album..."
+              <label className="text-xs text-muted-foreground mb-1 block">Ghi chú / Mô tả</label>
+              <textarea
+                rows={2}
+                disabled={isSaving}
+                placeholder="Thông tin thêm về album, bản master, hãng đĩa..."
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none disabled:opacity-50"
               />
             </div>
 
-            <div className="flex gap-3 pt-3 border-t border-border">
+            <div className="flex gap-3 pt-3">
               <motion.button
                 type="button"
-                disabled={isUploading}
+                disabled={isSaving}
                 onClick={onClose}
                 whileTap={tapScale}
                 transition={springSnappy}
@@ -337,20 +311,20 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
               </motion.button>
               <motion.button
                 type="submit"
-                disabled={!title.trim() || isUploading}
+                disabled={!title.trim() || isSaving}
                 whileTap={tapScale}
                 transition={springSnappy}
-                className="flex-1 bg-primary text-primary-foreground rounded-full py-2.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                className="flex-1 bg-primary text-primary-foreground rounded-full py-2.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-md"
               >
-                {isUploading ? (
+                {isSaving ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
-                    <span>{uploadStatus || "Đang tải lên..."}</span>
+                    <span>{uploadStatus || "Đang lưu..."}</span>
                   </>
                 ) : (
                   <>
                     <UploadCloud className="size-4" />
-                    <span>Tạo Album</span>
+                    <span>Lưu Thay Đổi</span>
                   </>
                 )}
               </motion.button>
@@ -372,109 +346,5 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
         )}
       </AnimatePresence>
     </>
-  );
-}
-
-import { useLibrary } from "../lib/useLibrary";
-
-function AlbumsPage() {
-  const { playQueue } = usePlayer();
-  const { albums } = useLibrary();
-  const { isLoggedIn } = useAuth();
-  const [showCreate, setShowCreate] = useState(false);
-  const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
-
-  const handleDelete = (id: string) => {
-    if (!isLoggedIn) return;
-    deleteAlbum(id);
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={tweenBase}
-      className="mx-auto max-w-6xl px-6 py-12"
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-5xl">Albums</h1>
-          <p className="text-muted-foreground mt-2 text-sm">{albums.length} album đã lưu trữ</p>
-        </div>
-        {isLoggedIn && (
-          <motion.button
-            onClick={() => setShowCreate(true)}
-            whileTap={tapScale}
-            whileHover={{ y: -1 }}
-            transition={springSnappy}
-            className="bg-primary text-primary-foreground flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium cursor-pointer"
-          >
-            <Plus className="size-4" />
-            Tạo Album
-          </motion.button>
-        )}
-      </div>
-
-      {albums.length > 0 ? (
-        <motion.div
-          variants={listContainerVariants}
-          initial="hidden"
-          animate="show"
-          className="mt-10 grid grid-cols-2 gap-8 md:grid-cols-3"
-        >
-          {albums.map((a) => (
-            <AlbumCard
-              key={a.id}
-              album={a}
-              onEdit={() => setEditingAlbum(a)}
-              onDelete={() => handleDelete(a.id)}
-              onPlay={() => playQueue(albumTracks(a.id), 0)}
-            />
-          ))}
-        </motion.div>
-      ) : (
-        <div className="border-border bg-card/30 mt-10 flex flex-col items-center gap-4 rounded-xl border p-16 text-center">
-          <Disc3 className="text-muted-foreground size-12" />
-          <h3 className="font-display text-2xl">Chưa có album nào</h3>
-          <p className="text-muted-foreground max-w-md text-sm">
-            Bạn có thể tạo album mới và thêm bài hát vào, hoặc tải lên bài hát mới.
-          </p>
-          <div className="flex gap-3">
-            <motion.button
-              onClick={() => setShowCreate(true)}
-              whileTap={tapScale}
-              transition={springSnappy}
-              className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium cursor-pointer"
-            >
-              <Plus className="size-4" /> Tạo Album
-            </motion.button>
-            <Link
-              to="/upload"
-              className="border-border inline-flex items-center gap-2 rounded-full border px-6 py-2.5 text-sm transition-colors hover:bg-accent"
-            >
-              <UploadCloud className="size-4" /> Tải lên bài hát
-            </Link>
-          </div>
-        </div>
-      )}
-
-      <AnimatePresence>
-        {showCreate && (
-          <CreateAlbumModal
-            onClose={() => setShowCreate(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {editingAlbum && (
-          <EditAlbumModal
-            album={editingAlbum}
-            onClose={() => setEditingAlbum(null)}
-            onUpdated={() => setEditingAlbum(null)}
-          />
-        )}
-      </AnimatePresence>
-    </motion.div>
   );
 }

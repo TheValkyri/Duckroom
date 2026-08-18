@@ -1,14 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Disc, Disc3, Music2, Play, Shuffle, UploadCloud } from "lucide-react";
-import { motion } from "motion/react";
+import { Disc, Disc3, Music2, Pencil, Play, Shuffle, UploadCloud } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { AlbumCard } from "../components/AlbumCard";
+import { EditAlbumModal } from "../components/EditAlbumModal";
 import { TrackRow } from "../components/TrackRow";
 import { Visualizer } from "../components/Visualizer";
-import { albumTracks, type Track } from "../data/library";
-import { listContainerVariants, listItemVariants, springSnappy, tweenBase } from "../lib/motion";
+import { albumTracks, type Album, type Track } from "../data/library";
+import { listContainerVariants, listItemVariants, springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { usePlayer } from "../lib/player";
 import { useLibrary } from "../lib/useLibrary";
+import { useAuth } from "../lib/useAuth";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/")({
@@ -127,6 +129,8 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
 function Index() {
   const { playQueue, isPlaying } = usePlayer();
   const { tracks, albums, videos } = useLibrary();
+  const { isLoggedIn } = useAuth();
+  const [editingHeroAlbum, setEditingHeroAlbum] = useState<Album | null>(null);
 
   const hero = albums[0];
   const heroTracks = hero ? albumTracks(hero.id) : [];
@@ -237,7 +241,20 @@ function Index() {
             className="aspect-square w-60 rounded-xl object-cover shadow-[0_40px_100px_-30px_oklch(0_0_0/0.9)] md:w-80"
           />
           <div className="flex-1">
-            <p className="text-primary text-xs tracking-[0.35em] uppercase font-semibold">Album Nổi Bật</p>
+            <div className="flex items-center gap-3">
+              <p className="text-primary text-xs tracking-[0.35em] uppercase font-semibold">Album Nổi Bật</p>
+              {isLoggedIn && hero && (
+                <motion.button
+                  whileTap={tapScale}
+                  transition={springSnappy}
+                  onClick={() => setEditingHeroAlbum(hero)}
+                  title="Chỉnh sửa Album nổi bật"
+                  className="text-muted-foreground hover:text-primary transition-colors cursor-pointer p-1 rounded-md"
+                >
+                  <Pencil className="size-3.5" />
+                </motion.button>
+              )}
+            </div>
             <h1 className="font-display mt-3 text-5xl leading-[0.95] md:text-7xl">{hero.title}</h1>
             <p className="text-muted-foreground mt-4 max-w-md text-sm">{hero.note || `${hero.artist} · ${hero.year}`}</p>
             <Visualizer playing={isPlaying} bars={36} height={40} className="mt-6 max-w-sm" />
@@ -343,6 +360,16 @@ function Index() {
           </motion.div>
         </section>
       )}
+
+      <AnimatePresence>
+        {editingHeroAlbum && (
+          <EditAlbumModal
+            album={editingHeroAlbum}
+            onClose={() => setEditingHeroAlbum(null)}
+            onUpdated={() => setEditingHeroAlbum(null)}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

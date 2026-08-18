@@ -1,8 +1,9 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, ListPlus, Play, Shuffle, Trash2, X } from "lucide-react";
+import { ArrowLeft, ListPlus, Pencil, Play, Shuffle, Trash2, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useState } from "react";
 import { TrackRow } from "../components/TrackRow";
+import { EditAlbumModal } from "../components/EditAlbumModal";
 import {
   addTracksToAlbum,
   albumById,
@@ -177,6 +178,7 @@ function AlbumPage() {
   const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
   const [showAddTracks, setShowAddTracks] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [imgError, setImgError] = useState(false);
 
   const album = loadedAlbum || albumById(paramAlbumId);
@@ -229,15 +231,26 @@ function AlbumPage() {
             <ArrowLeft className="size-4" /> Tất cả Album
           </Link>
           {isLoggedIn && (
-            <motion.button
-              onClick={handleDeleteAlbum}
-              whileTap={tapScale}
-              transition={springSnappy}
-              className="text-muted-foreground hover:text-destructive border-border flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
-            >
-              <Trash2 className="size-3.5" />
-              <span>Xóa Album</span>
-            </motion.button>
+            <div className="flex items-center gap-2.5">
+              <motion.button
+                onClick={() => setShowEditModal(true)}
+                whileTap={tapScale}
+                transition={springSnappy}
+                className="text-muted-foreground hover:text-foreground border-border hover:bg-accent flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
+              >
+                <Pencil className="size-3.5" />
+                <span>Chỉnh sửa Album</span>
+              </motion.button>
+              <motion.button
+                onClick={handleDeleteAlbum}
+                whileTap={tapScale}
+                transition={springSnappy}
+                className="text-muted-foreground hover:text-destructive border-border hover:bg-destructive/10 flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
+              >
+                <Trash2 className="size-3.5" />
+                <span>Xóa Album</span>
+              </motion.button>
+            </div>
           )}
         </div>
 
@@ -266,7 +279,20 @@ function AlbumPage() {
           </div>
           <div>
             <p className="text-muted-foreground text-xs tracking-[0.3em] uppercase">Album</p>
-            <h1 className="font-display mt-2 text-6xl leading-none">{album.title}</h1>
+            <div className="flex items-center gap-3 mt-2">
+              <h1 className="font-display text-5xl md:text-6xl leading-none">{album.title}</h1>
+              {isLoggedIn && (
+                <motion.button
+                  onClick={() => setShowEditModal(true)}
+                  whileTap={tapScale}
+                  transition={springSnappy}
+                  title="Chỉnh sửa Album"
+                  className="text-muted-foreground hover:text-primary p-2 rounded-full border border-border/80 hover:border-primary/40 bg-card/60 transition-colors cursor-pointer shrink-0"
+                >
+                  <Pencil className="size-4" />
+                </motion.button>
+              )}
+            </div>
             <p className="text-muted-foreground mt-4 text-sm">
               {album.artist} · {album.year} · {list.length} bài · {formatTime(total)}
             </p>
@@ -357,6 +383,16 @@ function AlbumPage() {
             currentTrackIds={currentIds}
             onClose={() => setShowAddTracks(false)}
             onAdded={refresh}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showEditModal && (
+          <EditAlbumModal
+            album={album}
+            onClose={() => setShowEditModal(false)}
+            onUpdated={refresh}
           />
         )}
       </AnimatePresence>

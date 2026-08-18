@@ -589,6 +589,30 @@ export function createAlbum(data: {
   return newAlbum;
 }
 
+export function updateAlbum(
+  albumId: string,
+  data: {
+    title?: string;
+    artist?: string;
+    year?: number;
+    cover?: string;
+    note?: string;
+  }
+): Album | null {
+  const album = albums.find((a) => a.id === albumId);
+  if (!album) return null;
+
+  if (data.title !== undefined) album.title = data.title.trim();
+  if (data.artist !== undefined) album.artist = data.artist.trim();
+  if (data.year !== undefined) album.year = data.year;
+  if (data.cover !== undefined) album.cover = data.cover;
+  if (data.note !== undefined) album.note = data.note.trim();
+
+  saveStoredLibrary(true);
+  notifyLibrarySubscribers();
+  return album;
+}
+
 export function deleteAlbum(albumId: string) {
   const idx = albums.findIndex((a) => a.id === albumId);
   if (idx >= 0) {
