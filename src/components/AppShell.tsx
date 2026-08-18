@@ -319,22 +319,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Main Content Area */}
       <main
         className={cn(
-          "pt-14 pb-32 lg:pt-0 overflow-x-hidden transition-[padding] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "pt-14 pb-32 lg:pt-0 overflow-x-hidden min-h-screen transition-[padding] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
           collapsed ? "lg:pl-20" : "lg:pl-64"
         )}
       >
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={tweenBase}
-            className="min-h-screen"
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
+        {children}
       </main>
       <PlayerBar />
       <NowPlaying />

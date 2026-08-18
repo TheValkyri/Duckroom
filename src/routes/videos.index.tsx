@@ -23,6 +23,48 @@ export const Route = createFileRoute("/videos/")({
   component: VideosPage,
 });
 
+function VideoCard({ v }: { v: any }) {
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  return (
+    <motion.div variants={listItemVariants} whileHover={{ y: -6 }} transition={springSnappy}>
+      <Link to="/videos/$videoId" params={{ videoId: v.id }} className="group block">
+        <div className="relative overflow-hidden rounded-xl bg-card/60 aspect-video">
+          {!imgLoaded && (
+            <div className="absolute inset-0 bg-muted/40 animate-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+          )}
+          <motion.img
+            layoutId={`video-${v.id}`}
+            src={v.thumb}
+            alt={`Ảnh nền MV ${v.title}`}
+            loading="lazy"
+            onLoad={() => setImgLoaded(true)}
+            onError={() => setImgLoaded(true)}
+            width={800}
+            height={456}
+            className={cn(
+              "aspect-video w-full object-cover transition-all duration-500",
+              imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]"
+            )}
+          />
+          <div className="bg-background/30 absolute inset-0 grid place-items-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+            <span className="bg-primary text-primary-foreground grid size-14 place-items-center rounded-full shadow-xl">
+              <Play className="size-5 translate-x-px" fill="currentColor" />
+            </span>
+          </div>
+          <span className="bg-background/80 backdrop-blur-md absolute right-3 bottom-3 rounded-md px-2 py-1 text-[11px] tabular-nums font-medium">
+            {formatTime(v.duration)}
+          </span>
+        </div>
+        <h2 className="font-display mt-3 text-xl">{v.title}</h2>
+        <p className="text-muted-foreground text-xs">
+          {v.resolution} · {v.codec} · {v.bitrate}
+        </p>
+      </Link>
+    </motion.div>
+  );
+}
+
 function VideosPage() {
   const { videos } = useLibrary();
   const [isSyncing, setIsSyncing] = useState(false);
@@ -68,33 +110,7 @@ function VideosPage() {
           className="mt-10 grid gap-8 md:grid-cols-2"
         >
           {videos.map((v) => (
-            <motion.div key={v.id} variants={listItemVariants} whileHover={{ y: -6 }} transition={springSnappy}>
-              <Link to="/videos/$videoId" params={{ videoId: v.id }} className="group block">
-                <div className="relative overflow-hidden rounded-lg">
-                  <motion.img
-                    layoutId={`video-${v.id}`}
-                    src={v.thumb}
-                    alt={`Ảnh nền MV ${v.title}`}
-                    loading="lazy"
-                    width={800}
-                    height={456}
-                    className="aspect-video w-full object-cover"
-                  />
-                  <div className="bg-background/30 absolute inset-0 grid place-items-center opacity-0 transition-opacity group-hover:opacity-100">
-                    <span className="bg-primary text-primary-foreground grid size-14 place-items-center rounded-full">
-                      <Play className="size-5 translate-x-px" fill="currentColor" />
-                    </span>
-                  </div>
-                  <span className="bg-background/80 absolute right-3 bottom-3 rounded px-2 py-1 text-[11px] tabular-nums">
-                    {formatTime(v.duration)}
-                  </span>
-                </div>
-                <h2 className="font-display mt-3 text-xl">{v.title}</h2>
-                <p className="text-muted-foreground text-xs">
-                  {v.resolution} · {v.codec} · {v.bitrate}
-                </p>
-              </Link>
-            </motion.div>
+            <VideoCard key={v.id} v={v} />
           ))}
         </motion.div>
       ) : (

@@ -43,6 +43,7 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
   const isCurrentTrack = current?.id === track.id;
   const isThisPlaying = isCurrentTrack && isPlaying;
   const [hover, setHover] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   return (
     <motion.div
@@ -78,19 +79,27 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
         </motion.div>
 
         {/* Cover */}
-        <div className="relative z-10 size-full overflow-hidden rounded-xl bg-muted shadow-sm">
+        <div className="relative z-10 size-full overflow-hidden rounded-xl bg-card/60 shadow-sm">
+          {!imgLoaded && (
+            <div className="absolute inset-0 bg-muted/40 animate-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+          )}
           <img
             src={track.cover && !track.cover.startsWith("blob:") ? track.cover : "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"}
             alt={track.title}
             loading="lazy"
+            onLoad={() => setImgLoaded(true)}
             onError={(e) => {
               const target = e.currentTarget;
               const fallback = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
               if (target.src !== fallback) {
                 target.src = fallback;
               }
+              setImgLoaded(true);
             }}
-            className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className={cn(
+              "size-full object-cover transition-all duration-500 group-hover:scale-105",
+              imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]"
+            )}
           />
 
           <div className="absolute top-2 left-2 z-20">

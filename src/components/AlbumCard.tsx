@@ -6,6 +6,7 @@ import { albumTracks, type Album } from "../data/library";
 import { springSnappy, tapScale } from "../lib/motion";
 import { usePlayer } from "../lib/player";
 import { useAuth } from "../lib/useAuth";
+import { cn } from "../lib/utils";
 import { EditAlbumModal } from "./EditAlbumModal";
 
 export const AlbumCard = memo(function AlbumCard({
@@ -22,6 +23,7 @@ export const AlbumCard = memo(function AlbumCard({
   const { playQueue } = usePlayer();
   const { isLoggedIn } = useAuth();
   const [showLocalEdit, setShowLocalEdit] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -90,22 +92,30 @@ export const AlbumCard = memo(function AlbumCard({
           params={{ albumId: album.id }}
           className="block"
         >
-          <div className="relative overflow-hidden rounded-xl bg-card shadow-md">
+          <div className="relative overflow-hidden rounded-xl bg-card/60 shadow-md">
+            {!imgLoaded && (
+              <div className="absolute inset-0 bg-muted/40 animate-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+            )}
             <motion.img
               layoutId={`cover-${album.id}`}
               src={album.cover || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"}
               alt={`Bìa album ${album.title}`}
               loading="lazy"
+              onLoad={() => setImgLoaded(true)}
               onError={(e) => {
                 const target = e.currentTarget;
                 const fallback = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
                 if (target.src !== fallback) {
                   target.src = fallback;
                 }
+                setImgLoaded(true);
               }}
               width={512}
               height={512}
-              className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              className={cn(
+                "aspect-square w-full object-cover transition-all duration-500 group-hover:scale-105",
+                imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]"
+              )}
             />
             <div className="from-background/90 absolute inset-0 bg-gradient-to-t to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
             <motion.button

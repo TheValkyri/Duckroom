@@ -44,6 +44,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   const isUserScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<any>(null);
   const cancelScrollRef = useRef<() => void>(() => {});
+  const isInitialMountRef = useRef(true);
 
   const activeIndex = useMemo(() => {
     let idx = -1;
@@ -65,13 +66,14 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   // Reset scroll to top when track changes
   useEffect(() => {
     isUserScrollingRef.current = false;
+    isInitialMountRef.current = true;
     cancelScrollRef.current();
     if (containerRef.current) {
       containerRef.current.scrollTop = 0;
     }
   }, [current?.id]);
 
-  // Smoothly scroll active lyrics into center of view (tự viết, interrupt-safe)
+  // Smoothly scroll active lyrics into center of view (tự viết, interrupt-safe, không trượt lại từ đầu khi mở lời)
   useEffect(() => {
     if (isUserScrollingRef.current) return;
     const container = containerRef.current;
@@ -80,13 +82,23 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
     cancelScrollRef.current();
 
     if (activeIndex <= 0) {
-      cancelScrollRef.current = animateScrollTo(container, 0);
+      if (isInitialMountRef.current) {
+        container.scrollTop = 0;
+        isInitialMountRef.current = false;
+      } else {
+        cancelScrollRef.current = animateScrollTo(container, 0);
+      }
     } else if (itemRefs.current[activeIndex]) {
       const el = itemRefs.current[activeIndex];
       if (el) {
         const elTop = el.offsetTop - container.offsetTop;
-        const targetScroll = elTop - container.clientHeight / 2.8;
-        cancelScrollRef.current = animateScrollTo(container, Math.max(0, targetScroll));
+        const targetScroll = Math.max(0, elTop - container.clientHeight / 2.8);
+        if (isInitialMountRef.current) {
+          container.scrollTop = targetScroll;
+          isInitialMountRef.current = false;
+        } else {
+          cancelScrollRef.current = animateScrollTo(container, targetScroll);
+        }
       }
     }
   }, [activeIndex]);

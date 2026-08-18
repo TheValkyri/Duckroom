@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, ListPlus, Pencil, Play, Shuffle, Trash2, X } from "lucide-react";
+import { ArrowLeft, Disc3, ListPlus, Pencil, Play, Shuffle, Trash2, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useState } from "react";
 import { TrackRow } from "../components/TrackRow";
@@ -15,6 +15,8 @@ import {
   tracks,
 } from "../data/library";
 import {
+  listContainerVariants,
+  listItemVariants,
   modalOverlayVariants,
   modalPanelVariants,
   springSmooth,
@@ -23,6 +25,7 @@ import {
   tweenBase,
 } from "../lib/motion";
 import { usePlayer } from "../lib/player";
+import { cn } from "../lib/utils";
 
 import { syncLibraryWithS3 } from "../data/library";
 
@@ -180,6 +183,7 @@ function AlbumPage() {
   const [showAddTracks, setShowAddTracks] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   const album = loadedAlbum || albumById(paramAlbumId);
   if (!album) {
@@ -218,7 +222,7 @@ function AlbumPage() {
       className="relative"
     >
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[420px] opacity-40 transition-all duration-700 ease-in-out"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[460px] opacity-40 transition-all duration-1000 ease-out"
         style={{ background: `linear-gradient(180deg, ${album.accent} 0%, transparent 100%)` }}
       />
       <div className="relative mx-auto max-w-6xl px-6 py-14">
@@ -256,7 +260,10 @@ function AlbumPage() {
 
         {/* Album Hero */}
         <div className="flex flex-col gap-8 md:flex-row md:items-end">
-          <div className="w-56 md:w-72 aspect-square rounded-lg overflow-hidden shadow-[0_30px_80px_-30px_oklch(0_0_0/0.9)] flex-shrink-0 bg-muted">
+          <div className="w-56 md:w-72 aspect-square rounded-2xl overflow-hidden shadow-[0_30px_80px_-30px_oklch(0_0_0/0.9)] flex-shrink-0 bg-card/60 relative border border-white/5">
+            {!imgLoaded && !imgError && (
+              <div className="absolute inset-0 bg-muted/40 animate-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+            )}
             {!imgError ? (
               <motion.img
                 layoutId={`cover-${album.id}`}
@@ -265,15 +272,19 @@ function AlbumPage() {
                 alt={`Bìa album ${album.title}`}
                 width={320}
                 height={320}
-                className="w-full h-full object-cover"
-                onError={() => setImgError(true)}
+                onLoad={() => setImgLoaded(true)}
+                onError={() => {
+                  setImgError(true);
+                  setImgLoaded(true);
+                }}
+                className={cn(
+                  "w-full h-full object-cover transition-all duration-500",
+                  imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]"
+                )}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <svg className="size-20 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" strokeWidth="1.5" />
-                  <circle cx="12" cy="12" r="3" strokeWidth="1.5" />
-                </svg>
+                <Disc3 className="size-20 text-muted-foreground animate-spin-slow" />
               </div>
             )}
           </div>
@@ -304,7 +315,7 @@ function AlbumPage() {
                 whileTap={tapScale}
                 whileHover={{ y: -1 }}
                 transition={springSnappy}
-                className="bg-primary text-primary-foreground flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-primary text-primary-foreground flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 <Play className="size-4" fill="currentColor" /> Phát
               </motion.button>
@@ -314,7 +325,7 @@ function AlbumPage() {
                 whileTap={tapScale}
                 whileHover={{ y: -1 }}
                 transition={springSnappy}
-                className="border-border hover:bg-accent flex items-center gap-2 rounded-full border px-6 py-3 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="border-border hover:bg-accent flex items-center gap-2 rounded-full border px-6 py-3 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 <Shuffle className="size-4" /> Trộn bài
               </motion.button>
@@ -333,8 +344,13 @@ function AlbumPage() {
           </div>
         </div>
 
-        {/* Track list */}
-        <div className="mt-12">
+        {/* Track list with smooth stagger */}
+        <motion.div
+          variants={listContainerVariants}
+          initial="hidden"
+          animate="show"
+          className="mt-12 space-y-1"
+        >
           {list.length === 0 ? (
             <div className="border-border bg-card/30 flex flex-col items-center gap-3 rounded-xl border p-12 text-center">
               <p className="text-muted-foreground text-sm">Album này chưa có bài hát nào.</p>
@@ -343,7 +359,7 @@ function AlbumPage() {
                   onClick={() => setShowAddTracks(true)}
                   whileTap={tapScale}
                   transition={springSnappy}
-                  className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium"
+                  className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium cursor-pointer"
                 >
                   <ListPlus className="size-4" /> Thêm bài hát vào album
                 </motion.button>
@@ -351,29 +367,30 @@ function AlbumPage() {
             </div>
           ) : (
             list.map((t, i) => (
-              <TrackRow
-                key={t.id}
-                track={t}
-                n={i + 1}
-                showAlbum={false}
-                onPlay={() => playQueue(list, i, false)}
-                onDelete={() => handleDeleteTrack(t.id)}
-                extraActions={
-                  <motion.button
-                    onClick={() => handleRemoveFromAlbum(t.id)}
-                    whileTap={tapScale}
-                    transition={springSnappy}
-                    title="Gỡ khỏi album (giữ lại bài hát)"
-                    className="text-muted-foreground hover:text-foreground transition-colors p-1.5"
-                    aria-label="Gỡ khỏi album"
-                  >
-                    <X className="size-3.5" />
-                  </motion.button>
-                }
-              />
+              <motion.div key={t.id} variants={listItemVariants}>
+                <TrackRow
+                  track={t}
+                  n={i + 1}
+                  showAlbum={false}
+                  onPlay={() => playQueue(list, i, false)}
+                  onDelete={() => handleDeleteTrack(t.id)}
+                  extraActions={
+                    <motion.button
+                      onClick={() => handleRemoveFromAlbum(t.id)}
+                      whileTap={tapScale}
+                      transition={springSnappy}
+                      title="Gỡ khỏi album (giữ lại bài hát)"
+                      className="text-muted-foreground hover:text-foreground transition-colors p-1.5 cursor-pointer"
+                      aria-label="Gỡ khỏi album"
+                    >
+                      <X className="size-3.5" />
+                    </motion.button>
+                  }
+                />
+              </motion.div>
             ))
           )}
-        </div>
+        </motion.div>
       </div>
 
       <AnimatePresence>

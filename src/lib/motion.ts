@@ -17,42 +17,43 @@
  * nguyên nhân phổ biến gây giật/khựng.
  */
 
-export const springSnappy = { type: "spring", stiffness: 500, damping: 30, mass: 0.9 } as const;
-export const springSmooth = { type: "spring", stiffness: 260, damping: 30 } as const;
-export const springGentle = { type: "spring", stiffness: 180, damping: 26 } as const;
-export const springPill = { type: "spring", stiffness: 420, damping: 34 } as const;
+export const springSnappy = { type: "spring", stiffness: 450, damping: 28, mass: 0.8 } as const;
+export const springSmooth = { type: "spring", stiffness: 240, damping: 26 } as const;
+export const springGentle = { type: "spring", stiffness: 160, damping: 24 } as const;
+export const springPill = { type: "spring", stiffness: 380, damping: 30 } as const;
 
-export const easeDuck = [0.22, 1, 0.36, 1] as const; // "duck glide" — ease-out mạnh, không nảy
+export const easeDuck = [0.16, 1, 0.3, 1] as const; // "duck glide" — ultra-smooth ease-out
 
-export const durFast = 0.12;
-export const durBase = 0.22;
-export const durSlow = 0.42;
+export const durFast = 0.16;
+export const durBase = 0.32;
+export const durSlow = 0.5;
 
 export const tweenFast = { duration: durFast, ease: easeDuck } as const;
 export const tweenBase = { duration: durBase, ease: easeDuck } as const;
 export const tweenSlow = { duration: durSlow, ease: easeDuck } as const;
 
 // Micro-interaction chuẩn cho mọi nút bấm icon trong app
-export const tapScale = { scale: 0.9 } as const;
-export const hoverLift = { y: -1 } as const;
+export const tapScale = { scale: 0.92 } as const;
+export const hoverLift = { y: -2 } as const;
 
 // Variants cho page/route transition (fade + dịch nhẹ theo trục Y)
 export const pageVariants = {
-  initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -6 },
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0, transition: tweenBase },
+  exit: { opacity: 0, y: -6, transition: tweenFast },
 } as const;
 
-// Variants cho danh sách xuất hiện kiểu "stagger" nhẹ (album grid, track list...)
+// Variants cho danh sách xuất hiện kiểu "stagger" nhẹ mượt mà (album grid, track list...)
 export const listContainerVariants = {
-  hidden: {},
+  hidden: { opacity: 0 },
   show: {
-    transition: { staggerChildren: 0.035, delayChildren: 0.02 },
+    opacity: 1,
+    transition: { staggerChildren: 0.03, delayChildren: 0.01 },
   },
 } as const;
 
 export const listItemVariants = {
-  hidden: { opacity: 0, y: 8 },
+  hidden: { opacity: 0, y: 12 },
   show: { opacity: 1, y: 0, transition: { duration: durBase, ease: easeDuck } },
 } as const;
 
@@ -64,7 +65,7 @@ export const modalOverlayVariants = {
 } as const;
 
 export const modalPanelVariants = {
-  hidden: { opacity: 0, scale: 0.96, y: 12 },
+  hidden: { opacity: 0, scale: 0.96, y: 14 },
   show: { opacity: 1, scale: 1, y: 0, transition: springSmooth },
   exit: { opacity: 0, scale: 0.96, y: 8, transition: tweenFast },
 } as const;

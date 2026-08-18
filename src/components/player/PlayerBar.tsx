@@ -28,6 +28,8 @@ export function PlayerBar() {
   } = usePlayer();
   const time = usePlayerTime();
 
+  const [coverLoaded, setCoverLoaded] = useState(false);
+
   if (!current) return null;
   const album = albumById(current.albumId);
   const fallbackCover =
@@ -49,19 +51,27 @@ export function PlayerBar() {
           <div className="flex min-w-0 items-center gap-3 justify-start">
             <button
               onClick={() => setExpanded(true)}
-              className="group relative size-14 shrink-0 overflow-hidden rounded-md cursor-pointer"
+              className="group relative size-14 shrink-0 overflow-hidden rounded-lg bg-card/60 cursor-pointer border border-white/5"
               aria-label="Mở toàn màn hình"
             >
+              {!coverLoaded && (
+                <div className="absolute inset-0 bg-muted/40 animate-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+              )}
               <img
                 src={coverUrl}
                 alt={`Bìa album ${album?.title || current.title}`}
+                onLoad={() => setCoverLoaded(true)}
                 onError={(e) => {
                   const target = e.currentTarget;
                   if (target.src !== fallbackCover) {
                     target.src = fallbackCover;
                   }
+                  setCoverLoaded(true);
                 }}
-                className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                className={cn(
+                  "size-full object-cover transition-all duration-500 group-hover:scale-105",
+                  coverLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]"
+                )}
                 width={56}
                 height={56}
               />

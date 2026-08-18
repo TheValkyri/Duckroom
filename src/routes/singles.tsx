@@ -62,6 +62,7 @@ function SingleCard({
   const isCurrentTrack = current?.id === track.id;
   const isThisPlaying = isCurrentTrack && isPlaying;
   const [hover, setHover] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   const fallbackCover =
     "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
@@ -140,18 +141,26 @@ function SingleCard({
         </motion.div>
 
         {/* Front Cover Artwork */}
-        <div className="relative z-10 size-full overflow-hidden rounded-xl bg-muted shadow-md">
+        <div className="relative z-10 size-full overflow-hidden rounded-xl bg-card/60 shadow-md">
+          {!imgLoaded && (
+            <div className="absolute inset-0 bg-muted/40 animate-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+          )}
           <img
             src={validCover}
             alt={track.title}
             loading="lazy"
+            onLoad={() => setImgLoaded(true)}
             onError={(e) => {
               const target = e.currentTarget;
               if (target.src !== fallbackCover) {
                 target.src = fallbackCover;
               }
+              setImgLoaded(true);
             }}
-            className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className={cn(
+              "size-full object-cover transition-all duration-500 group-hover:scale-105",
+              imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]"
+            )}
           />
 
           {/* Audio Quality Badge */}

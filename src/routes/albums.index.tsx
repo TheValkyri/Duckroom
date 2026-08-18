@@ -423,13 +423,14 @@ function AlbumsPage() {
           className="mt-10 grid grid-cols-2 gap-8 md:grid-cols-3"
         >
           {albums.map((a) => (
-            <AlbumCard
-              key={a.id}
-              album={a}
-              onEdit={() => setEditingAlbum(a)}
-              onDelete={() => handleDelete(a.id)}
-              onPlay={() => playQueue(albumTracks(a.id), 0)}
-            />
+            <motion.div key={a.id} variants={listItemVariants}>
+              <AlbumCard
+                album={a}
+                onEdit={() => setEditingAlbum(a)}
+                onDelete={() => handleDelete(a.id)}
+                onPlay={() => playQueue(albumTracks(a.id), 0)}
+              />
+            </motion.div>
           ))}
         </motion.div>
       ) : (

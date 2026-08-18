@@ -77,19 +77,30 @@ export function NowPlaying() {
           }}
           className="bg-background grain fixed inset-0 z-50 flex flex-col justify-between overflow-hidden select-none"
         >
-          {/* Ambient Radial Gradient Background */}
-          <div
-            className="pointer-events-none absolute inset-0 opacity-50 transition-colors duration-1000"
-            style={{
-              background: `radial-gradient(120% 90% at 50% 30%, ${album?.accent || "oklch(0.3 0.1 260)"} 0%, transparent 65%)`,
-            }}
-          />
-          <img
-            src={cleanCoverUrl}
-            alt=""
-            aria-hidden
-            className="pointer-events-none absolute inset-0 size-full scale-110 object-cover opacity-15 blur-3xl transition-opacity duration-1000"
-          />
+          {/* Ambient Crossfading Radial Gradient & Artwork Background */}
+          <AnimatePresence mode="popLayout">
+            <motion.div
+              key={current.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+              className="pointer-events-none absolute inset-0"
+            >
+              <div
+                className="absolute inset-0 opacity-40"
+                style={{
+                  background: `radial-gradient(120% 90% at 50% 30%, ${album?.accent || "oklch(0.3 0.1 260)"} 0%, transparent 65%)`,
+                }}
+              />
+              <img
+                src={cleanCoverUrl || fallbackCover}
+                alt=""
+                aria-hidden
+                className="absolute inset-0 size-full scale-110 object-cover opacity-15 blur-3xl"
+              />
+            </motion.div>
+          </AnimatePresence>
 
           {/* Top Header Bar */}
           <div
