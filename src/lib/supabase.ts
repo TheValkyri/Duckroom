@@ -36,8 +36,16 @@ export function getSupabaseAdmin(): SupabaseClient {
     throw new Error("[SUPABASE_CONFIG] Service-role client is server-only");
   }
   if (!adminClient) {
-    const url = (typeof process !== "undefined" ? process.env["SUPABASE_URL"] : undefined) || supabaseUrl;
-    const serviceRoleKey = requireServerEnv("SUPABASE_SERVICE_ROLE_KEY");
+    const url =
+      (typeof process !== "undefined" ? process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"] : undefined) ||
+      supabaseUrl;
+    const serviceRoleKey =
+      (typeof process !== "undefined"
+        ? process.env["SUPABASE_SERVICE_ROLE_KEY"] ||
+          process.env["SUPABASE_SERVICE_ROLE"] ||
+          process.env["SUPABASE_SERVICE_KEY"] ||
+          process.env["SERVICE_ROLE_KEY"]
+        : undefined) || requireServerEnv("SUPABASE_SERVICE_ROLE_KEY");
     adminClient = createClient(url, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,

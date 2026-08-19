@@ -68,9 +68,11 @@ function AdminPage() {
     try {
       const [h, a] = await Promise.all([getOwnerHealthServer(), getOwnerAuditLogServer()]);
       setHealth(h);
-      setAudit(a);
+      setAudit(Array.isArray(a) ? a : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không thể tải Owner console.");
+      setHealth(null);
+      setAudit([]);
     } finally {
       setLoading(false);
     }
@@ -86,7 +88,7 @@ function AdminPage() {
     try {
       const res = await scanOrphanS3ObjectsServer();
       setOrphanScanResult(res);
-      setActionSuccess(`Đã quét xong: Tìm thấy ${res.orphanKeys.length} file mồ côi trên S3.`);
+      setActionSuccess(`Đã quét xong: Tìm thấy ${res.orphanKeys?.length ?? 0} file mồ côi trên S3.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Quét file mồ côi thất bại.");
     } finally {
@@ -95,14 +97,15 @@ function AdminPage() {
   };
 
   const handleCleanOrphans = async () => {
-    if (!orphanScanResult?.orphanKeys.length) return;
-    if (!confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn ${orphanScanResult.orphanKeys.length} file rác trên S3 không?`)) {
+    const keys = orphanScanResult?.orphanKeys || [];
+    if (!keys.length) return;
+    if (!confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn ${keys.length} file rác trên S3 không?`)) {
       return;
     }
     setIsCleaningOrphans(true);
     setError(null);
     try {
-      const res = await cleanupOrphanS3ObjectsServer({ data: { keys: orphanScanResult.orphanKeys } });
+      const res = await cleanupOrphanS3ObjectsServer({ data: { keys } });
       setActionSuccess(`✅ Đã dọn dẹp thành công ${res.deletedCount} file rác khỏi S3!`);
       setOrphanScanResult(null);
       void refresh();
@@ -118,7 +121,9 @@ function AdminPage() {
     setError(null);
     try {
       const res = await createBackupSnapshotServer();
-      setActionSuccess(`✅ Đã tạo bản sao lưu Snapshot S3 thành công (${res.tracks} bài hát, ${res.albums} album)!`);
+      setActionSuccess(
+        `✅ Đã tạo bản sao lưu Snapshot S3 thành công (${res?.tracks ?? 0} bài hát, ${res?.albums ?? 0} album)!`,
+      );
       void refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Tạo snapshot thất bại.");
@@ -323,11 +328,11 @@ function AdminPage() {
             <div className="mt-10">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold">Nhật ký hoạt động (Audit Logs)</h2>
-                <span className="text-xs text-muted-foreground">{audit.length} hoạt động gần nhất</span>
+                <span className="text-xs text-muted-foreground">{(audit || []).length} hoạt động gần nhất</span>
               </div>
               <div className="border-border bg-card/40 mt-4 overflow-hidden rounded-3xl border shadow-sm">
-                {audit.length ? (
-                  audit.map((entry) => (
+                {(audit || []).length ? (
+                  (audit || []).map((entry) => (
                     <div
                       key={entry.id}
                       className="border-border flex items-start justify-between gap-4 border-b px-5 py-4 last:border-0 hover:bg-accent/20 transition-colors"
