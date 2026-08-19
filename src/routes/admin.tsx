@@ -5,15 +5,22 @@ import {
   CheckCircle2,
   Database,
   Disc3,
+  ExternalLink,
+  Eye,
+  FileCode,
+  Film,
   HardDrive,
+  ImageIcon,
   Loader2,
   ListMusic,
+  Music,
   RefreshCw,
   Save,
   ShieldCheck,
   Trash2,
   Users,
   Video,
+  X,
   Zap,
   type LucideIcon,
 } from "lucide-react";
@@ -26,6 +33,7 @@ import {
   getOwnerHealthServer,
   scanOrphanS3ObjectsServer,
 } from "../lib/owner-data";
+import { getOrphanPreviewUrlServer } from "../lib/s3-functions";
 import { springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { cn } from "../lib/utils";
 
@@ -59,6 +67,13 @@ function AdminPage() {
   > | null>(null);
   const [isCleaningOrphans, setIsCleaningOrphans] = useState(false);
 
+  // Orphan Preview Modal state
+  const [previewOrphanKey, setPreviewOrphanKey] = useState<string | null>(null);
+  const [previewOrphanUrl, setPreviewOrphanUrl] = useState<string | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [isDeletingSingle, setIsDeletingSingle] = useState(false);
+
   // Snapshot Backup state
   const [isCreatingSnapshot, setIsCreatingSnapshot] = useState(false);
 
@@ -88,11 +103,47 @@ function AdminPage() {
     try {
       const res = await scanOrphanS3ObjectsServer();
       setOrphanScanResult(res);
-      setActionSuccess(`Đã quét xong: Tìm thấy ${res.orphanKeys?.length ?? 0} file mồ côi trên S3.`);
+      setActionSuccess(`Đã quét xong: Tìm thấy ${res?.orphanKeys?.length ?? 0} file mồ côi trên S3.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Quét file mồ côi thất bại.");
     } finally {
       setIsScanningOrphans(false);
+    }
+  };
+
+  const handlePreviewOrphan = async (key: string) => {
+    setPreviewOrphanKey(key);
+    setPreviewOrphanUrl(null);
+    setIsLoadingPreview(true);
+    setPreviewError(null);
+    try {
+      const res = await getOrphanPreviewUrlServer({ data: { key } });
+      setPreviewOrphanUrl(res.url);
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : "Không thể lấy URL xem trước file này.");
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
+  const handleDeleteSingleOrphan = async (key: string) => {
+    if (!confirm(`Bạn có chắc chắn muốn xóa file "${key}" trên S3 không?`)) return;
+    setIsDeletingSingle(true);
+    try {
+      await cleanupOrphanS3ObjectsServer({ data: { keys: [key] } });
+      setActionSuccess(`✅ Đã xóa file rác "${key}" khỏi S3!`);
+      if (orphanScanResult) {
+        setOrphanScanResult({
+          ...orphanScanResult,
+          orphanKeys: (orphanScanResult.orphanKeys || []).filter((k) => k !== key),
+        });
+      }
+      setPreviewOrphanKey(null);
+      void refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Xóa file thất bại.");
+    } finally {
+      setIsDeletingSingle(false);
     }
   };
 
@@ -122,7 +173,7 @@ function AdminPage() {
     try {
       const res = await createBackupSnapshotServer();
       setActionSuccess(
-        `✅ Đã tạo bản sao lưu Snapshot S3 thành công (${res?.tracks ?? 0} bài hát, ${res?.albums ?? 0} album)!`,
+        `✅ Đã tạo bản sao lưu Snapshot S3 thành công (${res?.tracks ?? 0} bài hát, ${res?.albums ?? 0} album, ${res?.videos ?? 0} video)!`,
       );
       void refresh();
     } catch (err) {
@@ -287,12 +338,28 @@ function AdminPage() {
                         <CheckCircle2 className="size-3.5" /> Kho lưu trữ S3 hoàn toàn sạch sẽ, không có file mồ côi!
                       </p>
                     ) : (
-                      <div className="max-h-28 overflow-y-auto bg-black/40 p-2 rounded-xl text-[11px] font-mono text-amber-300 space-y-1">
-                        {orphanScanResult.orphanKeys.map((k) => (
-                          <div key={k} className="truncate">
-                            ⚠️ {k}
-                          </div>
-                        ))}
+                      <div className="max-h-56 overflow-y-auto bg-black/40 p-2 rounded-xl text-[11px] font-mono space-y-1 divide-y divide-white/5">
+                        {orphanScanResult.orphanKeys.map((k) => {
+                          const info = getFileTypeInfo(k);
+                          const IconComp = info.Icon;
+                          return (
+                            <button
+                              key={k}
+                              type="button"
+                              onClick={() => handlePreviewOrphan(k)}
+                              className="w-full text-left p-2 rounded-lg hover:bg-white/10 text-amber-300 hover:text-amber-200 flex items-center justify-between group transition-colors cursor-pointer"
+                              title="Ấn để xem thử file này"
+                            >
+                              <div className="flex items-center gap-2 min-w-0 truncate">
+                                <IconComp className={cn("size-3.5 shrink-0", info.color)} />
+                                <span className="truncate">{k}</span>
+                              </div>
+                              <span className="text-[10px] text-muted-foreground group-hover:text-primary shrink-0 uppercase font-sans tracking-wide ml-2 flex items-center gap-1">
+                                <Eye className="size-3" /> Xem trước
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -358,8 +425,174 @@ function AdminPage() {
           </>
         )
       )}
+
+      {/* Orphan Preview Modal */}
+      <AnimatePresence>
+        {previewOrphanKey && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-card border border-border/80 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-5 border-b border-border/60 bg-muted/20">
+                <div className="min-w-0 flex-1 pr-4">
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const info = getFileTypeInfo(previewOrphanKey);
+                      const IconC = info.Icon;
+                      return (
+                        <span
+                          className={cn(
+                            "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5",
+                            info.color,
+                          )}
+                        >
+                          <IconC className="size-3" />
+                          {info.label}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  <h3
+                    className="font-mono text-xs text-foreground/90 mt-2 truncate select-all"
+                    title={previewOrphanKey}
+                  >
+                    {previewOrphanKey}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPreviewOrphanKey(null)}
+                  className="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+
+              {/* Media Content */}
+              <div className="p-6 overflow-y-auto flex-1 flex flex-col items-center justify-center min-h-64 bg-black/40">
+                {isLoadingPreview ? (
+                  <div className="flex flex-col items-center gap-3 text-muted-foreground py-12">
+                    <Loader2 className="size-8 animate-spin text-primary" />
+                    <p className="text-xs">Đang nạp chữ ký S3 và tải bản xem trước...</p>
+                  </div>
+                ) : previewError ? (
+                  <div className="text-center p-6 text-destructive space-y-2">
+                    <AlertTriangle className="size-8 mx-auto" />
+                    <p className="text-xs">{previewError}</p>
+                  </div>
+                ) : previewOrphanUrl ? (
+                  <div className="w-full flex items-center justify-center">
+                    {(() => {
+                      const info = getFileTypeInfo(previewOrphanKey);
+                      if (info.type === "image") {
+                        return (
+                          <img
+                            src={previewOrphanUrl}
+                            alt={previewOrphanKey}
+                            className="max-h-[55vh] max-w-full rounded-2xl object-contain shadow-2xl border border-white/10"
+                          />
+                        );
+                      }
+                      if (info.type === "video") {
+                        return (
+                          <video
+                            src={previewOrphanUrl}
+                            controls
+                            autoPlay
+                            className="w-full max-h-[55vh] rounded-2xl bg-black shadow-2xl"
+                          />
+                        );
+                      }
+                      if (info.type === "audio") {
+                        return (
+                          <div className="w-full max-w-md p-6 rounded-2xl bg-card/80 border border-white/10 text-center space-y-4 shadow-xl">
+                            <div className="size-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
+                              <Music className="size-8" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">Bản Master Lossless</p>
+                              <p className="text-xs text-muted-foreground font-mono truncate mt-1">
+                                {previewOrphanKey}
+                              </p>
+                            </div>
+                            <audio src={previewOrphanUrl} controls autoPlay className="w-full mt-2" />
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="text-center p-6 text-muted-foreground space-y-3">
+                          <FileCode className="size-12 mx-auto text-amber-400" />
+                          <p className="text-xs font-mono">{previewOrphanKey}</p>
+                          <a
+                            href={previewOrphanUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs text-primary underline"
+                          >
+                            <ExternalLink className="size-3" /> Mở trong tab mới
+                          </a>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Footer Actions */}
+              <div className="p-4 border-t border-border/60 bg-muted/10 flex items-center justify-between gap-3">
+                {previewOrphanUrl && (
+                  <a
+                    href={previewOrphanUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-muted/40 transition-colors"
+                  >
+                    <ExternalLink className="size-3.5" /> Mở tab riêng
+                  </a>
+                )}
+                <div className="flex items-center gap-2 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewOrphanKey(null)}
+                    className="px-4 py-2 rounded-xl border border-border text-xs font-medium hover:bg-muted cursor-pointer transition-colors"
+                  >
+                    Đóng
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isDeletingSingle}
+                    onClick={() => handleDeleteSingleOrphan(previewOrphanKey)}
+                    className="px-4 py-2 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                  >
+                    <Trash2 className="size-3.5" />
+                    <span>{isDeletingSingle ? "Đang xóa..." : "Xóa file này khỏi S3"}</span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
+}
+
+function getFileTypeInfo(key: string) {
+  const lower = key.toLowerCase();
+  if (lower.match(/\.(jpg|jpeg|png|webp|gif|avif)$/) || lower.startsWith("artworks/")) {
+    return { type: "image", label: "Ảnh Artwork", Icon: ImageIcon, color: "text-blue-400" };
+  }
+  if (lower.match(/\.(mp4|mkv|webm|mov)$/) || lower.startsWith("videos/")) {
+    return { type: "video", label: "Video MV", Icon: Film, color: "text-purple-400" };
+  }
+  if (lower.match(/\.(flac|wav|mp3|m4a|alac|ogg|aac)$/) || lower.startsWith("audio/")) {
+    return { type: "audio", label: "Âm thanh Master", Icon: Music, color: "text-emerald-400" };
+  }
+  return { type: "other", label: "Tập tin dữ liệu", Icon: FileCode, color: "text-amber-400" };
 }
 
 function Metric({ label, value }: { label: string; value: string | number }) {

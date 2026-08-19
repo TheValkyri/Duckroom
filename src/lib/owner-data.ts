@@ -2,9 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSupabaseAdmin } from "./supabase";
 import {
+  deleteS3ObjectInternal,
   deleteS3ObjectServer,
   listS3ObjectsInternal,
   listS3ObjectsServer,
+  saveLibraryManifestInternal,
   saveLibraryManifestServer,
 } from "./s3-functions";
 import { requireOwnerMiddleware, serverSecurityMiddleware } from "./auth-guard";
@@ -104,8 +106,8 @@ export const cleanupOrphanS3ObjectsServer = createServerFn({ method: "POST" })
     for (const key of data.keys) {
       if (key !== "library_manifest.json") {
         try {
-          await deleteS3ObjectServer({ data: { key } });
-          deleted.push(key);
+          const ok = await deleteS3ObjectInternal(key);
+          if (ok) deleted.push(key);
         } catch (err) {
           console.warn(`Failed to delete orphan key: ${key}`, err);
         }
@@ -132,11 +134,10 @@ export const createBackupSnapshotServer = createServerFn({ method: "POST" })
       videos: videos.data || [],
     };
 
-    await saveLibraryManifestServer({
-      data: {
-        jsonString: JSON.stringify(snapshot, null, 2),
-      },
-    });
+    const saved = await saveLibraryManifestInternal(JSON.stringify(snapshot, null, 2));
+    if (!saved) {
+      throw new Error("Không thể ghi snapshot library_manifest.json lên S3");
+    }
 
     return {
       success: true,

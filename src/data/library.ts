@@ -78,6 +78,29 @@ export function notifyLibrarySubscribers() {
   });
 }
 
+export function sortAlbumsDeterministically(albumList: Album[]): Album[] {
+  const ALBUM_PRIORITY: Record<string, number> = {
+    hvl: 1,
+    "danh-doi": 2,
+    "danh doi": 2,
+    "đánh đổi": 2,
+    bay: 3,
+    bảy: 3,
+    "trai-tim-bang-bo": 4,
+    "trai tim bang bo": 4,
+    "trái tim băng bổ": 4,
+  };
+
+  return [...albumList].sort((a, b) => {
+    const keyA = (a.id || a.title).toLowerCase().trim();
+    const keyB = (b.id || b.title).toLowerCase().trim();
+    const pA = ALBUM_PRIORITY[keyA] ?? 999;
+    const pB = ALBUM_PRIORITY[keyB] ?? 999;
+    if (pA !== pB) return pA - pB;
+    return (b.year || 0) - (a.year || 0) || a.title.localeCompare(b.title);
+  });
+}
+
 export function loadStoredLibrary() {
   if (typeof window === "undefined") return;
   try {
@@ -101,7 +124,7 @@ export function loadStoredLibrary() {
         }
       });
       albums.length = 0;
-      albums.push(...parsed);
+      albums.push(...sortAlbumsDeterministically(parsed));
     }
     const storedVideos = localStorage.getItem(STORAGE_KEY_VIDEOS);
     if (storedVideos) {
@@ -224,7 +247,7 @@ export async function syncLibraryWithS3(force = false) {
       const canonical = await getPublicMasterLibraryServer();
       // Empty array is a valid library state - do NOT treat as error or fallback to manifest
       albums.length = 0;
-      albums.push(...(canonical.albums as Album[]));
+      albums.push(...sortAlbumsDeterministically((canonical.albums as Album[]) || []));
       tracks.length = 0;
       tracks.push(...(canonical.tracks as Track[]));
       videos.length = 0;

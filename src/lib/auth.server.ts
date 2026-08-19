@@ -109,7 +109,9 @@ export async function verifyMemberAuthorization(
       getOptionalServerEnv("OWNER_EMAIL") ||
       getOptionalServerEnv("ADMIN_EMAIL") ||
       "the0darnes@gmail.com"
-    )?.toLowerCase().trim();
+    )
+      ?.toLowerCase()
+      .trim();
 
     if (configuredOwnerEmail && (configuredOwnerEmail === userEmail || userEmail === "the0darnes@gmail.com")) {
       return { isAuthorized: true, userId, email: userEmail, role: "owner", isAdmin: true };

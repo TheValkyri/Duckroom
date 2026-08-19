@@ -289,6 +289,25 @@ export const deleteVideoDomainServer = createServerFn({ method: "POST" })
   });
 
 /**
+ * Internal server helper to delete an object physically from S3 without going through RPC middleware.
+ */
+export async function deleteS3ObjectInternal(key: string): Promise<boolean> {
+  try {
+    validateStorageKey(key);
+    const s3 = getS3ServerClient();
+    const command = new DeleteObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+    });
+    await s3.send(command);
+    return true;
+  } catch (err) {
+    console.error(`S3 Delete Object error for ${key}:`, err);
+    return false;
+  }
+}
+
+/**
  * Server function to delete an object physically from Pikamc S3 Bucket.
  * Strictly OWNER ONLY.
  */
@@ -299,18 +318,8 @@ export const deleteS3ObjectServer = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }) => {
-    try {
-      const s3 = getS3ServerClient();
-      const command = new DeleteObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: data.key,
-      });
-      await s3.send(command);
-      return { success: true };
-    } catch (err) {
-      console.error("S3 Delete Object error:", err);
-      return { success: false, error: String(err) };
-    }
+    const success = await deleteS3ObjectInternal(data.key);
+    return { success };
   });
 
 /**
@@ -352,6 +361,26 @@ export const listS3ObjectsServer = createServerFn({ method: "GET" })
   });
 
 /**
+ * Internal server helper to save library manifest to S3 without going through RPC middleware.
+ */
+export async function saveLibraryManifestInternal(jsonString: string): Promise<boolean> {
+  try {
+    const s3 = getS3ServerClient();
+    const command = new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: "library_manifest.json",
+      Body: jsonString,
+      ContentType: "application/json",
+    });
+    await s3.send(command);
+    return true;
+  } catch (err) {
+    console.error("S3 Save Manifest error:", err);
+    return false;
+  }
+}
+
+/**
  * Server function to save library manifest json to Pikamc S3 Bucket.
  * Strictly OWNER ONLY.
  */
@@ -359,20 +388,27 @@ export const saveLibraryManifestServer = createServerFn({ method: "POST" })
   .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
   .validator((data: { jsonString: string }) => data)
   .handler(async ({ data }) => {
-    try {
-      const s3 = getS3ServerClient();
-      const command = new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: "library_manifest.json",
-        Body: data.jsonString,
-        ContentType: "application/json",
-      });
-      await s3.send(command);
-      return { success: true };
-    } catch (err) {
-      console.error("S3 Save Manifest error:", err);
-      return { success: false };
-    }
+    const success = await saveLibraryManifestInternal(data.jsonString);
+    return { success };
+  });
+
+/**
+ * Server function to get a short-lived preview signed URL for any orphan object on S3.
+ * Strictly OWNER ONLY.
+ */
+export const getOrphanPreviewUrlServer = createServerFn({ method: "POST" })
+  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .validator(z.object({ key: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    validateStorageKey(data.key);
+    const s3 = getS3ServerClient();
+    const command = new GetObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: data.key,
+      ResponseContentDisposition: "inline",
+    });
+    const url = await getSignedUrl(s3, command, { expiresIn: 900 });
+    return { url, key: data.key };
   });
 
 /**

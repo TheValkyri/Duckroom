@@ -216,6 +216,18 @@ export const getPublicMasterLibraryServer = createServerFn({ method: "GET" }).ha
     }
   };
 
+  const ALBUM_PRIORITY: Record<string, number> = {
+    hvl: 1,
+    "danh-doi": 2,
+    "danh doi": 2,
+    "đánh đổi": 2,
+    bay: 3,
+    bảy: 3,
+    "trai-tim-bang-bo": 4,
+    "trai tim bang bo": 4,
+    "trái tim băng bổ": 4,
+  };
+
   const albumRows = await Promise.all(
     (albums.data ?? []).map(async (a) => ({
       id: a.id,
@@ -227,6 +239,15 @@ export const getPublicMasterLibraryServer = createServerFn({ method: "GET" }).ha
       note: a.note,
     })),
   );
+
+  albumRows.sort((a, b) => {
+    const keyA = (a.id || a.title).toLowerCase().trim();
+    const keyB = (b.id || b.title).toLowerCase().trim();
+    const pA = ALBUM_PRIORITY[keyA] ?? 999;
+    const pB = ALBUM_PRIORITY[keyB] ?? 999;
+    if (pA !== pB) return pA - pB;
+    return (b.year || 0) - (a.year || 0) || a.title.localeCompare(b.title);
+  });
 
   const trackRows = await Promise.all(
     (tracks.data ?? []).map(async (t) => ({
