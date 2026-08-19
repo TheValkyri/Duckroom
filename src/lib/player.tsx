@@ -255,8 +255,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const prev = useCallback(() => {
+    const currentPos = timeRef.current;
     setDirection(-1);
-    setTime(0);
+
     if (secondaryAudioRef.current) {
       secondaryAudioRef.current.pause();
       secondaryAudioRef.current.src = "";
@@ -267,14 +268,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       channelTrackIdA.current = null;
     }
 
+    if (currentPos > 3) {
+      setTime(0);
+      if (primaryAudioRef.current) {
+        primaryAudioRef.current.currentTime = 0;
+      }
+      return;
+    }
+
+    setTime(0);
     if (primaryAudioRef.current) {
       primaryAudioRef.current.currentTime = 0;
     }
-    if (timeRef.current > 4) {
-      return;
-    }
     setIndex((i) => (i - 1 + queue.length) % queue.length);
-  }, [queue.length, activeChannel, primaryAudioRef, secondaryAudioRef]);
+  }, [queue.length, activeChannel, primaryAudioRef, secondaryAudioRef, setTime]);
 
   const toggleShuffle = useCallback(() => {
     setShuffle((s) => {

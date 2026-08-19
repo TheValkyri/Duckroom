@@ -425,3 +425,19 @@ export function extractVideoThumbnail(file: File): Promise<string | null> {
     };
   });
 }
+
+/**
+ * Calculate SHA-256 checksum of an audio/video file directly in browser
+ */
+export async function calculateFileSha256(file: File): Promise<string> {
+  try {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  } catch (err) {
+    console.warn("SHA-256 calculation error, fallback to size hash:", err);
+    return `${file.size}-${file.name.length}-${file.lastModified}`;
+  }
+}
+

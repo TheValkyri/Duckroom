@@ -9,6 +9,7 @@ import { type Album } from "../data/library";
 import { compressAndResizeImageFile, cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import {
   autoTimePacingLyrics,
+  calculateFileSha256,
   extractAudioMetadata,
   extractVideoThumbnail,
   getAudioFileDuration,
@@ -51,13 +52,14 @@ function UploadPage() {
   const navigate = useNavigate();
   const { isLoggedIn, isLoading: isAuthLoading } = useAuth();
   const { isOwner, loading: isRoleLoading } = useDuckroomRole();
-  const { albums } = useLibrary();
+  const { albums, tracks } = useLibrary();
   const [storeState, setStoreState] = useState<UploadState>(getUploadState());
   const [over, setOver] = useState(false);
   const [isFetchingLyrics, setIsFetchingLyrics] = useState(false);
   const [showCropModal, setShowCropModal] = useState(false);
   const [showLiveSyncModal, setShowLiveSyncModal] = useState(false);
   const [showLyricsSearchModal, setShowLyricsSearchModal] = useState(false);
+  const [fileSha256, setFileSha256] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthLoading && !isLoggedIn) {
@@ -120,6 +122,7 @@ function UploadPage() {
     });
 
     if (!isVid) {
+      void calculateFileSha256(file).then(setFileSha256);
       const meta = await extractAudioMetadata(file);
       const updates: Partial<UploadState> = {};
       if (meta.cover) updates.extractedCover = meta.cover;
@@ -138,6 +141,17 @@ function UploadPage() {
       if (thumb) updateUploadState({ extractedCover: thumb });
     }
   };
+
+  const duplicateTrack = useMemo(() => {
+    if (!selectedFile || isVideo || !title.trim()) return null;
+    const curTitle = title.trim().toLowerCase();
+    const curArtist = artist.trim().toLowerCase();
+    return tracks.find((t) => {
+      const matchTitle = t.title.trim().toLowerCase() === curTitle;
+      const matchArtist = curArtist ? t.artist.trim().toLowerCase() === curArtist : true;
+      return matchTitle && matchArtist;
+    });
+  }, [selectedFile, isVideo, title, artist, tracks]);
 
   const handleUploadSubmit = () => {
     void executeGlobalUpload();
@@ -253,31 +267,92 @@ function UploadPage() {
       )}
 
       {selectedFile && (
-        <div className="border-border bg-card/60 mt-4 flex items-center gap-4 rounded-xl border p-4">
-          {artworkPreview || extractedCover ? (
-            <img
-              src={artworkPreview || extractedCover || ""}
-              alt="Cover preview"
-              decoding="async"
-              className="size-14 rounded-lg object-cover"
-            />
-          ) : (
-            <div className="bg-muted grid size-14 place-items-center rounded-lg">
-              <UploadCloud className="text-muted-foreground size-6" />
+        <div className="border-border bg-card/60 mt-4 flex flex-col gap-3 rounded-2xl border p-4 shadow-sm">
+          <div className="flex items-center gap-4">
+            {artworkPreview || extractedCover ? (
+              <img
+                src={artworkPreview || extractedCover || ""}
+                alt="Cover preview"
+                decoding="async"
+                className="size-16 rounded-xl object-cover border border-white/10"
+              />
+            ) : (
+              <div className="bg-muted grid size-16 place-items-center rounded-xl">
+                <UploadCloud className="text-muted-foreground size-7" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold truncate">{selectedFile.name}</p>
+              <p className="text-muted-foreground text-xs mt-0.5">
+                {(selectedFile.size / 1024 / 1024).toFixed(1)} MB •{" "}
+                {artworkFile
+                  ? "✨ Sử dụng ảnh Artwork tùy chọn"
+                  : extractedCover
+                  ? "✨ Đã trích xuất Ảnh bìa gốc"
+                  : "Sẵn sàng tải lên"}
+              </p>
+              {fileSha256 && (
+                <p className="text-muted-foreground/60 font-mono text-[10px] truncate mt-1">
+                  SHA-256: {fileSha256}
+                </p>
+              )}
             </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="font-medium truncate">{selectedFile.name}</p>
-            <p className="text-muted-foreground text-xs mt-0.5">
-              {(selectedFile.size / 1024 / 1024).toFixed(1)} MB •{" "}
-              {artworkFile
-                ? "✨ Sử dụng ảnh Artwork tùy chọn"
-                : extractedCover
-                ? "✨ Đã trích xuất Ảnh bìa gốc"
-                : "Sẵn sàng tải lên"}
-            </p>
+          </div>
+
+          {/* Review Center Status Badges */}
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-border/40 text-xs">
+            <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
+              Audio: {selectedFile.name.split(".").pop()?.toUpperCase()} Lossless Master
+            </span>
+            <span
+              className={cn(
+                "px-2.5 py-1 rounded-full border font-medium",
+                artworkPreview || extractedCover
+                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                  : "bg-amber-500/10 text-amber-300 border-amber-500/20",
+              )}
+            >
+              Artwork: {artworkPreview || extractedCover ? "Đã sẵn sàng (1200px)" : "Chưa có ảnh"}
+            </span>
+            <span
+              className={cn(
+                "px-2.5 py-1 rounded-full border font-medium",
+                lyricsText.trim()
+                  ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                  : "bg-muted/40 text-muted-foreground border-border",
+              )}
+            >
+              Lời: {lyricsText.includes("[0") ? "Synced (.lrc)" : lyricsText.trim() ? "Plain text" : "Chưa có lời"}
+            </span>
           </div>
         </div>
+      )}
+
+      {duplicateTrack && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="border-amber-500/40 bg-amber-500/10 text-amber-300 rounded-2xl border p-4 text-xs leading-relaxed flex items-start justify-between gap-3 mt-4"
+        >
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="size-4 shrink-0 mt-0.5 text-amber-400" />
+            <div>
+              <p className="font-semibold text-foreground text-sm">
+                Phát hiện bài hát trùng lặp trong kho nhạc:
+              </p>
+              <p className="mt-0.5">
+                Bài hát <strong>"{duplicateTrack.title}"</strong> của <strong>{duplicateTrack.artist}</strong> đã có sẵn trong kho ({duplicateTrack.format} {duplicateTrack.bitDepth}/{duplicateTrack.sampleRate}).
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/library" })}
+            className="px-3.5 py-1.5 rounded-xl bg-amber-500 text-black font-semibold hover:bg-amber-400 cursor-pointer shrink-0"
+          >
+            Xem bài cũ
+          </button>
+        </motion.div>
       )}
 
       {/* Form Fields & Action Controls - Locked during upload */}
