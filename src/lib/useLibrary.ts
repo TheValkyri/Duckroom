@@ -62,9 +62,5 @@ export function useLibrary(): LibraryStoreState {
     }
   }, []);
 
-  return useSyncExternalStore(
-    subscribeLibrary,
-    getSnapshot,
-    getServerSnapshot
-  );
+  return useSyncExternalStore(subscribeLibrary, getSnapshot, getServerSnapshot);
 }

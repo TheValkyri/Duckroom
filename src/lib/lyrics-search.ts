@@ -48,11 +48,7 @@ export function removeVietnameseDiacritics(str: string): string {
 }
 
 /** Helper: add a result to the list, deduplicating by trackName+artistName+synced */
-function addResult(
-  results: LyricSearchResult[],
-  seenKeys: Set<string>,
-  item: LyricSearchResult
-): void {
+function addResult(results: LyricSearchResult[], seenKeys: Set<string>, item: LyricSearchResult): void {
   const key = `${(item.trackName || "").toLowerCase().trim()}_${(item.artistName || "").toLowerCase().trim()}_${item.isSynced}`;
   if (!seenKeys.has(key)) {
     seenKeys.add(key);
@@ -83,10 +79,7 @@ async function safeFetchJson(url: string, timeoutMs = 5000): Promise<any> {
 /**
  * Tìm kiếm lời bài hát chuyên sâu qua nhiều tầng (Multi-tier Strategy)
  */
-export async function searchOnlineLyricsMultiSource(
-  title: string,
-  artist: string = ""
-): Promise<LyricSearchResult[]> {
+export async function searchOnlineLyricsMultiSource(title: string, artist: string = ""): Promise<LyricSearchResult[]> {
   const results: LyricSearchResult[] = [];
   const seenKeys = new Set<string>();
 
@@ -98,7 +91,9 @@ export async function searchOnlineLyricsMultiSource(
   const nonDiacriticA = removeVietnameseDiacritics(cleanA).toLowerCase();
   const fullSearchQuery = `${cleanA} ${cleanT}`.trim().toLowerCase();
   const fullNormQuery = `${nonDiacriticA} ${nonDiacriticT}`.trim();
-  const searchTokens = Array.from(new Set(`${nonDiacriticA} ${nonDiacriticT}`.split(/\s+/).filter((w) => w.length >= 2)));
+  const searchTokens = Array.from(
+    new Set(`${nonDiacriticA} ${nonDiacriticT}`.split(/\s+/).filter((w) => w.length >= 2)),
+  );
 
   // ───────────────────────────────────────────────────────────
   // TIER 0: Duckroom Community & Vietnamese Curated Vault
@@ -151,7 +146,7 @@ export async function searchOnlineLyricsMultiSource(
 
   for (const [t, a] of exactPairs) {
     const data = await safeFetchJson(
-      `https://lrclib.net/api/get?track_name=${encodeURIComponent(t)}&artist_name=${encodeURIComponent(a)}`
+      `https://lrclib.net/api/get?track_name=${encodeURIComponent(t)}&artist_name=${encodeURIComponent(a)}`,
     );
     if (data && (data.syncedLyrics || data.plainLyrics)) {
       addResult(results, seenKeys, {
@@ -189,8 +184,8 @@ export async function searchOnlineLyricsMultiSource(
         nonDiacriticA && nonDiacriticA !== cleanA.toLowerCase() && nonDiacriticA.length >= 2 ? nonDiacriticA : "",
         // Raw title as-is
         rawTitle !== cleanT ? rawTitle : "",
-      ].filter((q) => q.length >= 2)
-    )
+      ].filter((q) => q.length >= 2),
+    ),
   );
 
   // Run search queries in parallel batches
@@ -198,9 +193,7 @@ export async function searchOnlineLyricsMultiSource(
   for (let i = 0; i < searchQueries.length; i += batchSize) {
     const batch = searchQueries.slice(i, i + batchSize);
     const batchResults = await Promise.allSettled(
-      batch.map((q) =>
-        safeFetchJson(`https://lrclib.net/api/search?q=${encodeURIComponent(q)}`)
-      )
+      batch.map((q) => safeFetchJson(`https://lrclib.net/api/search?q=${encodeURIComponent(q)}`)),
     );
 
     for (const settled of batchResults) {
@@ -232,9 +225,7 @@ export async function searchOnlineLyricsMultiSource(
     }
 
     for (const [a, t] of ovhPairs) {
-      const data = await safeFetchJson(
-        `https://api.lyrics.ovh/v1/${encodeURIComponent(a)}/${encodeURIComponent(t)}`
-      );
+      const data = await safeFetchJson(`https://api.lyrics.ovh/v1/${encodeURIComponent(a)}/${encodeURIComponent(t)}`);
       if (data?.lyrics && typeof data.lyrics === "string" && data.lyrics.trim().length > 20) {
         addResult(results, seenKeys, {
           id: `ovh-${results.length}`,

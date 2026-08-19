@@ -23,23 +23,19 @@ export function getAudioFileDuration(file: File): Promise<number> {
       audio.onloadedmetadata = () => {
         const d = audio.duration;
         URL.revokeObjectURL(url);
-        resolve(Number.isFinite(d) && d > 10 ? d : 180);
+        resolve(Number.isFinite(d) && d > 0 ? d : 0);
       };
       audio.onerror = () => {
         URL.revokeObjectURL(url);
-        resolve(180);
+        resolve(0);
       };
     } catch {
-      resolve(180);
+      resolve(0);
     }
   });
 }
 
-export function autoTimePacingLyrics(
-  raw: string,
-  durationSeconds: number = 180,
-  forceRepace: boolean = false
-): string {
+export function autoTimePacingLyrics(raw: string, durationSeconds: number = 180, forceRepace: boolean = false): string {
   if (!raw || !raw.trim()) return "";
   const trimmed = raw.trim();
 
@@ -112,11 +108,7 @@ export function autoTimePacingLyrics(
   return result.join("\n");
 }
 
-export function formatRawLyricsToLrc(
-  raw: string,
-  durationSeconds: number = 180,
-  forceRepace: boolean = false
-): string {
+export function formatRawLyricsToLrc(raw: string, durationSeconds: number = 180, forceRepace: boolean = false): string {
   return autoTimePacingLyrics(raw, durationSeconds, forceRepace);
 }
 
@@ -134,10 +126,7 @@ function decodeId3Text(view: DataView, offset: number, frameSize: number): strin
   }
 }
 
-export async function extractAudioMetadata(
-  file: File,
-  durationSeconds?: number
-): Promise<ExtractedAudioMetadata> {
+export async function extractAudioMetadata(file: File, durationSeconds?: number): Promise<ExtractedAudioMetadata> {
   const result: ExtractedAudioMetadata = {
     cover: null,
     lyrics: null,
@@ -171,10 +160,7 @@ export async function extractAudioMetadata(
         isLast = (headerByte & 0x80) !== 0;
         const blockType = headerByte & 0x7f;
 
-        const length =
-          (view.getUint8(offset + 1) << 16) |
-          (view.getUint8(offset + 2) << 8) |
-          view.getUint8(offset + 3);
+        const length = (view.getUint8(offset + 1) << 16) | (view.getUint8(offset + 2) << 8) | view.getUint8(offset + 3);
 
         offset += 4;
 
@@ -204,17 +190,17 @@ export async function extractAudioMetadata(
 
                     if ((key === "TITLE" || key === "TRACKTITLE") && !result.title) {
                       result.title = val;
-                    } else if (
-                      (key === "ARTIST" || key === "PERFORMER" || key === "ALBUMARTIST") &&
-                      !result.artist
-                    ) {
+                    } else if ((key === "ARTIST" || key === "PERFORMER" || key === "ALBUMARTIST") && !result.artist) {
                       result.artist = val;
                     } else if (key === "ALBUM" && !result.album) {
                       result.album = val;
                     } else if ((key === "DATE" || key === "YEAR") && !result.year) {
                       const matchYear = val.match(/\b(19\d\d|20\d\d)\b/);
                       result.year = matchYear ? matchYear[0] : val.slice(0, 4);
-                    } else if ((key === "TRACKNUMBER" || key === "TRACK" || key === "TRACKNO") && result.trackNo === null) {
+                    } else if (
+                      (key === "TRACKNUMBER" || key === "TRACK" || key === "TRACKNO") &&
+                      result.trackNo === null
+                    ) {
                       const parsedNo = parseInt(val.split("/")[0] || "", 10);
                       if (!isNaN(parsedNo) && parsedNo > 0) result.trackNo = parsedNo;
                     } else if (key === "GENRE" && !result.genre) {
@@ -274,12 +260,7 @@ export async function extractAudioMetadata(
     }
 
     // 2. Check ID3v2 Header ('ID3')
-    if (
-      view.byteLength >= 10 &&
-      view.getUint8(0) === 0x49 &&
-      view.getUint8(1) === 0x44 &&
-      view.getUint8(2) === 0x33
-    ) {
+    if (view.byteLength >= 10 && view.getUint8(0) === 0x49 && view.getUint8(1) === 0x44 && view.getUint8(2) === 0x33) {
       const tagSize =
         ((view.getUint8(6) & 0x7f) << 21) |
         ((view.getUint8(7) & 0x7f) << 14) |
@@ -292,7 +273,7 @@ export async function extractAudioMetadata(
           view.getUint8(offset),
           view.getUint8(offset + 1),
           view.getUint8(offset + 2),
-          view.getUint8(offset + 3)
+          view.getUint8(offset + 3),
         );
         const frameSize = view.getUint32(offset + 4);
         offset += 10;
@@ -305,8 +286,7 @@ export async function extractAudioMetadata(
             let mimeEnd = offset + 1;
             while (view.getUint8(mimeEnd) !== 0 && mimeEnd < offset + frameSize) mimeEnd++;
             const mime =
-              new TextDecoder().decode(new Uint8Array(view.buffer, offset + 1, mimeEnd - offset - 1)) ||
-              "image/jpeg";
+              new TextDecoder().decode(new Uint8Array(view.buffer, offset + 1, mimeEnd - offset - 1)) || "image/jpeg";
 
             let imgStart = mimeEnd + 2;
             if (encoding === 0 || encoding === 3) {
@@ -344,10 +324,7 @@ export async function extractAudioMetadata(
             const textLen = frameSize - (contentOffset - offset);
             if (textLen > 0) {
               const textBytes = new Uint8Array(view.buffer, contentOffset, textLen);
-              const decoder =
-                encoding === 1 || encoding === 2
-                  ? new TextDecoder("utf-16")
-                  : new TextDecoder("utf-8");
+              const decoder = encoding === 1 || encoding === 2 ? new TextDecoder("utf-16") : new TextDecoder("utf-8");
               const rawText = decoder.decode(textBytes).replace(/\0+$/, "").trim();
               if (rawText) result.lyrics = formatRawLyricsToLrc(rawText, duration);
             }
@@ -440,4 +417,3 @@ export async function calculateFileSha256(file: File): Promise<string> {
     return `${file.size}-${file.name.length}-${file.lastModified}`;
   }
 }
-

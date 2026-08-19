@@ -32,8 +32,7 @@ export function PlayerBar() {
 
   if (!current) return null;
   const album = albumById(current.albumId);
-  const fallbackCover =
-    "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+  const fallbackCover = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
   const rawCover = current.cover || album?.cover;
   const coverUrl = rawCover && !rawCover.startsWith("blob:") ? rawCover : fallbackCover;
 
@@ -71,7 +70,7 @@ export function PlayerBar() {
                 }}
                 className={cn(
                   "size-full object-cover transition-all duration-500 group-hover:scale-105",
-                  coverLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]"
+                  coverLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]",
                 )}
                 width={56}
                 height={56}
@@ -95,9 +94,7 @@ export function PlayerBar() {
           <div className="flex w-[38vw] max-w-2xl min-w-[280px] flex-col items-center">
             <TransportControls />
             <div className="flex w-full items-center gap-3 mt-0.5">
-              <span className="text-muted-foreground w-10 text-right text-[11px] tabular-nums">
-                {formatTime(time)}
-              </span>
+              <span className="text-muted-foreground w-10 text-right text-[11px] tabular-nums">{formatTime(time)}</span>
               <div className="flex-1">
                 <SeekBar compact />
               </div>
@@ -110,22 +107,15 @@ export function PlayerBar() {
           {/* Right: Controls & Volume (Stretched to far right) */}
           <div className="flex items-center justify-end gap-3 min-w-0">
             <div className="hidden h-6 w-24 shrink-0 items-center overflow-hidden xl:flex">
-              <Visualizer
-                playing={isPlaying}
-                bars={18}
-                height={24}
-                className="size-full"
-              />
+              <Visualizer playing={isPlaying} bars={18} height={24} className="size-full" />
             </div>
             <motion.button
               aria-label="Hòa âm Crossfade"
               title={`Hòa trộn bài (Crossfade): ${
-                crossfade > 0
-                  ? `${crossfade} giây (Studio Equal-Power Mix)`
-                  : "Đang tắt (Nhấn để bật 10s)"
+                crossfade > 0 ? `${crossfade} giây (Studio Equal-Power Mix)` : "Đang tắt (Nhấn để bật 10s)"
               }`}
               onClick={() => {
-                const presets = [10, 12, 5, 3, 0];
+                const presets = [10, 7, 5, 3, 0];
                 const curIdx = presets.indexOf(crossfade);
                 const nextVal = presets[(curIdx + 1) % presets.length] ?? 0;
                 setCrossfade(nextVal);
@@ -141,9 +131,7 @@ export function PlayerBar() {
               )}
             >
               <Sparkles className={cn("size-3.5", crossfade > 0 && "text-amber-400 animate-pulse")} />
-              <span className="hidden sm:inline font-mono">
-                {crossfade > 0 ? `${crossfade}s` : "Mix Off"}
-              </span>
+              <span className="hidden sm:inline font-mono">{crossfade > 0 ? `${crossfade}s` : "Mix Off"}</span>
             </motion.button>
             <motion.button
               aria-label="Lời bài hát"
@@ -202,11 +190,7 @@ function VolumeBar() {
         transition={springSnappy}
         className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
       >
-        {isMuted || volume === 0 ? (
-          <VolumeX className="size-4 text-destructive" />
-        ) : (
-          <Volume2 className="size-4" />
-        )}
+        {isMuted || volume === 0 ? <VolumeX className="size-4 text-destructive" /> : <Volume2 className="size-4" />}
       </motion.button>
       <div
         className="group relative flex h-6 w-24 items-center select-none cursor-pointer"
@@ -217,7 +201,7 @@ function VolumeBar() {
           <div
             className={cn(
               "h-full rounded-full bg-primary",
-              isDragging ? "transition-none" : "transition-[width] duration-75 ease-out"
+              isDragging ? "transition-none" : "transition-[width] duration-75 ease-out",
             )}
             style={{ width: `${pct}%` }}
           />
@@ -225,7 +209,9 @@ function VolumeBar() {
         <div
           className={cn(
             "pointer-events-none absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow-md",
-            isDragging ? "scale-125 opacity-100 transition-none" : "opacity-0 group-hover:scale-125 group-hover:opacity-100 transition-all duration-150"
+            isDragging
+              ? "scale-125 opacity-100 transition-none"
+              : "opacity-0 group-hover:scale-125 group-hover:opacity-100 transition-all duration-150",
           )}
           style={{ left: `${pct}%` }}
         />

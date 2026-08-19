@@ -54,7 +54,9 @@ function AdminPage() {
 
   // Orphan Scanner state
   const [isScanningOrphans, setIsScanningOrphans] = useState(false);
-  const [orphanScanResult, setOrphanScanResult] = useState<Awaited<ReturnType<typeof scanOrphanS3ObjectsServer>> | null>(null);
+  const [orphanScanResult, setOrphanScanResult] = useState<Awaited<
+    ReturnType<typeof scanOrphanS3ObjectsServer>
+  > | null>(null);
   const [isCleaningOrphans, setIsCleaningOrphans] = useState(false);
 
   // Snapshot Backup state
@@ -269,7 +271,9 @@ function AdminPage() {
                           className="px-3 py-1 rounded-lg bg-destructive text-destructive-foreground text-xs font-semibold flex items-center gap-1 cursor-pointer disabled:opacity-50"
                         >
                           <Trash2 className="size-3" />
-                          <span>{isCleaningOrphans ? "Đang dọn..." : `Xóa ${orphanScanResult.orphanKeys.length} file rác`}</span>
+                          <span>
+                            {isCleaningOrphans ? "Đang dọn..." : `Xóa ${orphanScanResult.orphanKeys.length} file rác`}
+                          </span>
                         </motion.button>
                       )}
                     </div>

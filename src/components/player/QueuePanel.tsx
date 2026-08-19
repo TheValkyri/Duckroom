@@ -66,13 +66,18 @@ export function QueuePanel() {
             <GripVertical className="text-muted-foreground size-3.5 opacity-0 transition-opacity group-hover:opacity-100 shrink-0" />
             <button onClick={() => jumpTo(i)} className="flex min-w-0 flex-1 items-center gap-3 cursor-pointer">
               <img
-                src={t.cover || albumById(t.albumId)?.cover || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"}
+                src={
+                  t.cover ||
+                  albumById(t.albumId)?.cover ||
+                  "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"
+                }
                 alt=""
                 loading="lazy"
                 decoding="async"
                 onError={(e) => {
                   const target = e.currentTarget;
-                  const fallback = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+                  const fallback =
+                    "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
                   if (target.src !== fallback) {
                     target.src = fallback;
                   }
@@ -83,15 +88,16 @@ export function QueuePanel() {
               />
               <span className="min-w-0 flex-1 text-left">
                 <span
-                  className={cn("block truncate text-sm font-medium", i === index ? "text-primary font-semibold" : "text-foreground")}
+                  className={cn(
+                    "block truncate text-sm font-medium",
+                    i === index ? "text-primary font-semibold" : "text-foreground",
+                  )}
                 >
                   {t.title}
                 </span>
                 <span className="text-muted-foreground block truncate text-xs">{t.artist}</span>
               </span>
-              <span className="text-muted-foreground text-xs tabular-nums">
-                {formatTime(t.duration)}
-              </span>
+              <span className="text-muted-foreground text-xs tabular-nums">{formatTime(t.duration)}</span>
             </button>
           </motion.li>
         ))}

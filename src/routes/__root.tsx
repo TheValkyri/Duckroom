@@ -1,12 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  Outlet,
-  Link,
-  createRootRouteWithContext,
-  useRouter,
-  HeadContent,
-  Scripts,
-} from "@tanstack/react-router";
+import { Outlet, Link, createRootRouteWithContext, useRouter, HeadContent, Scripts } from "@tanstack/react-router";
 import { MotionConfig } from "motion/react";
 import { useEffect, type ReactNode } from "react";
 
@@ -45,9 +38,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          Không thể tải trang
-        </h1>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Không thể tải trang</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Đã xảy ra lỗi trên hệ thống. Bạn có thể thử tải lại trang hoặc quay về trang chủ.
         </p>
@@ -81,13 +72,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Duckroom" },
       {
         name: "description",
-        content: "Nghe và lưu trữ bản thu FLAC 24-bit cùng MV bản gốc: trộn bài, lặp lại, lời bài hát theo thời gian thực.",
+        content:
+          "Nghe và lưu trữ bản thu FLAC 24-bit cùng MV bản gốc: trộn bài, lặp lại, lời bài hát theo thời gian thực.",
       },
       { property: "og:site_name", content: "Duckroom" },
       { property: "og:title", content: "Duckroom — Kho nhạc lossless riêng" },
       {
         property: "og:description",
-        content: "Nghe và lưu trữ bản thu FLAC 24-bit cùng MV bản gốc: trộn bài, lặp lại, lời bài hát theo thời gian thực.",
+        content:
+          "Nghe và lưu trữ bản thu FLAC 24-bit cùng MV bản gốc: trộn bài, lặp lại, lời bài hát theo thời gian thực.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://duckroom.vercel.app" },
@@ -102,7 +95,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:title", content: "Duckroom — Kho nhạc lossless riêng" },
       {
         name: "twitter:description",
-        content: "Nghe và lưu trữ bản thu FLAC 24-bit cùng MV bản gốc: trộn bài, lặp lại, lời bài hát theo thời gian thực.",
+        content:
+          "Nghe và lưu trữ bản thu FLAC 24-bit cùng MV bản gốc: trộn bài, lặp lại, lời bài hát theo thời gian thực.",
       },
       { name: "twitter:image", content: "https://duckroom.vercel.app/og-image.jpg" },
       { name: "theme-color", content: "#09090b" },

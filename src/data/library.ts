@@ -1,8 +1,8 @@
 import { createPresignedUrl } from "../lib/s3";
 import {
-  deleteS3ObjectServer,
+  deleteTrackDomainServer,
+  deleteVideoDomainServer,
   getLibraryManifestServer,
-  listS3ObjectsServer,
   saveLibraryManifestServer,
 } from "../lib/s3-functions";
 import { extractS3KeyFromUrl } from "../lib/s3-key";
@@ -191,11 +191,8 @@ export function removeTrackFromLibrary(id: string) {
 export async function deleteTrack(trackId: string) {
   const track = tracks.find((t) => t.id === trackId);
   if (!track) return false;
-  const key = track.src ? extractS3KeyFromUrl(track.src) : null;
-  if (key) {
-    const result = await deleteS3ObjectServer({ data: { key } });
-    if (!result.success) throw new Error("S3 delete failed");
-  }
+  const result = await deleteTrackDomainServer({ data: { trackId } });
+  if (!result.success) throw new Error("Domain track delete failed");
   removeTrackFromLibrary(trackId);
   return true;
 }
@@ -203,13 +200,8 @@ export async function deleteTrack(trackId: string) {
 export async function deleteVideo(videoId: string) {
   const idx = videos.findIndex((v) => v.id === videoId);
   if (idx >= 0) {
-    const video = videos[idx];
-    if (video?.src) {
-      const key = extractS3KeyFromUrl(video.src);
-      if (key) {
-        void deleteS3ObjectServer({ data: { key } });
-      }
-    }
+    const result = await deleteVideoDomainServer({ data: { videoId } });
+    if (!result.success) throw new Error("Domain video delete failed");
     videos.splice(idx, 1);
     saveStoredLibrary(true);
   }
@@ -227,21 +219,23 @@ export async function syncLibraryWithS3(force = false) {
   lastSyncTime = now;
 
   try {
-    // V2 canonical path: Supabase metadata first.
+    // V2 canonical path: Supabase PostgreSQL is the singular source of truth.
     try {
       const canonical = await getPublicMasterLibraryServer();
-      if (canonical.tracks.length > 0 || canonical.albums.length > 0 || canonical.videos.length > 0) {
-        albums.length = 0;
-        albums.push(...(canonical.albums as Album[]));
-        tracks.length = 0;
-        tracks.push(...(canonical.tracks as Track[]));
-        videos.length = 0;
-        videos.push(...(canonical.videos as Video[]));
-        notifyLibrarySubscribers();
-        return;
-      }
+      // Empty array is a valid library state - do NOT treat as error or fallback to manifest
+      albums.length = 0;
+      albums.push(...(canonical.albums as Album[]));
+      tracks.length = 0;
+      tracks.push(...(canonical.tracks as Track[]));
+      videos.length = 0;
+      videos.push(...(canonical.videos as Video[]));
+      notifyLibrarySubscribers();
+      return;
     } catch (canonicalError) {
-      console.warn("Canonical library unavailable; falling back to recovery manifest", canonicalError);
+      console.warn(
+        "Canonical library unavailable (offline/network); checking recovery manifest fallback",
+        canonicalError,
+      );
     }
 
     // Legacy recovery path. Do not treat it as the long-term source of truth.
@@ -347,216 +341,12 @@ export async function syncLibraryWithS3(force = false) {
       notifyLibrarySubscribers();
       return;
     }
-
-    // 2. Fallback: If S3 manifest does not exist yet on S3, but local tab has data, push local library to S3 manifest!
-    if (albums.length > 0 || tracks.length > 0) {
-      saveStoredLibrary(true);
-      return;
-    }
-
-    // 3. Last Fallback: S3 Object Key Auto-Discovery
-    const { keys } = await listS3ObjectsServer();
-    const s3KeySet = new Set(keys);
-
-    const artworkMap: Record<string, string> = {};
-    for (const key of keys) {
-      if (key.startsWith("artworks/")) {
-        const fileBasename = key.replace("artworks/", "").toLowerCase();
-        artworkMap[fileBasename] = key;
-      }
-    }
-
-    const validTracks = tracks.filter((track) => {
-      if (!track.src) return true;
-      const key = extractS3KeyFromUrl(track.src);
-      if (key) {
-        if (!s3KeySet.has(key)) return false;
-      }
-      return true;
-    });
-
-    const validVideos = videos.filter((video) => {
-      if (!video.src) return true;
-      const key = extractS3KeyFromUrl(video.src);
-      if (key) {
-        if (!s3KeySet.has(key)) return false;
-      }
-      return true;
-    });
-
-    const audioKeys = keys.filter(
-      (k) =>
-        /\.(flac|alac|wav|mp3|m4a)$/i.test(k) &&
-        (k.startsWith("albums/") || k.startsWith("singles/"))
-    );
-
-    audioKeys.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-
-    const missingKeys = audioKeys.filter((key) => {
-      const parts = key.split("/");
-      const filename = parts[parts.length - 1] || "";
-      const cleanName = filename.replace(/\.[^/.]+$/, "");
-      const trackNoMatch = cleanName.match(/^(\d+)/);
-      const rawTitle = trackNoMatch ? cleanName.replace(/^(\d+)\s*[-._\s]+/, "").trim() : cleanName;
-      const title = rawTitle.replace(/^RPT\s+MCK\s*-\s*/i, "").trim();
-
-      return !validTracks.some(
-        (t) =>
-          t.title.toLowerCase() === title.toLowerCase() ||
-          (t.src && (t.src.includes(encodeURIComponent(key)) || t.src.includes(key)))
-      );
-    });
-
-    const presignedResults = await Promise.all(
-      missingKeys.map(async (key) => {
-        try {
-          const url = await createPresignedUrl(key);
-          return { key, url };
-        } catch {
-          return { key, url: "" };
-        }
-      })
-    );
-    const presignedMap = new Map(presignedResults.map((r) => [r.key, r.url]));
-
-    const artworkResults = await Promise.all(
-      missingKeys.map(async (key, idx) => {
-        const parts = key.split("/");
-        const filename = parts[parts.length - 1] || "";
-        const cleanName = filename.replace(/\.[^/.]+$/, "");
-        const trackNoMatch = cleanName.match(/^(\d+)/);
-        const trackNo = trackNoMatch ? parseInt(trackNoMatch[1]!, 10) : idx + 1;
-        const seqStr = trackNo.toString().padStart(2, "0");
-        const rawTitle = cleanName.replace(/^(\d+)\s*[-._\s]+/, "").trim();
-        const title = rawTitle.replace(/^RPT\s+MCK\s*-\s*/i, "").trim();
-
-        const targetName = `${seqStr} - ${title}`.toLowerCase();
-        const matchKeyName = Object.keys(artworkMap).find(
-          (k) => k.includes(targetName) || k.includes(title.toLowerCase())
-        );
-
-        if (matchKeyName && artworkMap[matchKeyName]) {
-          try {
-            const url = await createPresignedUrl(artworkMap[matchKeyName]!);
-            return { key, url };
-          } catch {
-            return { key, url: undefined };
-          }
-        }
-        return { key, url: undefined };
-      })
-    );
-    const artworkUrlMap = new Map(artworkResults.map((r) => [r.key, r.url]));
-
-    for (let index = 0; index < audioKeys.length; index++) {
-      const key = audioKeys[index]!;
-      const parts = key.split("/");
-      const isAlbum = key.startsWith("albums/");
-      const albumName = isAlbum ? parts[1] || "HVL" : "Single Collection";
-      const filename = parts[parts.length - 1] || "";
-      const cleanName = filename.replace(/\.[^/.]+$/, "");
-
-      const trackNoMatch = cleanName.match(/^(\d+)/);
-      const trackNo = trackNoMatch ? parseInt(trackNoMatch[1]!, 10) : index + 1;
-      const rawTitle = cleanName.replace(/^(\d+)\s*[-._\s]+/, "").trim();
-      const title = rawTitle.replace(/^RPT\s+MCK\s*-\s*/i, "").trim();
-
-      const existingAlbum = albums.find(
-        (a) => a.title.toLowerCase() === albumName.toLowerCase() || a.id.toLowerCase() === albumName.toLowerCase()
-      );
-      const albumId = existingAlbum
-        ? existingAlbum.id
-        : isAlbum
-          ? albumName.toLowerCase().replace(/\s+/g, "-")
-          : "singles";
-
-      const existingTrack = validTracks.find(
-        (t) =>
-          t.title.toLowerCase() === title.toLowerCase() ||
-          (t.src && (t.src.includes(encodeURIComponent(key)) || t.src.includes(key)))
-      );
-
-      if (!existingTrack) {
-        const presignedAudioUrl = presignedMap.get(key);
-        const customCover = artworkUrlMap.get(key);
-
-        if (presignedAudioUrl) {
-          const newTrack: Track = {
-            id: `s3-${albumId}-${trackNo}-${title.toLowerCase().replace(/\s+/g, "-")}`,
-            title,
-            artist: "MCK",
-            albumId,
-            duration: 180,
-            trackNo,
-            format: key.toLowerCase().endsWith(".flac") ? "FLAC" : "WAV",
-            bitDepth: 24,
-            sampleRate: 96,
-            sizeMB: 26.5,
-            src: presignedAudioUrl,
-            ...(customCover ? { cover: customCover } : {}),
-            lyrics: [],
-          };
-          validTracks.push(newTrack);
-        }
-      } else {
-        existingTrack.albumId = albumId;
-        existingTrack.trackNo = trackNo;
-      }
-
-      if (isAlbum && !albums.some((a) => a.id === albumId || a.title.toLowerCase() === albumName.toLowerCase())) {
-        const hvlCoverKey = Object.keys(artworkMap).find(
-          (k) => k.includes("hvl") || k.includes("cover") || k.includes("poster")
-        );
-        const albumCoverKey = hvlCoverKey ? artworkMap[hvlCoverKey] : undefined;
-        let albumCoverUrl = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
-
-        if (albumCoverKey) {
-          const presignedCover = await createPresignedUrl(albumCoverKey);
-          if (presignedCover) albumCoverUrl = presignedCover;
-        }
-
-        albums.push({
-          id: albumId,
-          title: albumName,
-          artist: "MCK",
-          year: 2026,
-          cover: albumCoverUrl,
-          accent: "oklch(0.3 0.1 260)",
-          note: "Album từ S3 Storage",
-        });
-      }
-    }
-
-    tracks.length = 0;
-    tracks.push(...validTracks);
-
-    videos.length = 0;
-    videos.push(...validVideos);
-
-    saveStoredLibrary(true);
   } catch (err) {
-    console.error("S3 Sync error:", err);
+    console.error("Master library sync error:", err);
   }
 }
 
 export function clearAllTracks() {
-  for (const track of tracks) {
-    if (track.src) {
-      const key = extractS3KeyFromUrl(track.src);
-      if (key) {
-        void deleteS3ObjectServer({ data: { key } });
-      }
-    }
-  }
-  for (const video of videos) {
-    if (video.src) {
-      const key = extractS3KeyFromUrl(video.src);
-      if (key) {
-        void deleteS3ObjectServer({ data: { key } });
-      }
-    }
-  }
-
   tracks.length = 0;
   albums.length = 0;
   videos.length = 0;
@@ -614,12 +404,8 @@ export function createAlbum(data: {
     title: data.title.trim(),
     artist: data.artist.trim() || "Nghệ sĩ",
     year: data.year || new Date().getFullYear(),
-    cover:
-      data.cover ||
-      "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80",
-    accent: `oklch(0.${Math.floor(Math.random() * 3) + 3} 0.1 ${Math.floor(
-      Math.random() * 360
-    )})`,
+    cover: data.cover || "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80",
+    accent: `oklch(0.${Math.floor(Math.random() * 3) + 3} 0.1 ${Math.floor(Math.random() * 360)})`,
     note: data.note || "Album tự tạo",
   };
   albums.push(newAlbum);
@@ -635,7 +421,7 @@ export function updateAlbum(
     year?: number;
     cover?: string;
     note?: string;
-  }
+  },
 ): Album | null {
   const album = albums.find((a) => a.id === albumId);
   if (!album) return null;

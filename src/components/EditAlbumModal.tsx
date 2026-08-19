@@ -186,7 +186,7 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
                       htmlFor="edit-album-cover-upload"
                       className={cn(
                         "inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-all cursor-pointer",
-                        isSaving && "opacity-50 cursor-not-allowed"
+                        isSaving && "opacity-50 cursor-not-allowed",
                       )}
                     >
                       <ImageIcon className="size-4" />
@@ -218,7 +218,7 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
                         setCoverPreviewError(false);
                         const croppedUrl = await cropBlackLetterbox(img);
                         const { file: compressedFile, dataUrl: compressedDataUrl } = await compressAndResizeImageFile(
-                          croppedUrl.startsWith("data:") ? dataURLtoFile(croppedUrl, img.name) : img
+                          croppedUrl.startsWith("data:") ? dataURLtoFile(croppedUrl, img.name) : img,
                         );
                         setArtworkFile(compressedFile);
                         setArtworkPreview(compressedDataUrl);

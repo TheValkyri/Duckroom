@@ -56,6 +56,12 @@ function keyFromValue(value: string | undefined | null): string | null {
   return value.startsWith("http") ? null : value;
 }
 
+/**
+ * True Replace Semantics for Canonical Master Library:
+ * - Upserts incoming records.
+ * - Reconciles deletions by removing records from DB that are no longer in the master set.
+ * - Strictly OWNER ONLY.
+ */
 export const replaceMasterLibraryServer = createServerFn({ method: "POST" })
   .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
   .validator(
@@ -68,6 +74,8 @@ export const replaceMasterLibraryServer = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const db = getSupabaseAdmin();
 
+    // 1. Reconcile Albums
+    const incomingAlbumIds = new Set(data.albums.map((a) => a.id));
     const albumRows = data.albums.map((album) => ({
       id: album.id,
       title: album.title,
@@ -81,7 +89,17 @@ export const replaceMasterLibraryServer = createServerFn({ method: "POST" })
       const { error } = await db.from("albums").upsert(albumRows, { onConflict: "id" });
       if (error) throw new Error(`Album persistence failed: ${error.message}`);
     }
+    // Delete removed albums (excluding singles virtual album)
+    const { data: currentAlbums } = await db.from("albums").select("id");
+    const albumsToDelete = (currentAlbums || [])
+      .map((a) => a.id)
+      .filter((id) => id !== "singles" && id !== "single-collection" && !incomingAlbumIds.has(id));
+    if (albumsToDelete.length) {
+      await db.from("albums").delete().in("id", albumsToDelete);
+    }
 
+    // 2. Reconcile Tracks
+    const incomingTrackIds = new Set(data.tracks.map((t) => t.id));
     const trackRows = data.tracks.map((track) => ({
       id: track.id,
       album_id: track.albumId && track.albumId !== "singles" ? track.albumId : null,
@@ -89,10 +107,10 @@ export const replaceMasterLibraryServer = createServerFn({ method: "POST" })
       artist: track.artist,
       track_no: track.trackNo,
       duration_seconds: Math.round(track.duration),
-      format: track.format,
-      bit_depth: Math.round(track.bitDepth),
-      sample_rate: track.sampleRate,
-      size_mb: track.sizeMB,
+      format: track.format || "UNKNOWN",
+      bit_depth: Math.round(track.bitDepth) || 0,
+      sample_rate: track.sampleRate || 0,
+      size_mb: track.sizeMB || 0,
       storage_key: keyFromValue(track.src) ?? "",
       cover_storage_key: keyFromValue(track.cover),
       year: track.year ?? null,
@@ -102,7 +120,15 @@ export const replaceMasterLibraryServer = createServerFn({ method: "POST" })
       const { error } = await db.from("tracks").upsert(trackRows, { onConflict: "id" });
       if (error) throw new Error(`Track persistence failed: ${error.message}`);
     }
+    // Delete removed tracks from DB
+    const { data: currentTracks } = await db.from("tracks").select("id");
+    const tracksToDelete = (currentTracks || []).map((t) => t.id).filter((id) => !incomingTrackIds.has(id));
+    if (tracksToDelete.length) {
+      await db.from("tracks").delete().in("id", tracksToDelete);
+    }
 
+    // 3. Reconcile Videos
+    const incomingVideoIds = new Set(data.videos.map((v) => v.id));
     const videoRows = data.videos.map((video) => ({
       id: video.id,
       title: video.title,
@@ -111,22 +137,33 @@ export const replaceMasterLibraryServer = createServerFn({ method: "POST" })
       thumb_storage_key: keyFromValue(video.thumb) ?? "",
       storage_key: keyFromValue(video.src) ?? "",
       duration_seconds: Math.round(video.duration),
-      resolution: video.resolution,
-      codec: video.codec,
-      bitrate: video.bitrate,
-      size_mb: video.sizeMB,
+      resolution: video.resolution || "UNKNOWN",
+      codec: video.codec || "UNKNOWN",
+      bitrate: video.bitrate || "UNKNOWN",
+      size_mb: video.sizeMB || 0,
     }));
     if (videoRows.length) {
       const { error } = await db.from("videos").upsert(videoRows, { onConflict: "id" });
       if (error) throw new Error(`Video persistence failed: ${error.message}`);
     }
+    // Delete removed videos from DB
+    const { data: currentVideos } = await db.from("videos").select("id");
+    const videosToDelete = (currentVideos || []).map((v) => v.id).filter((id) => !incomingVideoIds.has(id));
+    if (videosToDelete.length) {
+      await db.from("videos").delete().in("id", videosToDelete);
+    }
 
     return {
       success: true,
       persisted: { tracks: trackRows.length, albums: albumRows.length, videos: videoRows.length },
+      deleted: { tracks: tracksToDelete.length, albums: albumsToDelete.length, videos: videosToDelete.length },
     };
   });
 
+/**
+ * Public Master Library Reader:
+ * Returns all public canonical tracks, albums, and videos with short-lived (15 min) signed URLs.
+ */
 export const getPublicMasterLibraryServer = createServerFn({ method: "GET" }).handler(async () => {
   const db = getSupabaseAdmin();
   const [albums, tracks, videos] = await Promise.all([
@@ -185,19 +222,19 @@ export const getPublicMasterLibraryServer = createServerFn({ method: "GET" }).ha
   const trackRows = await Promise.all(
     (tracks.data ?? []).map(async (t) => ({
       id: t.id,
+      albumId: t.album_id ?? undefined,
       title: t.title,
       artist: t.artist,
-      albumId: t.album_id ?? "singles",
       duration: t.duration_seconds,
       trackNo: t.track_no,
-      format: t.format as any,
+      format: t.format,
       bitDepth: t.bit_depth,
       sampleRate: t.sample_rate,
       sizeMB: Number(t.size_mb),
-      src: await sign(t.storage_key, true),
+      src: (await sign(t.storage_key, true)) ?? "",
       cover: await sign(t.cover_storage_key),
       year: t.year ?? undefined,
-      lyrics: (t.lyrics as any) ?? [],
+      lyrics: t.lyrics ?? [],
     })),
   );
 
@@ -213,7 +250,7 @@ export const getPublicMasterLibraryServer = createServerFn({ method: "GET" }).ha
       codec: v.codec,
       bitrate: v.bitrate,
       sizeMB: Number(v.size_mb),
-      src: await sign(v.storage_key, true),
+      src: (await sign(v.storage_key, true)) ?? "",
     })),
   );
 

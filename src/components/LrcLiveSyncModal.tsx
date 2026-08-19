@@ -51,13 +51,7 @@ function formatSecToMmSsMs(sec: number): string {
   return `${mm}:${ss}.${ms}`;
 }
 
-export function LrcLiveSyncModal({
-  isOpen,
-  onClose,
-  audioFile,
-  initialLyrics,
-  onSave,
-}: LrcLiveSyncModalProps) {
+export function LrcLiveSyncModal({ isOpen, onClose, audioFile, initialLyrics, onSave }: LrcLiveSyncModalProps) {
   const [lines, setLines] = useState<SyncLine[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -137,7 +131,8 @@ export function LrcLiveSyncModal({
       try {
         setIsWaveformGenerating(true);
         const arrayBuffer = await audioFile!.arrayBuffer();
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const AudioCtx =
+          window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         const audioCtx = new AudioCtx();
         const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
         const rawData = audioBuffer.getChannelData(0);
@@ -300,9 +295,7 @@ export function LrcLiveSyncModal({
     if (!audioRef.current || currentIndex >= lines.length) return;
     const stampSec = audioRef.current.currentTime;
 
-    setLines((prev) =>
-      prev.map((line, idx) => (idx === currentIndex ? { ...line, timeSec: stampSec } : line))
-    );
+    setLines((prev) => prev.map((line, idx) => (idx === currentIndex ? { ...line, timeSec: stampSec } : line)));
 
     if (currentIndex < lines.length - 1) {
       setCurrentIndex((prev) => prev + 1);
@@ -317,7 +310,7 @@ export function LrcLiveSyncModal({
         const baseTime = line.timeSec ?? currentTime;
         const newTime = Math.max(0, parseFloat((baseTime + deltaSeconds).toFixed(2)));
         return { ...line, timeSec: newTime };
-      })
+      }),
     );
   };
 
@@ -329,7 +322,7 @@ export function LrcLiveSyncModal({
       prev.map((line) => {
         if (line.timeSec === null) return line;
         return { ...line, timeSec: Math.max(0, parseFloat((line.timeSec + deltaSec).toFixed(2))) };
-      })
+      }),
     );
   };
 
@@ -533,7 +526,11 @@ export function LrcLiveSyncModal({
                   onClick={togglePlay}
                   className="size-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:scale-105 transition-transform shadow-md cursor-pointer"
                 >
-                  {isPlaying ? <Pause className="size-5 fill-current" /> : <Play className="size-5 fill-current ml-0.5" />}
+                  {isPlaying ? (
+                    <Pause className="size-5 fill-current" />
+                  ) : (
+                    <Play className="size-5 fill-current ml-0.5" />
+                  )}
                 </motion.button>
                 <button
                   type="button"
@@ -600,8 +597,8 @@ export function LrcLiveSyncModal({
                       isSelected
                         ? "bg-primary/15 border-primary/50 shadow-md ring-1 ring-primary/30"
                         : isStamped
-                        ? "bg-card/70 border-white/5 hover:border-white/20"
-                        : "bg-muted/20 border-dashed border-border/60 hover:bg-muted/40",
+                          ? "bg-card/70 border-white/5 hover:border-white/20"
+                          : "bg-muted/20 border-dashed border-border/60 hover:bg-muted/40",
                     )}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -618,7 +615,11 @@ export function LrcLiveSyncModal({
                       <span
                         className={cn(
                           "text-sm font-medium truncate",
-                          isSelected ? "text-primary font-bold" : isStamped ? "text-foreground" : "text-muted-foreground",
+                          isSelected
+                            ? "text-primary font-bold"
+                            : isStamped
+                              ? "text-foreground"
+                              : "text-muted-foreground",
                         )}
                       >
                         {item.text}

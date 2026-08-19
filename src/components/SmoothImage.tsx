@@ -17,7 +17,7 @@ export function SmoothImage({
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
 
-  const finalSrc = error ? fallbackSrc : (src || fallbackSrc);
+  const finalSrc = error ? fallbackSrc : src || fallbackSrc;
 
   return (
     <div className={cn("relative overflow-hidden bg-muted/40", containerClassName)}>
@@ -40,7 +40,7 @@ export function SmoothImage({
         className={cn(
           "size-full object-cover transition-all duration-500 ease-out",
           loaded ? "opacity-100 scale-100 blur-0" : "opacity-0 scale-[0.98] blur-[2px]",
-          className
+          className,
         )}
         {...props}
       />

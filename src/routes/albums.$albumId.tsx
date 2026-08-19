@@ -68,7 +68,7 @@ function AddTracksModal({
   const { tracks: libraryTracks } = useLibrary();
   const available = useMemo(
     () => libraryTracks.filter((t) => !currentTrackIds.has(t.id)),
-    [libraryTracks, currentTrackIds]
+    [libraryTracks, currentTrackIds],
   );
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -94,7 +94,9 @@ function AddTracksModal({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <motion.div
         variants={modalPanelVariants}
@@ -203,23 +205,29 @@ function AlbumPage() {
     }
   }, [isLoggedIn, album.title, album.id, navigate]);
 
-  const handleRemoveFromAlbum = useCallback((trackId: string) => {
-    if (!isLoggedIn) return;
-    removeTrackFromAlbum(trackId);
-    refresh();
-  }, [isLoggedIn, refresh]);
+  const handleRemoveFromAlbum = useCallback(
+    (trackId: string) => {
+      if (!isLoggedIn) return;
+      removeTrackFromAlbum(trackId);
+      refresh();
+    },
+    [isLoggedIn, refresh],
+  );
 
-  const handleDeleteTrack = useCallback(async (trackId: string) => {
-    if (!isLoggedIn) return;
-    await deleteTrack(trackId);
-    refresh();
-  }, [isLoggedIn, refresh]);
+  const handleDeleteTrack = useCallback(
+    async (trackId: string) => {
+      if (!isLoggedIn) return;
+      await deleteTrack(trackId);
+      refresh();
+    },
+    [isLoggedIn, refresh],
+  );
 
   const handlePlayTrack = useCallback(
     (_: Track, idx: number) => {
       playQueue(list, idx, false);
     },
-    [playQueue, list]
+    [playQueue, list],
   );
 
   return (
@@ -283,7 +291,7 @@ function AlbumPage() {
                 }}
                 className={cn(
                   "w-full h-full object-cover transition-all duration-500",
-                  imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]"
+                  imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]",
                 )}
               />
             ) : (
@@ -349,12 +357,7 @@ function AlbumPage() {
         </div>
 
         {/* Track list with smooth stagger */}
-        <motion.div
-          variants={listContainerVariants}
-          initial="hidden"
-          animate="show"
-          className="mt-12 space-y-1"
-        >
+        <motion.div variants={listContainerVariants} initial="hidden" animate="show" className="mt-12 space-y-1">
           {list.length === 0 ? (
             <div className="border-border bg-card/30 flex flex-col items-center gap-3 rounded-xl border p-12 text-center">
               <p className="text-muted-foreground text-sm">Album này chưa có bài hát nào.</p>
@@ -410,13 +413,7 @@ function AlbumPage() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {showEditModal && (
-          <EditAlbumModal
-            album={album}
-            onClose={() => setShowEditModal(false)}
-            onUpdated={refresh}
-          />
-        )}
+        {showEditModal && <EditAlbumModal album={album} onClose={() => setShowEditModal(false)} onUpdated={refresh} />}
       </AnimatePresence>
     </div>
   );

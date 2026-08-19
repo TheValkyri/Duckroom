@@ -6,22 +6,24 @@ import { z } from "zod";
 import { getSupabaseAdmin } from "./supabase";
 import { getS3ServerClient } from "./s3-functions";
 import { BUCKET_NAME } from "./s3-constants";
-import { requireMemberMiddleware, serverSecurityMiddleware } from "./auth-guard";
-
-const memberMiddleware = [serverSecurityMiddleware, requireMemberMiddleware] as const;
-
-function userIdFromContext(context: unknown): string {
-  const userId = (context as { auth?: { userId?: string | null } })?.auth?.userId;
-  if (!userId) throw new Response("Authentication required", { status: 401 });
-  return userId;
-}
+import {
+  optionalAuthMiddleware,
+  requireMemberMiddleware,
+  serverSecurityMiddleware,
+  validateStorageKey,
+} from "./auth-guard";
 
 function originForShare(request?: Request): string {
   return request?.headers.get("origin") || "https://duckroom.vercel.app";
 }
 
+/**
+ * Creates a shareable link (/s/:token).
+ * Allows Guests and Members to share public content.
+ * Private playlists require ownership or public status.
+ */
 export const createShareLinkServer = createServerFn({ method: "POST" })
-  .middleware(memberMiddleware)
+  .middleware([serverSecurityMiddleware, optionalAuthMiddleware])
   .validator(
     z.object({
       resourceType: z.enum(["track", "album", "video", "playlist"]),
@@ -30,9 +32,14 @@ export const createShareLinkServer = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ context, data }) => {
-    const userId = userIdFromContext(context);
+    const auth = (context as { auth?: { userId?: string | null; role?: string } })?.auth;
+    const userId = auth?.userId || null;
     const db = getSupabaseAdmin();
+
     if (data.resourceType === "playlist") {
+      if (!userId) {
+        throw new Response(JSON.stringify({ error: "Chỉ thành viên mới có thể chia sẻ playlist." }), { status: 401 });
+      }
       const { data: playlist } = await db
         .from("playlists")
         .select("id, user_id, is_public")
@@ -43,8 +50,11 @@ export const createShareLinkServer = createServerFn({ method: "POST" })
       }
     } else {
       const table = data.resourceType === "track" ? "tracks" : data.resourceType === "album" ? "albums" : "videos";
-      const { data: resource } = await db.from(table).select("id").eq("id", data.resourceId).maybeSingle();
+      const { data: resource } = await db.from(table).select("id, visibility").eq("id", data.resourceId).maybeSingle();
       if (!resource) throw new Error("Nội dung không tồn tại.");
+      if (resource["visibility"] !== "public" && auth?.role !== "owner") {
+        throw new Error("Nội dung này chưa được công khai.");
+      }
     }
 
     const token = randomBytes(12).toString("base64url");
@@ -59,6 +69,10 @@ export const createShareLinkServer = createServerFn({ method: "POST" })
     return { token, path: `/s/${token}` };
   });
 
+/**
+ * Resolves a shared link token.
+ * Validates expiration, revocation status, resource visibility, and signs media on demand (15 min TTL).
+ */
 export const resolveShareLinkServer = createServerFn({ method: "GET" })
   .middleware([serverSecurityMiddleware])
   .validator(z.object({ token: z.string().min(8).max(64) }))
@@ -118,7 +132,10 @@ export const resolveShareLinkServer = createServerFn({ method: "GET" })
     }
 
     if (!resource) throw new Response("Shared resource not found", { status: 404 });
-    if ((resource["visibility"] === "owner" || resource["visibility"] === "members") && share.resource_type !== "playlist") {
+    if (
+      (resource["visibility"] === "owner" || resource["visibility"] === "members") &&
+      share.resource_type !== "playlist"
+    ) {
       throw new Response("Shared resource is not public", { status: 403 });
     }
     if (share.resource_type === "playlist" && resource["is_public"] !== true) {
@@ -126,18 +143,19 @@ export const resolveShareLinkServer = createServerFn({ method: "GET" })
     }
 
     const s3 = getS3ServerClient();
-    const sign = async (key: string | null, inline = false) =>
-      key
-        ? getSignedUrl(
-            s3,
-            new GetObjectCommand({
-              Bucket: BUCKET_NAME,
-              Key: key,
-              ...(inline ? { ResponseContentDisposition: "inline" } : {}),
-            }),
-            { expiresIn: 900 },
-          )
-        : null;
+    const sign = async (key: string | null, inline = false) => {
+      if (!key) return null;
+      validateStorageKey(key);
+      return getSignedUrl(
+        s3,
+        new GetObjectCommand({
+          Bucket: BUCKET_NAME,
+          Key: key,
+          ...(inline ? { ResponseContentDisposition: "inline" } : {}),
+        }),
+        { expiresIn: 900 },
+      );
+    };
 
     const mediaUrl = await sign(storageKey, true);
     const artworkUrl = await sign(artworkKey);
@@ -154,4 +172,32 @@ export const resolveShareLinkServer = createServerFn({ method: "GET" })
       artworkUrl,
       canonicalUrl: `${originForShare()}/s/${share.token}`,
     };
+  });
+
+/**
+ * Revokes an existing share link.
+ * Owner can revoke any link; Members can revoke links they created.
+ */
+export const revokeShareLinkServer = createServerFn({ method: "POST" })
+  .middleware([serverSecurityMiddleware, requireMemberMiddleware])
+  .validator(z.object({ token: z.string().min(8) }))
+  .handler(async ({ context, data }) => {
+    const auth = (context as { auth?: { userId?: string | null; role?: string } })?.auth;
+    const userId = auth?.userId;
+    const db = getSupabaseAdmin();
+
+    const { data: share } = await db.from("share_links").select("id, created_by").eq("token", data.token).maybeSingle();
+    if (!share) throw new Error("Share link không tồn tại");
+
+    if (auth?.role !== "owner" && share.created_by !== userId) {
+      throw new Response(JSON.stringify({ error: "Không có quyền hủy liên kết này" }), { status: 403 });
+    }
+
+    const { error } = await db
+      .from("share_links")
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("token", data.token);
+
+    if (error) throw new Error(error.message);
+    return { success: true, token: data.token };
   });

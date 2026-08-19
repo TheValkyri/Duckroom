@@ -66,7 +66,9 @@ function SharedResourcePage() {
             <h1 className="font-display mt-4 text-4xl md:text-5xl leading-tight">{title}</h1>
             <p className="text-muted-foreground mt-3 text-lg">{artist}</p>
             {duration > 0 && <p className="text-muted-foreground mt-2 text-xs">{formatTime(duration)}</p>}
-            {isTrack && data.mediaUrl && <audio className="mt-8 w-full" controls preload="metadata" src={data.mediaUrl} />}
+            {isTrack && data.mediaUrl && (
+              <audio className="mt-8 w-full" controls preload="metadata" src={data.mediaUrl} />
+            )}
             {isVideo && data.mediaUrl && (
               <video
                 className="mt-8 aspect-video w-full rounded-2xl bg-black shadow-lg"

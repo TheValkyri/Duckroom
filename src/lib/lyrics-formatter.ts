@@ -1,182 +1,93 @@
 import type { LyricLine } from "../data/library";
 
 /**
- * Common Vietnamese spelling mistakes and orthographic errors dictionary.
- * Maps misspelled words to correct Vietnamese standard orthography.
+ * Parses LRC text into synchronized LyricLine array WITHOUT mutating lyric text content.
+ * Respects original artist wording:
+ * - Trims extraneous whitespace per line.
+ * - Extracts timestamp [mm:ss.xx] and maps to seconds.
+ * - Sorts by timestamp in ascending order.
  */
-const SPELLING_CORRECTIONS: [RegExp, string][] = [
-  // User requested exact wording: "xám hối"
-  [/\bsám\s+hối\b/gi, "xám hối"],
-  [/\bSám\s+hối\b/g, "Xám hối"],
-  [/\bSÁM\s+HỐI\b/g, "XÁM HỐI"],
-  [/\bbạc\s+mạng\b/gi, "bạt mạng"],
-  [/\bsáng\s+lạng\b/gi, "xán lạn"],
-  [/\bchuẩn\s+đoán\b/gi, "chẩn đoán"],
-  [/\bxơ\s+suất\b/gi, "sơ suất"],
-  [/\bsơ\s+xuất\b/gi, "sơ suất"],
-  [/\bvô\s+hình\s+chung\b/gi, "vô hình trung"],
-  [/\bxuất\s+xắc\b/gi, "xuất sắc"],
-  [/\bchấp\s+vá\b/gi, "chắp vá"],
-  [/\bdành\s+dật\b/gi, "giành giật"],
-  [/\bgiành\s+dật\b/gi, "giành giật"],
-  [/\bchau\s+chuốt\b/gi, "trau chuốt"],
-  [/\bchín\s+chu\b/gi, "chỉn chu"],
-  [/\bphố\s+sá\b/gi, "phố xá"],
-  [/\bsót\s+xa\b/gi, "xót xa"],
-  [/\bxúc\s+tích\b/gi, "súc tích"],
-  [/\bdấu\s+giếm\b/gi, "giấu giếm"],
-  [/\bgiành\s+dụm\b/gi, "dành dụm"],
-  [/\bđầy\s+ấp\b/gi, "đầy ắp"],
-  [/\brãnh\s+rỗi\b/gi, "rảnh rỗi"],
-  [/\bchăn\s+chở\b/gi, "trăn trở"],
-  [/\blãng\s+mạn\b/gi, "lãng mạn"],
-  [/\blãng\s+mạng\b/gi, "lãng mạn"],
-  [/\bgiục\s+giã\b/gi, "giục giã"],
-  [/\bdục\s+dã\b/gi, "giục giã"],
-  [/\bngăn\s+nắp\b/gi, "ngăn nắp"],
-  [/\bchìm\s+nghỉm\b/gi, "chìm nghỉm"],
-  [/\btấc\s+bật\b/gi, "tất bật"],
-];
-
-/**
- * Cleans up and corrects Vietnamese lyrics text:
- * - Fixes common typos (e.g. "xám hối" -> "sám hối")
- * - Cleans irregular punctuation spacing (e.g. "tội , mỗi đêm" -> "tội, mỗi đêm")
- * - Normalizes spacing around brackets/parentheses and quotes
- * - Cleans duplicate punctuation marks
- * - Unicode NFC normalization
- */
-export function correctVietnameseLyrics(text: string): string {
-  if (!text || typeof text !== "string") return "";
-
-  let cleaned = text.normalize("NFC");
-
-  // Apply Vietnamese dictionary corrections
-  for (const [regex, replacement] of SPELLING_CORRECTIONS) {
-    cleaned = cleaned.replace(regex, (match) => {
-      // Preserve first character capitalization
-      if (match.charAt(0) === match.charAt(0).toUpperCase()) {
-        return replacement.charAt(0).toUpperCase() + replacement.slice(1);
-      }
-      return replacement;
-    });
-  }
-
-  // Fix spacing before punctuation: "tội , mỗi" -> "tội, mỗi"
-  cleaned = cleaned.replace(/\s+([,.:;!?])/g, "$1");
-
-  // Fix missing space after punctuation: "113(ba," -> "113 (ba," and ",theo" -> ", theo"
-  cleaned = cleaned.replace(/([,.:;!?])(?=[^\s\d"')\]}])/g, "$1 ");
-
-  // Fix missing space before open parenthesis or bracket: "lệnh(113)" -> "lệnh (113)"
-  cleaned = cleaned.replace(/([a-zA-Z0-9\u00C0-\u024F\u1EA0-\u1EF9])\(/g, "$1 (");
-
-  // Fix spaces inside parentheses: "( ba, ba, ba )" -> "(ba, ba, ba)"
-  cleaned = cleaned.replace(/\(\s+/g, "(").replace(/\s+\)/g, ")");
-
-  // Fix spaces inside double quotes: '" Thua rồi "' -> '"Thua rồi"'
-  cleaned = cleaned.replace(/“\s+/g, "“").replace(/\s+”/g, "”");
-  cleaned = cleaned.replace(/"\s+([^"]+?)\s+"/g, '"$1"');
-
-  // Fix multiple commas/spaces: ",," -> ","
-  cleaned = cleaned.replace(/,{2,}/g, ",");
-  cleaned = cleaned.replace(/[ \t]{2,}/g, " ");
-
-  return cleaned.trim();
-}
-
-/**
- * Parses LRC text into synchronized LyricLine array, automatically
- * applying Vietnamese orthography corrections and formatting.
- */
-export function parseLrcWithAutoCorrect(lrcText: string): LyricLine[] {
+export function parseLrc(lrcText: string): LyricLine[] {
   if (!lrcText || !lrcText.trim()) return [];
   const lines = lrcText.split(/\r?\n/);
   const result: LyricLine[] = [];
-  const regex = /\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\](.*)/;
+  const regex = /^\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\]\s*(.*)$/;
 
   for (const rawLine of lines) {
     const trimmed = rawLine.trim();
     if (!trimmed) continue;
 
-    const match = regex.exec(trimmed);
+    const match = trimmed.match(regex);
     if (match) {
-      const min = parseInt(match[1]!, 10);
-      const sec = parseInt(match[2]!, 10);
-      const msStr = match[3] || "00";
-      const ms = parseFloat(`0.${msStr}`);
-      const time = parseFloat((min * 60 + sec + ms).toFixed(3));
-      const rawContent = match[4] || "";
-      const text = correctVietnameseLyrics(rawContent);
-      if (text) {
-        result.push({ time, text });
-      }
-    } else if (trimmed && !trimmed.startsWith("[")) {
-      const text = correctVietnameseLyrics(trimmed);
-      if (text) {
-        result.push({ time: 0, text });
-      }
+      const minutes = parseInt(match[1]!, 10);
+      const seconds = parseInt(match[2]!, 10);
+      const msStr = match[3] || "0";
+      const ms = parseInt(msStr.padEnd(3, "0").slice(0, 3), 10) / 1000;
+      const time = Math.max(0, minutes * 60 + seconds + ms);
+      const text = match[4]?.trim() || "";
+
+      result.push({ time, text });
     }
   }
 
+  // Sort chronologically
   return result.sort((a, b) => a.time - b.time);
 }
 
 /**
- * Shifts all LRC timestamps in a text by `offsetSec` seconds (+/-).
- * Ensures timestamps never go below 00:00.00.
+ * Cleans up and structures LRC text:
+ * - Sorts lines by timestamp
+ * - Trims whitespace
+ * - Removes empty trailing lines
+ * - DOES NOT modify actual lyric words
  */
-export function shiftLrcTime(lrcText: string, offsetSec: number): string {
-  if (!lrcText || typeof lrcText !== "string" || offsetSec === 0) return lrcText;
-  const lines = lrcText.split(/\r?\n/);
-  const regex = /^\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\](.*)$/;
+export function beautifyLrcString(lrcString: string): string {
+  if (!lrcString || !lrcString.trim()) return "";
+  const lines = parseLrc(lrcString);
+  if (!lines.length) return lrcString.trim();
 
-  const shifted = lines.map((line) => {
-    const trimmed = line.trim();
-    const match = regex.exec(trimmed);
-    if (!match) return line;
-
-    const min = parseInt(match[1]!, 10);
-    const sec = parseInt(match[2]!, 10);
-    const msStr = match[3] || "00";
-    const ms = parseFloat(`0.${msStr}`);
-    const originalTime = min * 60 + sec + ms;
-
-    const newTime = Math.max(0, originalTime + offsetSec);
-    const newMin = Math.floor(newTime / 60)
-      .toString()
-      .padStart(2, "0");
-    const newSec = Math.floor(newTime % 60)
-      .toString()
-      .padStart(2, "0");
-    const newMs = Math.floor((newTime % 1) * 100)
-      .toString()
-      .padStart(2, "0");
-
-    return `[${newMin}:${newSec}.${newMs}]${match[4]}`;
-  });
-
-  return shifted.join("\n");
+  return lines
+    .map((line) => {
+      const mm = Math.floor(line.time / 60)
+        .toString()
+        .padStart(2, "0");
+      const ss = Math.floor(line.time % 60)
+        .toString()
+        .padStart(2, "0");
+      const ms = Math.floor((line.time % 1) * 100)
+        .toString()
+        .padStart(2, "0");
+      return `[${mm}:${ss}.${ms}] ${line.text}`;
+    })
+    .join("\n");
 }
 
 /**
- * Beautifies entire LRC content string for display in edit textareas.
+ * Shifts all timestamped lines in an LRC string by a given delta in seconds.
+ * Does NOT mutate lyric words.
  */
-export function beautifyLrcString(lrcText: string): string {
-  if (!lrcText) return "";
-  const lines = lrcText.split(/\r?\n/);
-  const regex = /^(\[\d{2}:\d{2}(?:\.\d{2,3})?\])(.*)$/;
+export function shiftLrcTime(lrcString: string, deltaSeconds: number): string {
+  if (!lrcString || !lrcString.trim() || deltaSeconds === 0) return lrcString;
+  const lines = parseLrc(lrcString);
+  if (!lines.length) return lrcString;
 
-  const beautified = lines.map((line) => {
-    const match = regex.exec(line.trim());
-    if (match) {
-      const tag = match[1] || "";
-      const content = correctVietnameseLyrics(match[2] || "");
-      return `${tag} ${content}`.trim();
-    }
-    return correctVietnameseLyrics(line);
-  });
+  const shifted = lines.map((l) => ({
+    ...l,
+    time: Math.max(0, parseFloat((l.time + deltaSeconds).toFixed(2))),
+  }));
 
-  return beautified.join("\n");
+  return shifted
+    .map((line) => {
+      const mm = Math.floor(line.time / 60)
+        .toString()
+        .padStart(2, "0");
+      const ss = Math.floor(line.time % 60)
+        .toString()
+        .padStart(2, "0");
+      const ms = Math.floor((line.time % 1) * 100)
+        .toString()
+        .padStart(2, "0");
+      return `[${mm}:${ss}.${ms}] ${line.text}`;
+    })
+    .join("\n");
 }
-

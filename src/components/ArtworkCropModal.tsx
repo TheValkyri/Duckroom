@@ -154,9 +154,7 @@ export function ArtworkCropModal({
         <div className="space-y-4">
           {/* Mode Selector */}
           <div className="flex items-center justify-between gap-2">
-            <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
-              Khung hình
-            </span>
+            <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">Khung hình</span>
             <div className="flex gap-2">
               <button
                 type="button"

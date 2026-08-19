@@ -65,7 +65,9 @@ function LibraryPage() {
   );
 
   const hasSingles = useMemo(() => {
-    return tracks.some((t) => !t.albumId || t.albumId === "singles" || t.albumId === "single-collection" || t.albumId === "single");
+    return tracks.some(
+      (t) => !t.albumId || t.albumId === "singles" || t.albumId === "single-collection" || t.albumId === "single",
+    );
   }, [tracks]);
 
   const filteredAlbums = useMemo(() => {
@@ -80,15 +82,14 @@ function LibraryPage() {
       .filter((t) => {
         let matchesFilter = true;
         if (filter === "singles") {
-          matchesFilter = !t.albumId || t.albumId === "singles" || t.albumId === "single-collection" || t.albumId === "single";
+          matchesFilter =
+            !t.albumId || t.albumId === "singles" || t.albumId === "single-collection" || t.albumId === "single";
         } else if (filter !== "all") {
           matchesFilter = t.albumId === filter;
         }
 
         const matchesSearch =
-          !qLower ||
-          t.title.toLowerCase().includes(qLower) ||
-          t.artist.toLowerCase().includes(qLower);
+          !qLower || t.title.toLowerCase().includes(qLower) || t.artist.toLowerCase().includes(qLower);
 
         return matchesFilter && matchesSearch;
       })
@@ -103,17 +104,20 @@ function LibraryPage() {
     return (tracks.reduce((a, t) => a + (t.sizeMB || 0), 0) / 1024).toFixed(1);
   }, [tracks]);
 
-  const filterTabs = useMemo(() => [
-    { id: "all", title: "Tất cả" },
-    ...(hasSingles ? [{ id: "singles", title: "🎵 Đĩa đơn" }] : []),
-    ...filteredAlbums,
-  ], [hasSingles, filteredAlbums]);
+  const filterTabs = useMemo(
+    () => [
+      { id: "all", title: "Tất cả" },
+      ...(hasSingles ? [{ id: "singles", title: "🎵 Đĩa đơn" }] : []),
+      ...filteredAlbums,
+    ],
+    [hasSingles, filteredAlbums],
+  );
 
   const handlePlayTrack = useCallback(
     (_: Track, trackIdx: number) => {
       playQueue(list, trackIdx);
     },
-    [playQueue, list]
+    [playQueue, list],
   );
 
   return (
@@ -186,7 +190,7 @@ function LibraryPage() {
                     "relative rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors cursor-pointer select-none overflow-hidden",
                     isSelected
                       ? "text-primary-foreground font-semibold"
-                      : "text-muted-foreground hover:text-foreground border border-border/80 hover:bg-accent/40"
+                      : "text-muted-foreground hover:text-foreground border border-border/80 hover:bg-accent/40",
                   )}
                 >
                   {isSelected && (
@@ -219,13 +223,7 @@ function LibraryPage() {
               animate={{ opacity: 1, y: 0, transition: { ...tweenBase, delay: Math.min(i, 14) * 0.02 } }}
               exit={{ opacity: 0, transition: { duration: 0.12 } }}
             >
-              <TrackRow
-                track={t}
-                n={i + 1}
-                index={i}
-                onPlayTrack={handlePlayTrack}
-                onDeleteTrack={handleDelete}
-              />
+              <TrackRow track={t} n={i + 1} index={i} onPlayTrack={handlePlayTrack} onDeleteTrack={handleDelete} />
             </motion.div>
           ))}
         </AnimatePresence>

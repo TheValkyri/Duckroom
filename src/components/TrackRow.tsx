@@ -72,7 +72,7 @@ export const TrackRow = memo(function TrackRow({
     if (onPlay) {
       onPlay();
     } else if (onPlayTrack) {
-      onPlayTrack(track, index ?? (n - 1));
+      onPlayTrack(track, index ?? n - 1);
     }
   }, [onPlay, onPlayTrack, track, index, n]);
 
@@ -127,10 +127,7 @@ export const TrackRow = memo(function TrackRow({
           active && "bg-accent/50 border-primary/20",
         )}
       >
-        <button
-          onClick={handlePlayClick}
-          className="flex flex-1 items-center gap-4 min-w-0 text-left cursor-pointer"
-        >
+        <button onClick={handlePlayClick} className="flex flex-1 items-center gap-4 min-w-0 text-left cursor-pointer">
           <span className="text-muted-foreground grid place-items-center text-sm tabular-nums shrink-0 size-5">
             <span className="group-hover:hidden">
               {active && isPlaying ? (
@@ -158,9 +155,7 @@ export const TrackRow = memo(function TrackRow({
             {track.format}
             {track.bitDepth > 0 && track.sampleRate > 0 ? ` ${track.bitDepth}/${track.sampleRate}` : ""}
           </span>
-          <span className="text-muted-foreground text-xs tabular-nums shrink-0">
-            {formatTime(track.duration)}
-          </span>
+          <span className="text-muted-foreground text-xs tabular-nums shrink-0">{formatTime(track.duration)}</span>
         </button>
 
         {/* Favorite Button */}

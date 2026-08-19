@@ -1,7 +1,16 @@
 import { createPresignedUrl } from "./s3";
 import { requestPresignedUploadUrlServer } from "./s3-functions";
 import { BUCKET_NAME } from "./s3-constants";
-import { albums, tracks, videos, saveStoredLibrary, createAlbum, type Track, type LyricLine, type Video } from "../data/library";
+import {
+  albums,
+  tracks,
+  videos,
+  saveStoredLibrary,
+  createAlbum,
+  type Track,
+  type LyricLine,
+  type Video,
+} from "../data/library";
 
 export type UploadState = {
   isUploading: boolean;
@@ -67,7 +76,7 @@ export function updateUploadState(partial: Partial<UploadState>) {
   }
 }
 
-import { parseLrcWithAutoCorrect as parseLrc } from "./lyrics-formatter";
+import { parseLrc } from "./lyrics-formatter";
 export { parseLrc };
 
 function getMediaDuration(file: File): Promise<number> {
@@ -78,11 +87,11 @@ function getMediaDuration(file: File): Promise<number> {
     el.src = url;
     el.onloadedmetadata = () => {
       URL.revokeObjectURL(url);
-      resolve(Math.round(el.duration || 0));
+      resolve(Number.isFinite(el.duration) && el.duration > 0 ? Math.round(el.duration) : 0);
     };
     el.onerror = () => {
       URL.revokeObjectURL(url);
-      resolve(180);
+      resolve(0);
     };
   });
 }
@@ -103,7 +112,19 @@ function padNumber(n: number): string {
 const ALLOWED_EXTENSIONS = new Set(["flac", "alac", "wav", "mp3", "m4a", "mp4", "mkv", "jpg", "jpeg", "png", "webp"]);
 
 export async function executeGlobalUpload() {
-  const { selectedFile, title, artist, album, year, trackNo, lyricsText, extractedCover, artworkFile, artworkPreview, isVideo } = currentState;
+  const {
+    selectedFile,
+    title,
+    artist,
+    album,
+    year,
+    trackNo,
+    lyricsText,
+    extractedCover,
+    artworkFile,
+    artworkPreview,
+    isVideo,
+  } = currentState;
 
   if (!selectedFile) {
     updateUploadState({ errorMessage: "Vui lòng chọn một tệp âm thanh hoặc video trước." });
@@ -143,9 +164,7 @@ export async function executeGlobalUpload() {
       storageKey = `videos/${videoSeq}-${fileId}-${cleanTitle}.${fileExt}`;
     } else {
       const isSingle =
-        !album.trim() ||
-        album.trim().toLowerCase() === "singles" ||
-        album.trim().toLowerCase() === "single collection";
+        !album.trim() || album.trim().toLowerCase() === "singles" || album.trim().toLowerCase() === "single collection";
 
       if (isSingle) {
         const singleSeq = padNumber(tracks.filter((t) => t.albumId === "singles").length + 1);
@@ -154,7 +173,7 @@ export async function executeGlobalUpload() {
         const albumFolderName = sanitizeStorageName(album.trim());
         const targetAlbumId = album.trim().toLowerCase().replace(/\s+/g, "-");
         const albumTrackSeq = padNumber(
-          tracks.filter((t) => t.albumId === targetAlbumId || t.albumId === albumFolderName.toLowerCase()).length + 1
+          tracks.filter((t) => t.albumId === targetAlbumId || t.albumId === albumFolderName.toLowerCase()).length + 1,
         );
         storageKey = `albums/${albumFolderName}/${albumTrackSeq}-${fileId}-${cleanTitle}.${fileExt}`;
       }
@@ -181,8 +200,6 @@ export async function executeGlobalUpload() {
       throw new Error(`S3 Error HTTP ${mainRes.status} ${mainRes.statusText}`);
     }
 
-    const pikamcS3Url = `https://s3.pikamc.vn/${BUCKET_NAME}/${storageKey}`;
-
     if (isVideo) {
       let finalThumb = extractedCover;
       if (artworkFile) {
@@ -199,7 +216,7 @@ export async function executeGlobalUpload() {
         finalThumb = await createPresignedUrl(artworkKey);
       }
 
-      let finalVideoSrc = pikamcS3Url;
+      let finalVideoSrc = storageKey;
       try {
         const fresh = await createPresignedUrl(storageKey);
         if (fresh) finalVideoSrc = fresh;
@@ -212,11 +229,12 @@ export async function executeGlobalUpload() {
         title: title.trim(),
         artist: artist.trim() || "Nghệ sĩ",
         year: parseInt(year, 10) || new Date().getFullYear(),
-        thumb: finalThumb || "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=800&auto=format&fit=crop&q=80",
+        thumb:
+          finalThumb || "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=800&auto=format&fit=crop&q=80",
         duration: realDuration,
-        resolution: "4K Hi-Res",
-        codec: "H.264 / AAC",
-        bitrate: "12.5 Mbps",
+        resolution: fileExt === "mkv" || fileExt === "mp4" ? "HD Video" : "Video Master",
+        codec: fileExt.toUpperCase(),
+        bitrate: realDuration > 0 ? `${((sizeMB * 8) / realDuration).toFixed(1)} Mbps` : "UNKNOWN",
         sizeMB,
         src: finalVideoSrc,
       };
@@ -241,16 +259,12 @@ export async function executeGlobalUpload() {
     } else {
       const parsedLyrics = parseLrc(lyricsText);
       const isSingle =
-        !album.trim() ||
-        album.trim().toLowerCase() === "singles" ||
-        album.trim().toLowerCase() === "single collection";
+        !album.trim() || album.trim().toLowerCase() === "singles" || album.trim().toLowerCase() === "single collection";
 
       let albumId = "singles";
 
       if (!isSingle) {
-        const existingAlbum = albums.find(
-          (a) => a.title.toLowerCase() === album.trim().toLowerCase()
-        );
+        const existingAlbum = albums.find((a) => a.title.toLowerCase() === album.trim().toLowerCase());
         if (existingAlbum) {
           albumId = existingAlbum.id;
         } else {
@@ -323,6 +337,14 @@ export async function executeGlobalUpload() {
       const audioFormat = formatMap[fileExt] || "FLAC";
 
       const parsedYear = parseInt(year, 10);
+      let finalAudioSrc = storageKey;
+      try {
+        const fresh = await createPresignedUrl(storageKey);
+        if (fresh) finalAudioSrc = fresh;
+      } catch (err) {
+        console.warn("Could not generate initial presigned audio URL:", err);
+      }
+
       const explicitTrackNo = parseInt(trackNo, 10);
       const newTrack: Track = {
         id: fileId,
@@ -332,13 +354,13 @@ export async function executeGlobalUpload() {
         trackNo: !isNaN(explicitTrackNo) && explicitTrackNo > 0 ? explicitTrackNo : albumTrackCount,
         duration: realDuration,
         format: audioFormat,
-        bitDepth: 24,
-        sampleRate: 96,
+        bitDepth: audioFormat === "FLAC" ? 16 : 0,
+        sampleRate: audioFormat === "FLAC" ? 44100 : 0,
         sizeMB,
         ...(finalCover ? { cover: finalCover } : {}),
         ...(parsedYear ? { year: parsedYear } : {}),
         lyrics: parsedLyrics,
-        src: pikamcS3Url,
+        src: finalAudioSrc,
       };
       tracks.push(newTrack);
       saveStoredLibrary(true);

@@ -55,7 +55,8 @@ function MyLibraryPage() {
         </div>
         <h1 className="font-display text-4xl tracking-tight">Đây là kho riêng của bạn</h1>
         <p className="text-muted-foreground mt-3 max-w-lg text-sm leading-6">
-          Đăng nhập để lưu bài hát yêu thích, tạo playlist cá nhân, xem lịch sử nghe và tiếp tục nghe dở trên mọi thiết bị.
+          Đăng nhập để lưu bài hát yêu thích, tạo playlist cá nhân, xem lịch sử nghe và tiếp tục nghe dở trên mọi thiết
+          bị.
         </p>
         <motion.button
           whileTap={tapScale}

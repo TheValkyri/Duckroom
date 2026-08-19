@@ -45,7 +45,7 @@ function VideoCard({ v }: { v: any }) {
             height={456}
             className={cn(
               "aspect-video w-full object-cover transition-all duration-500",
-              imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]"
+              imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]",
             )}
           />
           <div className="bg-background/30 absolute inset-0 grid place-items-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">

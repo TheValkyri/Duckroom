@@ -35,11 +35,7 @@ export const listUserLibraryServer = createServerFn({ method: "GET" })
         .eq("user_id", userId)
         .order("started_at", { ascending: false })
         .limit(50),
-      db
-        .from("playback_state")
-        .select("track_id, position_seconds, updated_at")
-        .eq("user_id", userId)
-        .maybeSingle(),
+      db.from("playback_state").select("track_id, position_seconds, updated_at").eq("user_id", userId).maybeSingle(),
     ]);
     for (const result of [favorites, playlists, history, state]) {
       if (result.error) throw new Error(result.error.message);
@@ -68,11 +64,7 @@ export const toggleFavoriteServer = createServerFn({ method: "POST" })
         .upsert({ user_id: userId, track_id: data.trackId }, { onConflict: "user_id,track_id" });
       if (error) throw new Error(error.message);
     } else {
-      const { error } = await db
-        .from("user_favorites")
-        .delete()
-        .eq("user_id", userId)
-        .eq("track_id", data.trackId);
+      const { error } = await db.from("user_favorites").delete().eq("user_id", userId).eq("track_id", data.trackId);
       if (error) throw new Error(error.message);
     }
     return { favorite: data.favorite };
@@ -104,11 +96,7 @@ export const deletePlaylistServer = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const userId = requireUserId(context);
     const db = getSupabaseAdmin();
-    const { error } = await db
-      .from("playlists")
-      .delete()
-      .eq("id", data.playlistId)
-      .eq("user_id", userId);
+    const { error } = await db.from("playlists").delete().eq("id", data.playlistId).eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { success: true };
   });
@@ -136,7 +124,10 @@ export const addTrackToPlaylistServer = createServerFn({ method: "POST" })
     const position = (last?.position ?? -1) + 1;
     const { error } = await db
       .from("playlist_tracks")
-      .upsert({ playlist_id: data.playlistId, track_id: data.trackId, position }, { onConflict: "playlist_id,track_id" });
+      .upsert(
+        { playlist_id: data.playlistId, track_id: data.trackId, position },
+        { onConflict: "playlist_id,track_id" },
+      );
     if (error) throw new Error(error.message);
     return { success: true, position };
   });
@@ -174,17 +165,15 @@ export const savePlaybackStateServer = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const userId = requireUserId(context);
     const db = getSupabaseAdmin();
-    const { error } = await db
-      .from("playback_state")
-      .upsert(
-        {
-          user_id: userId,
-          track_id: data.trackId,
-          position_seconds: data.positionSeconds,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" },
-      );
+    const { error } = await db.from("playback_state").upsert(
+      {
+        user_id: userId,
+        track_id: data.trackId,
+        position_seconds: data.positionSeconds,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
     if (error) throw new Error(error.message);
     return { success: true };
   });

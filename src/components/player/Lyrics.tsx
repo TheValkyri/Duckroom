@@ -109,9 +109,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   if (!lines.length) {
     return (
       <div className="flex h-full min-h-[320px] flex-col items-center justify-center text-center p-8">
-        <h4 className="font-display text-2xl md:text-3xl text-foreground/90">
-          Bài hát này không có lời
-        </h4>
+        <h4 className="font-display text-2xl md:text-3xl text-foreground/90">Bài hát này không có lời</h4>
         <p className="text-muted-foreground text-sm mt-2 max-w-sm">
           Bản thu này không có lời hát hoặc chưa gắn tệp lời đồng bộ (.LRC).
         </p>
@@ -121,15 +119,10 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
 
   return (
     <div
-      className={cn(
-        "relative h-full w-full overflow-hidden select-none",
-        compact ? "h-64" : "h-full"
-      )}
+      className={cn("relative h-full w-full overflow-hidden select-none", compact ? "h-64" : "h-full")}
       style={{
-        WebkitMaskImage:
-          "linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)",
-        maskImage:
-          "linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)",
+        WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)",
+        maskImage: "linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)",
       }}
     >
       <motion.div
@@ -163,19 +156,15 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
                   // Identical font-bold geometry across ALL states to permanently prevent layout reflow/expansion
                   "text-left font-sans font-bold tracking-tight leading-snug md:leading-normal transition-all duration-300 transform-gpu cursor-pointer group block w-full outline-none antialiased",
                   "[text-wrap:balance] [text-wrap:pretty] break-words [word-break:keep-all]",
-                  compact
-                    ? "text-base md:text-lg"
-                    : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
+                  compact ? "text-base md:text-lg" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
                   isActive
                     ? "text-white opacity-100 scale-[1.02] origin-left"
                     : isPassed
-                    ? "text-white/45 opacity-45 hover:text-white/85 hover:opacity-85 hover:scale-[1.01] origin-left"
-                    : "text-white/20 opacity-25 hover:text-white/80 hover:opacity-80 hover:scale-[1.01] origin-left",
+                      ? "text-white/45 opacity-45 hover:text-white/85 hover:opacity-85 hover:scale-[1.01] origin-left"
+                      : "text-white/20 opacity-25 hover:text-white/80 hover:opacity-80 hover:scale-[1.01] origin-left",
                 )}
               >
-                <span className="inline-block transition-all duration-300">
-                  {line.text}
-                </span>
+                <span className="inline-block transition-all duration-300">{line.text}</span>
               </button>
             );
           })}

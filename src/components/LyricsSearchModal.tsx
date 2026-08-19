@@ -18,10 +18,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { beautifyLrcString, shiftLrcTime } from "../lib/lyrics-formatter";
-import {
-  searchOnlineLyricsMultiSource,
-  type LyricSearchResult,
-} from "../lib/lyrics-search";
+import { searchOnlineLyricsMultiSource, type LyricSearchResult } from "../lib/lyrics-search";
 import { autoTimePacingLyrics } from "../lib/metadata";
 import { cn } from "../lib/utils";
 
@@ -85,7 +82,10 @@ export function LyricsSearchModal({
     const startTime = Date.now();
 
     try {
-      const parts = q.split(/\s*[-–—]\s*/).map((s) => s.trim()).filter(Boolean);
+      const parts = q
+        .split(/\s*[-–—]\s*/)
+        .map((s) => s.trim())
+        .filter(Boolean);
       let t = q;
       let a = "";
       if (parts.length >= 2) {
@@ -159,7 +159,9 @@ export function LyricsSearchModal({
     <AnimatePresence>
       <div
         className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md"
-        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
@@ -203,7 +205,7 @@ export function LyricsSearchModal({
                 "px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer",
                 activeTab === "search"
                   ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                  : "text-muted-foreground hover:text-foreground hover:bg-white/5",
               )}
             >
               <Search className="size-3.5" />
@@ -216,7 +218,7 @@ export function LyricsSearchModal({
                 "px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer",
                 activeTab === "paste"
                   ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                  : "text-muted-foreground hover:text-foreground hover:bg-white/5",
               )}
             >
               <FileText className="size-3.5" />
@@ -266,7 +268,7 @@ export function LyricsSearchModal({
                         "px-3 py-1 rounded-full border transition-all cursor-pointer text-[11px]",
                         !onlySynced
                           ? "bg-primary/20 text-primary border-primary/40 font-medium"
-                          : "border-border text-muted-foreground hover:text-foreground"
+                          : "border-border text-muted-foreground hover:text-foreground",
                       )}
                     >
                       Tất cả ({results.length})
@@ -278,7 +280,7 @@ export function LyricsSearchModal({
                         "px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 cursor-pointer text-[11px]",
                         onlySynced
                           ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 font-medium"
-                          : "border-border text-muted-foreground hover:text-foreground"
+                          : "border-border text-muted-foreground hover:text-foreground",
                       )}
                     >
                       <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -317,7 +319,8 @@ export function LyricsSearchModal({
                         {hasSearched ? "Không tìm thấy kết quả" : "Nhập từ khóa để bắt đầu"}
                       </p>
                       <p className="text-[11px] text-muted-foreground mt-1.5 max-w-[240px] leading-relaxed">
-                        Bạn có thể chuyển sang tab <strong>"Dán lời từ Genius"</strong> để dán lời và tự động canh nhịp mượt mà trong 1 giây!
+                        Bạn có thể chuyển sang tab <strong>"Dán lời từ Genius"</strong> để dán lời và tự động canh nhịp
+                        mượt mà trong 1 giây!
                       </p>
                     </div>
                   ) : (
@@ -333,23 +336,30 @@ export function LyricsSearchModal({
                             "p-3 rounded-xl border transition-all cursor-pointer flex flex-col gap-1",
                             isSelected
                               ? "bg-primary/15 border-primary/50 shadow-sm ring-1 ring-primary/30"
-                              : "bg-card/70 border-white/5 hover:border-white/20 hover:bg-card"
+                              : "bg-card/70 border-white/5 hover:border-white/20 hover:bg-card",
                           )}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
-                              <h4 className={cn("text-xs sm:text-sm font-semibold truncate", isSelected ? "text-primary" : "text-foreground")}>
+                              <h4
+                                className={cn(
+                                  "text-xs sm:text-sm font-semibold truncate",
+                                  isSelected ? "text-primary" : "text-foreground",
+                                )}
+                              >
                                 {item.trackName}
                               </h4>
                               <p className="text-[11px] text-muted-foreground truncate">{item.artistName}</p>
                             </div>
                             {item.isSynced ? (
-                              <span className={cn(
-                                "px-2 py-0.5 rounded text-[9px] font-bold border shrink-0 uppercase tracking-wide",
-                                isCommunity
-                                  ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                                  : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                              )}>
+                              <span
+                                className={cn(
+                                  "px-2 py-0.5 rounded text-[9px] font-bold border shrink-0 uppercase tracking-wide",
+                                  isCommunity
+                                    ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                                    : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+                                )}
+                              >
                                 {isCommunity ? "⭐ Verified LRC" : "LRC"}
                               </span>
                             ) : (
@@ -366,9 +376,7 @@ export function LyricsSearchModal({
                                 <span className="truncate">{item.albumName}</span>
                               </span>
                             )}
-                            {item.duration ? (
-                              <span>{formatDuration(item.duration)}</span>
-                            ) : null}
+                            {item.duration ? <span>{formatDuration(item.duration)}</span> : null}
                             <span className="flex items-center gap-0.5 ml-auto shrink-0 font-medium text-[9px]">
                               <Globe className="size-2.5" />
                               {item.source}
@@ -491,7 +499,10 @@ export function LyricsSearchModal({
                     className="px-4 py-2 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40"
                   >
                     <Zap className="size-3.5" />
-                    <span>⚡ Tự động canh nhịp thời lượng ({Math.floor(audioDuration / 60)}:{(audioDuration % 60).toString().padStart(2, "0")})</span>
+                    <span>
+                      ⚡ Tự động canh nhịp thời lượng ({Math.floor(audioDuration / 60)}:
+                      {(audioDuration % 60).toString().padStart(2, "0")})
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -520,7 +531,9 @@ export function LyricsSearchModal({
                       <span>Kết quả File LRC Đồng Bộ</span>
                     </h3>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      {pastedPacedLrc ? "✨ Đã canh nhịp mượt mà theo từng câu hát" : "Chờ bạn dán lời và bấm canh nhịp"}
+                      {pastedPacedLrc
+                        ? "✨ Đã canh nhịp mượt mà theo từng câu hát"
+                        : "Chờ bạn dán lời và bấm canh nhịp"}
                     </p>
                   </div>
                   <button
@@ -570,7 +583,10 @@ export function LyricsSearchModal({
                   className="flex-1 min-h-[220px] p-3.5 bg-card/60 border border-border rounded-xl font-mono text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap select-text overflow-y-auto"
                   style={{ scrollbarGutter: "stable" }}
                 >
-                  {pastedPacedLrc || (pastedText.trim() ? autoTimePacingLyrics(pastedText, audioDuration, true) : "Lời bài hát sau khi canh nhịp sẽ hiển thị tại đây với mốc thời gian [mm:ss.ms] chuẩn xác.")}
+                  {pastedPacedLrc ||
+                    (pastedText.trim()
+                      ? autoTimePacingLyrics(pastedText, audioDuration, true)
+                      : "Lời bài hát sau khi canh nhịp sẽ hiển thị tại đây với mốc thời gian [mm:ss.ms] chuẩn xác.")}
                 </div>
               </div>
             </div>
@@ -579,7 +595,8 @@ export function LyricsSearchModal({
           {/* ─── Footer ─── */}
           <div className="px-5 py-3 bg-muted/30 border-t border-border flex items-center justify-between text-[11px] shrink-0">
             <span className="text-muted-foreground">
-              Mẹo: Lời bài hát từ <strong>Genius</strong> có thể sao chép và dán trực tiếp vào tab <strong>"Dán lời từ Genius"</strong> để tự động chia nhịp!
+              Mẹo: Lời bài hát từ <strong>Genius</strong> có thể sao chép và dán trực tiếp vào tab{" "}
+              <strong>"Dán lời từ Genius"</strong> để tự động chia nhịp!
             </span>
             <button
               type="button"

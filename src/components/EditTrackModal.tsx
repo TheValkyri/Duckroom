@@ -8,7 +8,7 @@ import { compressAndResizeImageFile, cropBlackLetterbox, dataURLtoFile } from ".
 import { modalOverlayVariants, modalPanelVariants, springSnappy, tapScale } from "../lib/motion";
 import { createPresignedUrl } from "../lib/s3";
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
-import { beautifyLrcString, parseLrcWithAutoCorrect, shiftLrcTime } from "../lib/lyrics-formatter";
+import { beautifyLrcString, parseLrc, shiftLrcTime } from "../lib/lyrics-formatter";
 import { autoTimePacingLyrics } from "../lib/metadata";
 import { useAuth } from "../lib/useAuth";
 import { cn } from "../lib/utils";
@@ -37,7 +37,7 @@ export function EditTrackModal({
   const [albumName, setAlbumName] = useState(currentAlbum?.title || "");
   const [trackNo, setTrackNo] = useState(track.trackNo ? track.trackNo.toString() : "1");
   const [lyricsText, setLyricsText] = useState(
-    track.lyrics ? track.lyrics.map((l) => `[${formatTimeSec(l.time)}] ${l.text}`).join("\n") : ""
+    track.lyrics ? track.lyrics.map((l) => `[${formatTimeSec(l.time)}] ${l.text}`).join("\n") : "",
   );
   const [artworkFile, setArtworkFile] = useState<File | null>(null);
   const [artworkPreview, setArtworkPreview] = useState<string | null>(track.cover || null);
@@ -48,10 +48,7 @@ export function EditTrackModal({
   const [errorMsg, setErrorMsg] = useState("");
   const [noticeMsg, setNoticeMsg] = useState("");
 
-  const availableAlbums = useMemo(
-    () => albums.filter((a) => a.id !== "singles" && a.id !== "single-collection"),
-    []
-  );
+  const availableAlbums = useMemo(() => albums.filter((a) => a.id !== "singles" && a.id !== "single-collection"), []);
 
   // Close modal if user is confirmed not logged in (deferred to avoid setState-during-render)
   useEffect(() => {
@@ -103,7 +100,11 @@ export function EditTrackModal({
 
       // Handle Album assignment
       let targetAlbumId = "singles";
-      if (albumName.trim() && albumName.trim().toLowerCase() !== "singles" && albumName.trim().toLowerCase() !== "single collection") {
+      if (
+        albumName.trim() &&
+        albumName.trim().toLowerCase() !== "singles" &&
+        albumName.trim().toLowerCase() !== "single collection"
+      ) {
         const existing = albums.find((a) => a.title.trim().toLowerCase() === albumName.trim().toLowerCase());
         if (existing) {
           targetAlbumId = existing.id;
@@ -114,7 +115,9 @@ export function EditTrackModal({
             title: albumName.trim(),
             artist: artist.trim() || "Nghệ sĩ",
             year: new Date().getFullYear(),
-            cover: finalCover || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80",
+            cover:
+              finalCover ||
+              "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80",
             accent: "oklch(0.3 0.1 260)",
             note: "Album tự tạo",
           });
@@ -130,7 +133,7 @@ export function EditTrackModal({
       } else {
         delete track.cover;
       }
-      track.lyrics = parseLrcWithAutoCorrect(lyricsText);
+      track.lyrics = parseLrc(lyricsText);
 
       saveStoredLibrary(true);
       onUpdated();
@@ -239,7 +242,7 @@ export function EditTrackModal({
                       const img = e.target.files[0];
                       const croppedUrl = await cropBlackLetterbox(img);
                       const { file: compressedFile, dataUrl: compressedDataUrl } = await compressAndResizeImageFile(
-                        croppedUrl.startsWith("data:") ? dataURLtoFile(croppedUrl, img.name) : img
+                        croppedUrl.startsWith("data:") ? dataURLtoFile(croppedUrl, img.name) : img,
                       );
                       setArtworkFile(compressedFile);
                       setArtworkPreview(compressedDataUrl);
@@ -306,7 +309,7 @@ export function EditTrackModal({
                         "px-2 py-0.5 rounded text-[10px] border transition-colors cursor-pointer",
                         albumName.toLowerCase() === a.title.toLowerCase()
                           ? "bg-primary/20 text-primary border-primary/40 font-medium"
-                          : "border-border text-muted-foreground hover:text-foreground"
+                          : "border-border text-muted-foreground hover:text-foreground",
                       )}
                     >
                       {a.title}
@@ -347,36 +350,18 @@ export function EditTrackModal({
                   <span>Tìm lời Online (Kho LRC)</span>
                 </button>
                 {lyricsText.trim() && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const paced = autoTimePacingLyrics(lyricsText, track.duration || 180, true);
-                        if (paced) {
-                          setLyricsText(beautifyLrcString(paced));
-                          setNoticeMsg("⚡ Đã tự động chia đều mốc thời gian [mm:ss.xx] theo độ dài bài hát!");
-                          setTimeout(() => setNoticeMsg(""), 3500);
-                        }
-                      }}
-                      className="text-amber-400 hover:text-amber-300 hover:underline text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
-                      title="Tự động tính toán và chia đều mốc thời gian [mm:ss.xx] theo độ dài bài hát"
-                    >
-                      <Zap className="size-3" />
-                      <span>Canh nhịp</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLyricsText(beautifyLrcString(lyricsText));
-                        setNoticeMsg("✨ Đã chuẩn hoá chính tả tiếng Việt & định dạng!");
-                        setTimeout(() => setNoticeMsg(""), 3500);
-                      }}
-                      className="text-muted-foreground hover:text-foreground text-[11px] underline cursor-pointer"
-                      title="Sửa lỗi chính tả & định dạng lại lời bài hát"
-                    >
-                      Sửa chính tả
-                    </button>
-                  </>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLyricsText(beautifyLrcString(lyricsText));
+                      setNoticeMsg("✨ Đã chuẩn hoá định dạng mốc thời gian LRC!");
+                      setTimeout(() => setNoticeMsg(""), 3500);
+                    }}
+                    className="text-muted-foreground hover:text-foreground text-[11px] hover:underline cursor-pointer flex items-center gap-1"
+                    title="Sắp xếp và chuẩn hóa định dạng các mốc thời gian"
+                  >
+                    <span>Chuẩn hóa LRC</span>
+                  </button>
                 )}
               </div>
             </div>

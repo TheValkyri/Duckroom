@@ -7,8 +7,7 @@ import { usePlayer, usePlayerTime } from "../../lib/player";
 import { cn } from "../../lib/utils";
 
 export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
-  const { isPlaying, toggle, next, prev, shuffle, toggleShuffle, repeat, cycleRepeat } =
-    usePlayer();
+  const { isPlaying, toggle, next, prev, shuffle, toggleShuffle, repeat, cycleRepeat } = usePlayer();
   const big = size === "lg";
 
   const iconBtn =
@@ -82,8 +81,8 @@ export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
           repeat === "one"
             ? "Lặp lại: Lặp 1 bài (nhấn phím 'R')"
             : repeat === "all"
-            ? "Lặp lại: Lặp toàn bộ (nhấn phím 'R')"
-            : "Lặp lại: Đang Tắt (nhấn phím 'R')"
+              ? "Lặp lại: Lặp toàn bộ (nhấn phím 'R')"
+              : "Lặp lại: Đang Tắt (nhấn phím 'R')"
         }
         onClick={cycleRepeat}
         whileTap={tapScale}
@@ -138,7 +137,7 @@ export function SeekBar({ compact = false }: { compact?: boolean }) {
         <div
           className={cn(
             "h-full rounded-full bg-primary",
-            isDragging ? "transition-none" : "transition-[width] duration-75 ease-out"
+            isDragging ? "transition-none" : "transition-[width] duration-75 ease-out",
           )}
           style={{ width: `${pct}%` }}
         />
@@ -148,7 +147,9 @@ export function SeekBar({ compact = false }: { compact?: boolean }) {
       <div
         className={cn(
           "pointer-events-none absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow-md",
-          isDragging ? "scale-125 opacity-100 transition-none" : "opacity-0 group-hover:scale-125 group-hover:opacity-100 transition-all duration-150"
+          isDragging
+            ? "scale-125 opacity-100 transition-none"
+            : "opacity-0 group-hover:scale-125 group-hover:opacity-100 transition-all duration-150",
         )}
         style={{ left: `${pct}%` }}
       />

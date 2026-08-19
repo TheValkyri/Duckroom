@@ -1,5 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, Image, Loader2, Mic, Rewind, Scissors, Sparkles, UploadCloud, Zap } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Image,
+  Loader2,
+  Mic,
+  Rewind,
+  Scissors,
+  Sparkles,
+  UploadCloud,
+  Zap,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { ArtworkCropModal } from "../components/ArtworkCropModal";
@@ -260,8 +271,8 @@ function UploadPage() {
         <div className="border-amber-500/40 bg-amber-500/10 text-amber-300 mt-4 flex items-start gap-3 rounded-lg border p-3.5 text-xs leading-relaxed">
           <AlertTriangle className="size-4 shrink-0 mt-0.5" />
           <div>
-            <strong>Lưu ý định dạng .MKV:</strong> Trình duyệt web mặc định không hỗ trợ phát trực tiếp tệp .mkv.
-            Bạn nên đổi đuôi sang MP4 trước khi tải lên để phát mượt mà nhất.
+            <strong>Lưu ý định dạng .MKV:</strong> Trình duyệt web mặc định không hỗ trợ phát trực tiếp tệp .mkv. Bạn
+            nên đổi đuôi sang MP4 trước khi tải lên để phát mượt mà nhất.
           </div>
         </div>
       )}
@@ -288,13 +299,11 @@ function UploadPage() {
                 {artworkFile
                   ? "✨ Sử dụng ảnh Artwork tùy chọn"
                   : extractedCover
-                  ? "✨ Đã trích xuất Ảnh bìa gốc"
-                  : "Sẵn sàng tải lên"}
+                    ? "✨ Đã trích xuất Ảnh bìa gốc"
+                    : "Sẵn sàng tải lên"}
               </p>
               {fileSha256 && (
-                <p className="text-muted-foreground/60 font-mono text-[10px] truncate mt-1">
-                  SHA-256: {fileSha256}
-                </p>
+                <p className="text-muted-foreground/60 font-mono text-[10px] truncate mt-1">SHA-256: {fileSha256}</p>
               )}
             </div>
           </div>
@@ -337,11 +346,10 @@ function UploadPage() {
           <div className="flex items-start gap-2.5">
             <AlertTriangle className="size-4 shrink-0 mt-0.5 text-amber-400" />
             <div>
-              <p className="font-semibold text-foreground text-sm">
-                Phát hiện bài hát trùng lặp trong kho nhạc:
-              </p>
+              <p className="font-semibold text-foreground text-sm">Phát hiện bài hát trùng lặp trong kho nhạc:</p>
               <p className="mt-0.5">
-                Bài hát <strong>"{duplicateTrack.title}"</strong> của <strong>{duplicateTrack.artist}</strong> đã có sẵn trong kho ({duplicateTrack.format} {duplicateTrack.bitDepth}/{duplicateTrack.sampleRate}).
+                Bài hát <strong>"{duplicateTrack.title}"</strong> của <strong>{duplicateTrack.artist}</strong> đã có sẵn
+                trong kho ({duplicateTrack.format} {duplicateTrack.bitDepth}/{duplicateTrack.sampleRate}).
               </p>
             </div>
           </div>
@@ -356,7 +364,10 @@ function UploadPage() {
       )}
 
       {/* Form Fields & Action Controls - Locked during upload */}
-      <fieldset disabled={isUploading} className="border-border mt-8 grid gap-5 rounded-xl border p-6 md:grid-cols-2 disabled:opacity-65">
+      <fieldset
+        disabled={isUploading}
+        className="border-border mt-8 grid gap-5 rounded-xl border p-6 md:grid-cols-2 disabled:opacity-65"
+      >
         <Field
           id="field-title"
           label="Tên bài / MV *"
@@ -387,10 +398,12 @@ function UploadPage() {
                   "relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border transition-colors cursor-pointer",
                   !album.trim() || album.toLowerCase() === "singles" || album.toLowerCase() === "single collection"
                     ? "border-primary text-primary"
-                    : "border-border text-muted-foreground hover:text-foreground hover:bg-accent/40"
+                    : "border-border text-muted-foreground hover:text-foreground hover:bg-accent/40",
                 )}
               >
-                {(!album.trim() || album.toLowerCase() === "singles" || album.toLowerCase() === "single collection") && (
+                {(!album.trim() ||
+                  album.toLowerCase() === "singles" ||
+                  album.toLowerCase() === "single collection") && (
                   <motion.span
                     layoutId="release-type-pill"
                     transition={springPill}
@@ -403,19 +416,17 @@ function UploadPage() {
                 type="button"
                 disabled={isUploading}
                 onClick={() => {
-                  const defaultAlbum = albums.find(
-                    (a) => a.id !== "singles" && a.id !== "single-collection"
-                  );
+                  const defaultAlbum = albums.find((a) => a.id !== "singles" && a.id !== "single-collection");
                   updateUploadState({ album: defaultAlbum ? defaultAlbum.title : "Album mới" });
                 }}
                 className={cn(
                   "relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border transition-colors cursor-pointer",
                   album.trim() && album.toLowerCase() !== "singles" && album.toLowerCase() !== "single collection"
                     ? "border-primary text-primary"
-                    : "border-border text-muted-foreground hover:text-foreground hover:bg-accent/40"
+                    : "border-border text-muted-foreground hover:text-foreground hover:bg-accent/40",
                 )}
               >
-                {(album.trim() && album.toLowerCase() !== "singles" && album.toLowerCase() !== "single collection") && (
+                {album.trim() && album.toLowerCase() !== "singles" && album.toLowerCase() !== "single collection" && (
                   <motion.span
                     layoutId="release-type-pill"
                     transition={springPill}
@@ -428,7 +439,10 @@ function UploadPage() {
           </div>
         )}
 
-        {(!isVideo && album.trim() && album.toLowerCase() !== "singles" && album.toLowerCase() !== "single collection") ? (
+        {!isVideo &&
+        album.trim() &&
+        album.toLowerCase() !== "singles" &&
+        album.toLowerCase() !== "single collection" ? (
           <AlbumSelectField
             albums={albums}
             value={album}
@@ -499,7 +513,7 @@ function UploadPage() {
                   htmlFor="artwork-upload-input"
                   className={cn(
                     "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-all cursor-pointer",
-                    isUploading && "opacity-50 cursor-not-allowed"
+                    isUploading && "opacity-50 cursor-not-allowed",
                   )}
                 >
                   <Image className="size-4" />
@@ -529,7 +543,7 @@ function UploadPage() {
                     const img = e.target.files[0];
                     const croppedUrl = await cropBlackLetterbox(img);
                     const { file: compressedFile, dataUrl: compressedDataUrl } = await compressAndResizeImageFile(
-                      croppedUrl.startsWith("data:") ? dataURLtoFile(croppedUrl, img.name) : img
+                      croppedUrl.startsWith("data:") ? dataURLtoFile(croppedUrl, img.name) : img,
                     );
                     updateUploadState({
                       artworkFile: compressedFile,
@@ -566,41 +580,20 @@ function UploadPage() {
                 </button>
               )}
               {lyricsText.trim() && (
-                <>
-                  <button
-                    type="button"
-                    disabled={isUploading}
-                    onClick={async () => {
-                      const duration = selectedFile ? await getAudioFileDuration(selectedFile) : 180;
-                      const paced = autoTimePacingLyrics(lyricsText, duration, true);
-                      if (paced) {
-                        updateUploadState({
-                          lyricsText: beautifyLrcString(paced),
-                          successMessage: `⚡ Đã tự động canh nhịp mượt mà theo thời lượng bài hát (${Math.floor(duration / 60)}:${Math.floor(duration % 60).toString().padStart(2, "0")})!`,
-                        });
-                      }
-                    }}
-                    className="text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1 text-xs font-semibold cursor-pointer transition-colors"
-                    title="Tự động tính toán và chia đều mốc thời gian [mm:ss.xx] theo độ dài bài hát"
-                  >
-                    <Zap className="size-3" />
-                    <span>Canh nhịp</span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isUploading}
-                    onClick={() => {
-                      updateUploadState({
-                        lyricsText: beautifyLrcString(lyricsText),
-                        successMessage: "✨ Đã chuẩn hoá chính tả & định dạng lời bài hát!",
-                      });
-                    }}
-                    className="text-muted-foreground hover:text-foreground underline flex items-center gap-1 text-xs cursor-pointer transition-colors"
-                    title="Sửa lỗi chính tả tiếng Việt & định dạng chuẩn"
-                  >
-                    Sửa chính tả
-                  </button>
-                </>
+                <button
+                  type="button"
+                  disabled={isUploading}
+                  onClick={() => {
+                    updateUploadState({
+                      lyricsText: beautifyLrcString(lyricsText),
+                      successMessage: "✨ Đã chuẩn hoá định dạng mốc thời gian LRC!",
+                    });
+                  }}
+                  className="text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1 text-xs cursor-pointer transition-colors"
+                  title="Sắp xếp và chuẩn hóa định dạng các mốc thời gian"
+                >
+                  <span>Chuẩn hóa LRC</span>
+                </button>
               )}
               <button
                 type="button"
@@ -813,9 +806,7 @@ function AlbumSelectField({
           Album
         </label>
         {uniqueAlbums.length > 0 && (
-          <span className="text-[11px] text-primary font-medium">
-            ({uniqueAlbums.length} album có sẵn)
-          </span>
+          <span className="text-[11px] text-primary font-medium">({uniqueAlbums.length} album có sẵn)</span>
         )}
       </div>
 
@@ -861,7 +852,7 @@ function AlbumSelectField({
                 "rounded-full border px-2.5 py-1 text-xs transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50",
                 value.toLowerCase() === a.title.toLowerCase()
                   ? "border-primary bg-primary/20 text-primary font-medium"
-                  : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
+                  : "border-border text-muted-foreground hover:border-foreground hover:text-foreground",
               )}
             >
               + {a.title}

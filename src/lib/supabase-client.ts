@@ -9,9 +9,7 @@ interface CustomImportMetaEnv {
   VITE_SUPABASE_ANON_KEY?: string;
 }
 
-const env = (typeof import.meta !== "undefined"
-  ? (import.meta.env as unknown as CustomImportMetaEnv)
-  : undefined);
+const env = typeof import.meta !== "undefined" ? (import.meta.env as unknown as CustomImportMetaEnv) : undefined;
 
 const supabaseUrl = env?.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
 const supabaseAnonKey = env?.VITE_SUPABASE_ANON_KEY || DEFAULT_ANON_KEY;

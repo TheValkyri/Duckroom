@@ -210,7 +210,7 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
                       }}
                       className={cn(
                         "inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-all cursor-pointer",
-                        isUploading && "opacity-50 cursor-not-allowed"
+                        isUploading && "opacity-50 cursor-not-allowed",
                       )}
                     >
                       <ImageIcon className="size-4" />
@@ -242,7 +242,7 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
                         setCoverPreviewError(false);
                         const croppedUrl = await cropBlackLetterbox(img);
                         const { file: compressedFile, dataUrl: compressedDataUrl } = await compressAndResizeImageFile(
-                          croppedUrl.startsWith("data:") ? dataURLtoFile(croppedUrl, img.name) : img
+                          croppedUrl.startsWith("data:") ? dataURLtoFile(croppedUrl, img.name) : img,
                         );
                         setArtworkFile(compressedFile);
                         setArtworkPreview(compressedDataUrl);
@@ -459,13 +459,7 @@ function AlbumsPage() {
         </div>
       )}
 
-      <AnimatePresence>
-        {showCreate && (
-          <CreateAlbumModal
-            onClose={() => setShowCreate(false)}
-          />
-        )}
-      </AnimatePresence>
+      <AnimatePresence>{showCreate && <CreateAlbumModal onClose={() => setShowCreate(false)} />}</AnimatePresence>
 
       <AnimatePresence>
         {editingAlbum && (

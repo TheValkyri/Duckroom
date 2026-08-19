@@ -26,7 +26,8 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "Duckroom — Kho nhạc lossless riêng" },
       {
         property: "og:description",
-        content: "Nghe và lưu trữ bản thu FLAC 24-bit cùng MV bản gốc: trộn bài, lặp lại, lời bài hát theo thời gian thực.",
+        content:
+          "Nghe và lưu trữ bản thu FLAC 24-bit cùng MV bản gốc: trộn bài, lặp lại, lời bài hát theo thời gian thực.",
       },
       { property: "og:image", content: "https://duckroom.vercel.app/og-image.jpg" },
       { property: "og:image:width", content: "1200" },
@@ -63,14 +64,11 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
           }}
           transition={{
             x: { type: "spring", stiffness: 260, damping: 24 },
-            rotate: isThisPlaying
-              ? { repeat: Infinity, duration: 3.5, ease: "linear" }
-              : { duration: 0.5 },
+            rotate: isThisPlaying ? { repeat: Infinity, duration: 3.5, ease: "linear" } : { duration: 0.5 },
           }}
           className="absolute inset-y-3 right-3 aspect-square rounded-full bg-zinc-950 border border-white/10 shadow-xl pointer-events-none flex items-center justify-center z-0"
           style={{
-            backgroundImage:
-              "repeating-radial-gradient(circle, #18181b 0, #18181b 2px, #09090b 3px, #09090b 5px)",
+            backgroundImage: "repeating-radial-gradient(circle, #18181b 0, #18181b 2px, #09090b 3px, #09090b 5px)",
           }}
         >
           <div className="size-8 rounded-full border border-white/20 bg-card/90 flex items-center justify-center">
@@ -84,14 +82,19 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
             <div className="absolute inset-0 bg-muted/40 animate-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
           )}
           <img
-            src={track.cover && !track.cover.startsWith("blob:") ? track.cover : "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"}
+            src={
+              track.cover && !track.cover.startsWith("blob:")
+                ? track.cover
+                : "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"
+            }
             alt={track.title}
             loading="lazy"
             decoding="async"
             onLoad={() => setImgLoaded(true)}
             onError={(e) => {
               const target = e.currentTarget;
-              const fallback = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+              const fallback =
+                "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
               if (target.src !== fallback) {
                 target.src = fallback;
               }
@@ -99,13 +102,17 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
             }}
             className={cn(
               "size-full object-cover transition-all duration-500 group-hover:scale-105",
-              imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]"
+              imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]",
             )}
           />
 
           <div className="absolute top-2 left-2 z-20">
             <span className="bg-black/75 backdrop-blur-md border border-white/15 text-primary text-[9px] font-mono px-1.5 py-0.5 rounded tracking-wider font-semibold shadow-sm">
-              {track.format || "FLAC 24/96"}
+              {track.format
+                ? track.bitDepth && track.sampleRate
+                  ? `${track.format} ${track.bitDepth}/${track.sampleRate > 1000 ? Math.round(track.sampleRate / 1000) : track.sampleRate}`
+                  : track.format
+                : "LOSSLESS"}
             </span>
           </div>
 
@@ -130,7 +137,7 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
           onClick={onPlay}
           className={cn(
             "font-display text-sm font-semibold truncate cursor-pointer transition-colors hover:text-primary",
-            isCurrentTrack ? "text-primary" : "text-foreground"
+            isCurrentTrack ? "text-primary" : "text-foreground",
           )}
         >
           {track.title}
@@ -154,13 +161,9 @@ function Index() {
   const singles = useMemo(
     () =>
       tracks.filter(
-        (t) =>
-          !t.albumId ||
-          t.albumId === "singles" ||
-          t.albumId === "single-collection" ||
-          t.albumId === "single"
+        (t) => !t.albumId || t.albumId === "singles" || t.albumId === "single-collection" || t.albumId === "single",
       ),
-    [tracks]
+    [tracks],
   );
   const featuredSingles = useMemo(() => singles.slice(0, 5), [singles]);
 
@@ -168,7 +171,7 @@ function Index() {
     (_: Track, idx: number) => {
       playQueue(recent, idx);
     },
-    [playQueue, recent]
+    [playQueue, recent],
   );
 
   if (!hero || albums.length === 0) {
@@ -180,11 +183,10 @@ function Index() {
               <span className="text-primary">Duck</span>
               <span className="text-foreground">room</span>
             </span>
-            <h1 className="font-display mt-4 text-5xl md:text-6xl leading-[1.05]">
-              Kho nhạc của bạn đã sẵn sàng
-            </h1>
+            <h1 className="font-display mt-4 text-5xl md:text-6xl leading-[1.05]">Kho nhạc của bạn đã sẵn sàng</h1>
             <p className="text-muted-foreground mt-4 text-sm md:text-base leading-relaxed">
-              Duckroom đã được dọn sạch tất cả dữ liệu mẫu. Hãy đưa các bản thu FLAC 24-bit, WAV hoặc MV bản gốc của bạn vào kho lưu trữ cá nhân ngay bây giờ.
+              Duckroom đã được dọn sạch tất cả dữ liệu mẫu. Hãy đưa các bản thu FLAC 24-bit, WAV hoặc MV bản gốc của bạn
+              vào kho lưu trữ cá nhân ngay bây giờ.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link
@@ -238,13 +240,16 @@ function Index() {
       <section className="grain relative overflow-hidden">
         <img
           key={hero.cover}
-          src={hero.cover || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"}
+          src={
+            hero.cover || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"
+          }
           alt=""
           aria-hidden
           decoding="async"
           onError={(e) => {
             const target = e.currentTarget;
-            const fallback = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+            const fallback =
+              "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
             if (target.src !== fallback) {
               target.src = fallback;
             }
@@ -254,12 +259,16 @@ function Index() {
         <div className="from-background absolute inset-0 bg-gradient-to-t via-transparent to-transparent" />
         <div className="relative mx-auto flex max-w-6xl flex-col gap-10 px-6 py-24 md:flex-row md:items-end">
           <img
-            src={hero.cover || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"}
+            src={
+              hero.cover ||
+              "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"
+            }
             alt={`Bìa album ${hero.title}`}
             decoding="async"
             onError={(e) => {
               const target = e.currentTarget;
-              const fallback = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+              const fallback =
+                "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
               if (target.src !== fallback) {
                 target.src = fallback;
               }
@@ -284,7 +293,9 @@ function Index() {
               )}
             </div>
             <h1 className="font-display mt-3 text-5xl leading-[0.95] md:text-7xl">{hero.title}</h1>
-            <p className="text-muted-foreground mt-4 max-w-md text-sm">{hero.note || `${hero.artist} · ${hero.year}`}</p>
+            <p className="text-muted-foreground mt-4 max-w-md text-sm">
+              {hero.note || `${hero.artist} · ${hero.year}`}
+            </p>
             <Visualizer playing={isPlaying} bars={36} height={40} className="mt-6 max-w-sm" />
             <div className="mt-6 flex flex-wrap gap-3">
               <button

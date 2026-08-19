@@ -160,13 +160,11 @@ export function dataURLtoFile(dataurl: string, filename: string): File {
 export function compressAndResizeImageFile(
   fileOrUrl: File | string,
   maxDimension = 1200,
-  quality = 0.85
+  quality = 0.85,
 ): Promise<{ file: File; dataUrl: string }> {
   return new Promise((resolve) => {
     const filename =
-      typeof fileOrUrl === "string"
-        ? `artwork-${Date.now()}.jpg`
-        : fileOrUrl.name.replace(/\.[^/.]+$/, "") + ".jpg";
+      typeof fileOrUrl === "string" ? `artwork-${Date.now()}.jpg` : fileOrUrl.name.replace(/\.[^/.]+$/, "") + ".jpg";
 
     if (typeof window === "undefined") {
       const dummyFile = typeof fileOrUrl === "string" ? new File([], filename) : fileOrUrl;

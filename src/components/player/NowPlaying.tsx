@@ -30,9 +30,7 @@ interface AmbientLayer {
 
 function AmbientCrossfadeBackground({ cover, accent }: { cover: string; accent?: string | undefined }) {
   const currentAccent = accent || "oklch(0.3 0.1 260)";
-  const [layers, setLayers] = useState<AmbientLayer[]>([
-    { id: `init-${cover}`, cover, accent: currentAccent },
-  ]);
+  const [layers, setLayers] = useState<AmbientLayer[]>([{ id: `init-${cover}`, cover, accent: currentAccent }]);
 
   useEffect(() => {
     setLayers((prev) => {
@@ -84,22 +82,11 @@ function AmbientCrossfadeBackground({ cover, accent }: { cover: string; accent?:
 }
 
 export function NowPlaying() {
-  const {
-    current,
-    queue,
-    index,
-    expanded,
-    setExpanded,
-    isPlaying,
-    lyricsOpen,
-    setLyricsOpen,
-    next,
-    direction,
-  } = usePlayer();
+  const { current, queue, index, expanded, setExpanded, isPlaying, lyricsOpen, setLyricsOpen, next, direction } =
+    usePlayer();
   const open = expanded;
   const album = current ? albumById(current.albumId) : undefined;
-  const fallbackCover =
-    "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+  const fallbackCover = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
   const rawCover = current?.cover || album?.cover;
   const rawCoverUrl = rawCover && !rawCover.startsWith("blob:") ? rawCover : fallbackCover;
   const nextTrack = queue[(index + 1) % queue.length];
@@ -149,10 +136,7 @@ export function NowPlaying() {
           className="bg-background grain fixed inset-0 z-50 flex flex-col justify-between overflow-hidden select-none"
         >
           {/* Ambient Dual-Buffer Crossfading Background */}
-          <AmbientCrossfadeBackground
-            cover={rawCoverUrl}
-            accent={album?.accent}
-          />
+          <AmbientCrossfadeBackground cover={rawCoverUrl} accent={album?.accent} />
 
           {/* Top Header Bar */}
           <div
@@ -180,7 +164,10 @@ export function NowPlaying() {
                 className="hidden md:flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground bg-card/60 hover:bg-card/90 border border-white/10 px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-sm group"
               >
                 <SkipForward className="size-3.5 text-primary group-hover:translate-x-0.5 transition-transform" />
-                <span>Tiếp theo: <strong className="text-foreground font-medium">{nextTrack.title}</strong> — {nextTrack.artist}</span>
+                <span>
+                  Tiếp theo: <strong className="text-foreground font-medium">{nextTrack.title}</strong> —{" "}
+                  {nextTrack.artist}
+                </span>
               </motion.button>
             )}
 
@@ -211,7 +198,7 @@ export function NowPlaying() {
                 transition={springSmooth}
                 className={cn(
                   "flex flex-col items-center justify-center gap-5 w-full max-w-md shrink-0 z-10",
-                  lyricsOpen ? "lg:mr-auto lg:ml-0" : "mx-auto"
+                  lyricsOpen ? "lg:mr-auto lg:ml-0" : "mx-auto",
                 )}
               >
                 {/* Vinyl Record & Sleeve Container: Directional Glide & Tactile Disc */}
@@ -287,7 +274,7 @@ export function NowPlaying() {
                           "relative z-10 rounded-2xl overflow-hidden shadow-[0_25px_80px_-15px_oklch(0_0_0/0.95)] border border-white/10 transition-all duration-500 bg-neutral-900",
                           isLandscape
                             ? "w-full max-w-[min(48vh,400px)] aspect-video"
-                            : "aspect-square w-full max-w-[min(34vh,270px)] md:max-w-[min(36vh,290px)]"
+                            : "aspect-square w-full max-w-[min(34vh,270px)] md:max-w-[min(36vh,290px)]",
                         )}
                       >
                         <motion.img
@@ -336,9 +323,7 @@ export function NowPlaying() {
                         }}
                         className="w-full"
                       >
-                        <h1 className="font-display text-2xl md:text-4xl truncate text-foreground">
-                          {current.title}
-                        </h1>
+                        <h1 className="font-display text-2xl md:text-4xl truncate text-foreground">{current.title}</h1>
                         <p className="text-muted-foreground mt-1 text-xs md:text-sm truncate">
                           {current.artist} — {album?.title || "Single Collection"} ({album?.year || 2026})
                         </p>

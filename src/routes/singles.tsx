@@ -67,11 +67,9 @@ function SingleCard({
   const [hover, setHover] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
 
-  const fallbackCover =
-    "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+  const fallbackCover = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
 
-  const validCover =
-    track.cover && !track.cover.startsWith("blob:") ? track.cover : fallbackCover;
+  const validCover = track.cover && !track.cover.startsWith("blob:") ? track.cover : fallbackCover;
 
   return (
     <motion.div
@@ -128,14 +126,11 @@ function SingleCard({
           }}
           transition={{
             x: { type: "spring", stiffness: 260, damping: 24 },
-            rotate: isThisPlaying
-              ? { repeat: Infinity, duration: 3.5, ease: "linear" }
-              : { duration: 0.5 },
+            rotate: isThisPlaying ? { repeat: Infinity, duration: 3.5, ease: "linear" } : { duration: 0.5 },
           }}
           className="absolute inset-y-4 right-4 aspect-square rounded-full bg-zinc-950 border border-white/10 shadow-2xl pointer-events-none flex items-center justify-center z-0"
           style={{
-            backgroundImage:
-              "repeating-radial-gradient(circle, #18181b 0, #18181b 2px, #09090b 3px, #09090b 5px)",
+            backgroundImage: "repeating-radial-gradient(circle, #18181b 0, #18181b 2px, #09090b 3px, #09090b 5px)",
           }}
         >
           <div className="size-10 rounded-full border border-white/20 bg-card/90 flex items-center justify-center">
@@ -163,14 +158,18 @@ function SingleCard({
             }}
             className={cn(
               "size-full object-cover transition-all duration-500 group-hover:scale-105",
-              imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]"
+              imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]",
             )}
           />
 
           {/* Audio Quality Badge */}
           <div className="absolute top-2.5 left-2.5 z-20">
             <span className="bg-black/70 backdrop-blur-md border border-white/15 text-primary text-[10px] font-mono px-2 py-0.5 rounded-md tracking-wider font-semibold shadow-sm">
-              {track.format || "FLAC 24/96"}
+              {track.format
+                ? track.bitDepth && track.sampleRate
+                  ? `${track.format} ${track.bitDepth}/${track.sampleRate > 1000 ? Math.round(track.sampleRate / 1000) : track.sampleRate}`
+                  : track.format
+                : "LOSSLESS"}
             </span>
           </div>
 
@@ -204,7 +203,7 @@ function SingleCard({
             onClick={onPlay}
             className={cn(
               "font-display text-base font-semibold truncate cursor-pointer transition-colors hover:text-primary flex-1",
-              isCurrentTrack ? "text-primary" : "text-foreground"
+              isCurrentTrack ? "text-primary" : "text-foreground",
             )}
           >
             {track.title}
@@ -226,9 +225,7 @@ function SingleCard({
             </motion.button>
           )}
         </div>
-        <p className="text-muted-foreground text-xs truncate mt-0.5">
-          {track.artist}
-        </p>
+        <p className="text-muted-foreground text-xs truncate mt-0.5">{track.artist}</p>
         <div className="flex items-center justify-between text-[11px] text-muted-foreground/70 mt-1.5 font-mono">
           <span>{track.year ? `${track.year} · Single` : "Single"}</span>
           <span>{track.sizeMB ? `${track.sizeMB} MB` : ""}</span>
@@ -251,29 +248,18 @@ function SinglesPage() {
   const singles = useMemo(
     () =>
       tracks.filter(
-        (t) =>
-          !t.albumId ||
-          t.albumId === "singles" ||
-          t.albumId === "single-collection" ||
-          t.albumId === "single"
+        (t) => !t.albumId || t.albumId === "singles" || t.albumId === "single-collection" || t.albumId === "single",
       ),
-    [tracks]
+    [tracks],
   );
 
   const filteredSingles = useMemo(() => {
     const qLower = searchQuery.trim().toLowerCase();
     if (!qLower) return singles;
-    return singles.filter(
-      (t) =>
-        t.title.toLowerCase().includes(qLower) ||
-        t.artist.toLowerCase().includes(qLower)
-    );
+    return singles.filter((t) => t.title.toLowerCase().includes(qLower) || t.artist.toLowerCase().includes(qLower));
   }, [singles, searchQuery]);
 
-  const totalSizeMB = useMemo(
-    () => singles.reduce((acc, t) => acc + (t.sizeMB || 0), 0),
-    [singles]
-  );
+  const totalSizeMB = useMemo(() => singles.reduce((acc, t) => acc + (t.sizeMB || 0), 0), [singles]);
 
   const handleSyncS3 = async () => {
     if (!isLoggedIn) return;
@@ -289,14 +275,14 @@ function SinglesPage() {
         void deleteTrack(id);
       }
     },
-    [isLoggedIn]
+    [isLoggedIn],
   );
 
   const handlePlayTrack = useCallback(
     (_: Track, idx: number) => {
       playQueue(filteredSingles, idx);
     },
-    [playQueue, filteredSingles]
+    [playQueue, filteredSingles],
   );
 
   return (
@@ -391,7 +377,7 @@ function SinglesPage() {
               onClick={() => setViewMode("grid")}
               className={cn(
                 "relative p-2 rounded-lg text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 overflow-hidden",
-                viewMode === "grid" ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"
+                viewMode === "grid" ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground",
               )}
               title="Chế độ lưới đĩa than"
             >
@@ -409,7 +395,7 @@ function SinglesPage() {
               onClick={() => setViewMode("list")}
               className={cn(
                 "relative p-2 rounded-lg text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 overflow-hidden",
-                viewMode === "list" ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"
+                viewMode === "list" ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground",
               )}
               title="Chế độ danh sách"
             >
@@ -512,7 +498,8 @@ function SinglesPage() {
             </div>
             <h3 className="font-display text-2xl font-semibold">Chưa có Đĩa đơn nào</h3>
             <p className="text-muted-foreground max-w-md text-sm leading-relaxed">
-              Bạn có thể đăng tải các bài hát phát hành đơn lẻ (Singles) mà không cần tạo Album. Mỗi bài Single sẽ có ảnh bìa Artwork và tệp lời LRC riêng biệt.
+              Bạn có thể đăng tải các bài hát phát hành đơn lẻ (Singles) mà không cần tạo Album. Mỗi bài Single sẽ có
+              ảnh bìa Artwork và tệp lời LRC riêng biệt.
             </p>
             <motion.div whileTap={tapScale} transition={springSnappy}>
               <Link

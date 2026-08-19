@@ -29,9 +29,7 @@ export function Visualizer({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     let raf = 0;
     let t = 0;
@@ -96,10 +94,7 @@ export function Visualizer({
         if (playing) {
           if (hasRealAudioData) {
             // Ánh xạ tần số: Bass ở trung tâm, Treble dồn về 2 mép
-            const binIdx = Math.min(
-              freqData.length - 1,
-              Math.floor(Math.pow(1 - distFromCenter, 1.3) * 44),
-            );
+            const binIdx = Math.min(freqData.length - 1, Math.floor(Math.pow(1 - distFromCenter, 1.3) * 44));
 
             const trebleBoost = 1.0 + Math.pow(distFromCenter, 1.2) * 1.4;
             const bassBoost = 1.0 + (1 - distFromCenter) * bassEnergy * 1.1;
@@ -113,9 +108,7 @@ export function Visualizer({
             const highTreble = Math.abs(Math.sin(t * 9.1 + i * 0.75) * 0.45 + Math.sin(t * 4.4) * 0.3);
 
             target =
-              (lowBass * (1 - distFromCenter) * 0.9 +
-                midVocal * 0.7 +
-                highTreble * distFromCenter * 0.85) *
+              (lowBass * (1 - distFromCenter) * 0.9 + midVocal * 0.7 + highTreble * distFromCenter * 0.85) *
                 centerSwell *
                 0.88 +
               0.05;

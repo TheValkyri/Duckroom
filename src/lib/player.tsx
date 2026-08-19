@@ -299,29 +299,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
   }, [baseQueue, index, queue]);
 
-  const cycleRepeat = useCallback(
-    () => setRepeat((r) => (r === "off" ? "all" : r === "all" ? "one" : "off")),
-    [],
-  );
+  const cycleRepeat = useCallback(() => setRepeat((r) => (r === "off" ? "all" : r === "all" ? "one" : "off")), []);
 
-  const moveInQueue = useCallback(
-    (from: number, to: number) => {
-      setQueue((q) => {
-        const copy = [...q];
-        const [item] = copy.splice(from, 1);
-        if (!item) return q;
-        copy.splice(to, 0, item);
-        return copy;
-      });
-      setIndex((i) => {
-        if (i === from) return to;
-        if (from < i && to >= i) return i - 1;
-        if (from > i && to <= i) return i + 1;
-        return i;
-      });
-    },
-    [],
-  );
+  const moveInQueue = useCallback((from: number, to: number) => {
+    setQueue((q) => {
+      const copy = [...q];
+      const [item] = copy.splice(from, 1);
+      if (!item) return q;
+      copy.splice(to, 0, item);
+      return copy;
+    });
+    setIndex((i) => {
+      if (i === from) return to;
+      if (from < i && to >= i) return i - 1;
+      if (from > i && to <= i) return i + 1;
+      return i;
+    });
+  }, []);
 
   // Preload next track into secondary channel for 100% gapless DJ crossfade
   useEffect(() => {
@@ -760,7 +754,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       prev,
       seek,
       setVolume,
-      setCrossfade: (v: number) => setCrossfadeState(Math.max(0, Math.min(12, v))),
+      setCrossfade: (v: number) => setCrossfadeState(Math.max(0, Math.min(10, v))),
       toggleMute,
       toggleShuffle,
       cycleRepeat,

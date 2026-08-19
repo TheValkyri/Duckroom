@@ -10,13 +10,34 @@ const ALLOWED_EXTENSIONS = new Set([
   "m4a",
   "mp4",
   "mkv",
+  "webm",
+  "mov",
   "jpg",
   "jpeg",
   "png",
   "webp",
+  "vtt",
+  "json",
 ]);
 
-const ALLOWED_PREFIXES = ["singles/", "albums/", "videos/", "artworks/", "library_manifest.json"];
+/**
+ * Supported prefixes:
+ * - Canonical V2: audio/, video/, artwork/, subtitles/, backups/
+ * - Legacy compatibility: singles/, albums/, videos/, artworks/, covers/, library_manifest.json
+ */
+const ALLOWED_PREFIXES = [
+  "audio/",
+  "video/",
+  "artwork/",
+  "subtitles/",
+  "backups/",
+  "singles/",
+  "albums/",
+  "videos/",
+  "artworks/",
+  "covers/",
+  "library_manifest.json",
+];
 
 /**
  * Validates S3 storage object keys to prevent Path Traversal or arbitrary file creation.
@@ -56,6 +77,32 @@ export const serverSecurityMiddleware = createMiddleware({ type: "function" }).s
 });
 
 /**
+ * Optional Auth middleware: resolves user identity if token provided, but allows Guest (unauthenticated) through.
+ */
+export const optionalAuthMiddleware = createMiddleware({ type: "function" })
+  .client(async ({ next }) => {
+    const token = typeof window !== "undefined" ? await getAccessToken() : null;
+    return next({
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      sendContext: { authToken: token },
+    });
+  })
+  .server(async ({ next, context }) => {
+    const passedToken = (context as { authToken?: string | null })?.authToken || null;
+    let auth: import("./auth.server").AuthorizationResult = {
+      isAuthorized: false,
+      userId: null,
+      email: null,
+      role: null,
+      isAdmin: false,
+    };
+    if (passedToken) {
+      auth = await verifyMemberAuthorization(undefined, passedToken);
+    }
+    return next({ context: { auth } });
+  });
+
+/**
  * Server middleware enforcing REAL Supabase Auth Member Authorization.
  */
 export const requireMemberMiddleware = createMiddleware({ type: "function" })
@@ -73,10 +120,10 @@ export const requireMemberMiddleware = createMiddleware({ type: "function" })
     const auth = await verifyMemberAuthorization(undefined, passedToken);
 
     if (!auth.isAuthorized) {
-      throw new Response(
-        JSON.stringify({ error: auth.error || "Unauthorized: Member login required" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
+      throw new Response(JSON.stringify({ error: auth.error || "Unauthorized: Member login required" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     return next({ context: { auth } });
@@ -103,7 +150,7 @@ export const requireOwnerMiddleware = createMiddleware({ type: "function" })
       });
     }
     if (auth.role !== "owner") {
-      throw new Response(JSON.stringify({ error: "Owner role required" }), {
+      throw new Response(JSON.stringify({ error: "Forbidden: Owner role required" }), {
         status: 403,
         headers: { "Content-Type": "application/json" },
       });

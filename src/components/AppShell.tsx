@@ -47,10 +47,7 @@ export function ModernDuckLogo({ className = "size-8" }: { className?: string })
   return (
     <svg viewBox="0 0 40 40" fill="none" className={className}>
       {/* Duck Beak */}
-      <path
-        d="M26 18C29 18 34 19.5 35 22C33.5 24.5 28 24 26 23.5V18Z"
-        fill="url(#duck-beak-grad)"
-      />
+      <path d="M26 18C29 18 34 19.5 35 22C33.5 24.5 28 24 26 23.5V18Z" fill="url(#duck-beak-grad)" />
       {/* Duck Head & Neck */}
       <path
         d="M12 28C12 20 16 12 23 12C26.5 12 28.5 14.5 28.5 18C28.5 23 23 25 21 28C19.5 30 16 32 12 28Z"
@@ -58,21 +55,9 @@ export function ModernDuckLogo({ className = "size-8" }: { className?: string })
         className="text-foreground"
       />
       {/* DJ Headphone Band */}
-      <path
-        d="M13 8C18 5 27 5 31 10"
-        stroke="var(--primary)"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-      />
+      <path d="M13 8C18 5 27 5 31 10" stroke="var(--primary)" strokeWidth="3.5" strokeLinecap="round" />
       {/* DJ Ear Cup */}
-      <rect
-        x="9"
-        y="13"
-        width="6"
-        height="10"
-        rx="3"
-        fill="var(--primary)"
-      />
+      <rect x="9" y="13" width="6" height="10" rx="3" fill="var(--primary)" />
       {/* Duck Eye */}
       <circle cx="21" cy="16" r="2" fill="var(--background)" />
       {/* Gradients */}
@@ -347,7 +332,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               to="/admin"
               className={cn(
                 "relative rounded-full px-3 py-1 text-xs whitespace-nowrap transition-colors",
-                location.pathname === "/admin" ? "text-emerald-400 font-medium bg-emerald-500/10" : "text-muted-foreground",
+                location.pathname === "/admin"
+                  ? "text-emerald-400 font-medium bg-emerald-500/10"
+                  : "text-muted-foreground",
               )}
             >
               Admin
