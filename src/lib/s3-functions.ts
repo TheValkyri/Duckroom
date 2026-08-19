@@ -314,33 +314,41 @@ export const deleteS3ObjectServer = createServerFn({ method: "POST" })
   });
 
 /**
+ * Internal server helper to list all keys in S3 without going through RPC middleware.
+ */
+export async function listS3ObjectsInternal(): Promise<string[]> {
+  try {
+    const s3 = getS3ServerClient();
+    const allKeys: string[] = [];
+    let continuationToken: string | undefined = undefined;
+
+    do {
+      const command: ListObjectsV2Command = new ListObjectsV2Command({
+        Bucket: BUCKET_NAME,
+        ContinuationToken: continuationToken,
+      });
+      const res = await s3.send(command);
+      const keys = (res.Contents || []).map((item) => item.Key).filter(Boolean) as string[];
+      allKeys.push(...keys);
+      continuationToken = res.IsTruncated ? res.NextContinuationToken : undefined;
+    } while (continuationToken);
+
+    return allKeys;
+  } catch (err) {
+    console.error("S3 List Objects error:", err);
+    return [];
+  }
+}
+
+/**
  * Server function to list ALL keys in Pikamc S3 Bucket with pagination support.
  * Strictly OWNER ONLY.
  */
 export const listS3ObjectsServer = createServerFn({ method: "GET" })
   .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
   .handler(async () => {
-    try {
-      const s3 = getS3ServerClient();
-      const allKeys: string[] = [];
-      let continuationToken: string | undefined = undefined;
-
-      do {
-        const command: ListObjectsV2Command = new ListObjectsV2Command({
-          Bucket: BUCKET_NAME,
-          ContinuationToken: continuationToken,
-        });
-        const res = await s3.send(command);
-        const keys = (res.Contents || []).map((item) => item.Key).filter(Boolean) as string[];
-        allKeys.push(...keys);
-        continuationToken = res.IsTruncated ? res.NextContinuationToken : undefined;
-      } while (continuationToken);
-
-      return { keys: allKeys };
-    } catch (err) {
-      console.error("S3 List Objects error:", err);
-      return { keys: [] };
-    }
+    const keys = await listS3ObjectsInternal();
+    return { keys };
   });
 
 /**

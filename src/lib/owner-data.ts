@@ -1,7 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSupabaseAdmin } from "./supabase";
-import { deleteS3ObjectServer, listS3ObjectsServer, saveLibraryManifestServer } from "./s3-functions";
+import {
+  deleteS3ObjectServer,
+  listS3ObjectsInternal,
+  listS3ObjectsServer,
+  saveLibraryManifestServer,
+} from "./s3-functions";
 import { requireOwnerMiddleware, serverSecurityMiddleware } from "./auth-guard";
 import { extractS3KeyFromUrl } from "./s3-key";
 
@@ -9,7 +14,7 @@ export const getOwnerHealthServer = createServerFn({ method: "GET" })
   .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
   .handler(async () => {
     const db = getSupabaseAdmin();
-    const [tracks, albums, videos, profiles, playlists, favorites, history, orphanStorage] = await Promise.all([
+    const [tracks, albums, videos, profiles, playlists, favorites, history, keys] = await Promise.all([
       db.from("tracks").select("id", { count: "exact", head: true }),
       db.from("albums").select("id", { count: "exact", head: true }),
       db.from("videos").select("id", { count: "exact", head: true }),
@@ -17,11 +22,10 @@ export const getOwnerHealthServer = createServerFn({ method: "GET" })
       db.from("playlists").select("id", { count: "exact", head: true }),
       db.from("user_favorites").select("track_id", { count: "exact", head: true }),
       db.from("playback_history").select("id", { count: "exact", head: true }),
-      listS3ObjectsServer(),
+      listS3ObjectsInternal(),
     ]);
     const errors = [tracks, albums, videos, profiles, playlists, favorites, history].filter((result) => result.error);
     if (errors.length) throw new Error(errors[0]?.error?.message || "Không thể đọc trạng thái Owner.");
-    const keys = orphanStorage.keys;
     return {
       counts: {
         tracks: tracks.count ?? 0,
@@ -61,7 +65,7 @@ export const scanOrphanS3ObjectsServer = createServerFn({ method: "GET" })
   .handler(async () => {
     const db = getSupabaseAdmin();
     const [allS3, tracks, albums, videos] = await Promise.all([
-      listS3ObjectsServer(),
+      listS3ObjectsInternal(),
       db.from("tracks").select("storage_key,cover_storage_key"),
       db.from("albums").select("cover_storage_key"),
       db.from("videos").select("storage_key,thumb_storage_key"),
@@ -84,9 +88,9 @@ export const scanOrphanS3ObjectsServer = createServerFn({ method: "GET" })
       if (v.thumb_storage_key) activeKeys.add(extractS3KeyFromUrl(v.thumb_storage_key) || v.thumb_storage_key);
     });
 
-    const orphanKeys = allS3.keys.filter((key) => !activeKeys.has(key));
+    const orphanKeys = allS3.filter((key) => !activeKeys.has(key));
     return {
-      totalS3Objects: allS3.keys.length,
+      totalS3Objects: allS3.length,
       activeReferencedObjects: activeKeys.size,
       orphanKeys,
     };

@@ -23,30 +23,19 @@ export const Route = createFileRoute("/videos/")({
   component: VideosPage,
 });
 
-function VideoCard({ v }: { v: any }) {
-  const [imgLoaded, setImgLoaded] = useState(false);
+import { SmoothImage } from "../components/SmoothImage";
 
+function VideoCard({ v }: { v: any }) {
   return (
     <motion.div variants={listItemVariants} whileHover={{ y: -6 }} transition={springSnappy}>
       <Link to="/videos/$videoId" params={{ videoId: v.id }} className="group block">
         <div className="relative overflow-hidden rounded-xl bg-card/60 aspect-video">
-          {!imgLoaded && (
-            <div className="absolute inset-0 bg-muted/40 animate-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-          )}
-          <motion.img
-            layoutId={`video-${v.id}`}
+          <SmoothImage
             src={v.thumb}
             alt={`Ảnh nền MV ${v.title}`}
-            loading="lazy"
-            decoding="async"
-            onLoad={() => setImgLoaded(true)}
-            onError={() => setImgLoaded(true)}
-            width={800}
-            height={456}
-            className={cn(
-              "aspect-video w-full object-cover transition-all duration-500",
-              imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]",
-            )}
+            fallbackSrc="https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=800&auto=format&fit=crop&q=80"
+            containerClassName="aspect-video w-full"
+            className="aspect-video w-full object-cover transition-all duration-500 group-hover:scale-105"
           />
           <div className="bg-background/30 absolute inset-0 grid place-items-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
             <span className="bg-primary text-primary-foreground grid size-14 place-items-center rounded-full shadow-xl">
@@ -59,7 +48,7 @@ function VideoCard({ v }: { v: any }) {
         </div>
         <h2 className="font-display mt-3 text-xl">{v.title}</h2>
         <p className="text-muted-foreground text-xs">
-          {v.resolution} · {v.codec} · {v.bitrate}
+          {v.resolution || "Master Video"} · {v.codec || "H.264"} · {v.bitrate || "Lossless Bitrate"}
         </p>
       </Link>
     </motion.div>
