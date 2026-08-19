@@ -194,17 +194,26 @@ export const getPublicMasterLibraryServer = createServerFn({ method: "GET" }).ha
 
   const s3 = getS3ServerClient();
   const sign = async (key: string | null | undefined, inline = false) => {
-    if (!key) return undefined;
-    validateStorageKey(key);
-    return getSignedUrl(
-      s3,
-      new GetObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: key,
-        ...(inline ? { ResponseContentDisposition: "inline" } : {}),
-      }),
-      { expiresIn: 900 },
-    );
+    if (!key || typeof key !== "string" || !key.trim()) return undefined;
+    const cleanKey = key.trim();
+    if (cleanKey.startsWith("http://") || cleanKey.startsWith("https://")) {
+      return cleanKey;
+    }
+    try {
+      validateStorageKey(cleanKey);
+      return await getSignedUrl(
+        s3,
+        new GetObjectCommand({
+          Bucket: BUCKET_NAME,
+          Key: cleanKey,
+          ...(inline ? { ResponseContentDisposition: "inline" } : {}),
+        }),
+        { expiresIn: 900 },
+      );
+    } catch (err) {
+      console.warn(`[Duckroom Storage] Could not sign key: "${cleanKey}"`, err);
+      return undefined;
+    }
   };
 
   const albumRows = await Promise.all(

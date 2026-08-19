@@ -127,16 +127,16 @@ function AdminPage() {
     }
   };
 
-  const statCards: StatCardItem[] = health
+  const statCards: StatCardItem[] = health?.counts
     ? [
-        { label: "Tracks", value: health.counts.tracks, Icon: ListMusic },
-        { label: "Albums", value: health.counts.albums, Icon: Disc3 },
-        { label: "Videos", value: health.counts.videos, Icon: Video },
-        { label: "Users", value: health.counts.users, Icon: Users },
-        { label: "Playlists", value: health.counts.playlists, Icon: ListMusic },
-        { label: "Favorites", value: health.counts.favorites, Icon: Activity },
-        { label: "History", value: health.counts.history, Icon: Activity },
-        { label: "S3 Objects", value: health.counts.objects, Icon: HardDrive },
+        { label: "Tracks", value: health.counts.tracks ?? 0, Icon: ListMusic },
+        { label: "Albums", value: health.counts.albums ?? 0, Icon: Disc3 },
+        { label: "Videos", value: health.counts.videos ?? 0, Icon: Video },
+        { label: "Users", value: health.counts.users ?? 0, Icon: Users },
+        { label: "Playlists", value: health.counts.playlists ?? 0, Icon: ListMusic },
+        { label: "Favorites", value: health.counts.favorites ?? 0, Icon: Activity },
+        { label: "History", value: health.counts.history ?? 0, Icon: Activity },
+        { label: "S3 Objects", value: health.counts.objects ?? 0, Icon: HardDrive },
       ]
     : [];
 
@@ -247,10 +247,10 @@ function AdminPage() {
                     </motion.button>
                   </div>
                   <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-                    <Metric label="Audio Objects" value={health.storage.audioObjects} />
-                    <Metric label="Video Objects" value={health.storage.videoObjects} />
-                    <Metric label="Artwork Covers" value={health.storage.artworkObjects} />
-                    <Metric label="Backup Manifest" value={health.storage.manifestPresent ? "Sẵn sàng" : "Chưa có"} />
+                    <Metric label="Audio Objects" value={health.storage?.audioObjects ?? 0} />
+                    <Metric label="Video Objects" value={health.storage?.videoObjects ?? 0} />
+                    <Metric label="Artwork Covers" value={health.storage?.artworkObjects ?? 0} />
+                    <Metric label="Backup Manifest" value={health.storage?.manifestPresent ? "Sẵn sàng" : "Chưa có"} />
                   </div>
                 </div>
 
@@ -312,7 +312,8 @@ function AdminPage() {
                     🛡️ <strong>Chính sách bảo mật:</strong> Row Level Security (RLS) + Fail-Closed Auth
                   </p>
                   <p>
-                    🕒 <strong>Lần quét gần nhất:</strong> {new Date(health.generatedAt).toLocaleString("vi-VN")}
+                    🕒 <strong>Lần quét gần nhất:</strong>{" "}
+                    {health.generatedAt ? new Date(health.generatedAt).toLocaleString("vi-VN") : "Vừa xong"}
                   </p>
                 </div>
               </div>

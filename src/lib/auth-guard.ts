@@ -54,9 +54,10 @@ export function validateStorageKey(key: string): void {
     throw new Error("Path traversal or illegal path characters detected in key");
   }
 
-  // Enforce prefix policy
+  // Enforce prefix policy or single root file with allowed extension
+  const isRootFile = !cleanKey.includes("/");
   const hasValidPrefix = ALLOWED_PREFIXES.some((prefix) => cleanKey.startsWith(prefix));
-  if (!hasValidPrefix) {
+  if (!hasValidPrefix && !isRootFile) {
     throw new Error(`Key prefix not authorized. Allowed prefixes: ${ALLOWED_PREFIXES.join(", ")}`);
   }
 
