@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { tracks as allTracks, type Track } from "../data/library";
+import { appendPlaybackHistoryServer, savePlaybackStateServer } from "./member-data";
 import { createPresignedUrl } from "./s3";
 import { extractS3KeyFromUrl } from "./s3-key";
 import { useLibrary } from "./useLibrary";
@@ -536,6 +537,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
 
     const onEnded = () => {
+      if (current) {
+        try {
+          void appendPlaybackHistoryServer({
+            data: {
+              trackId: current.id,
+              startedAt: new Date(Date.now() - (current.duration || 180) * 1000).toISOString(),
+              endedAt: new Date().toISOString(),
+              secondsPlayed: Math.round(timeRef.current || current.duration || 0),
+              completed: true,
+            },
+          }).catch(() => undefined);
+          void savePlaybackStateServer({
+            data: {
+              trackId: nextTrack?.id || null,
+              positionSeconds: 0,
+            },
+          }).catch(() => undefined);
+        } catch {
+          // guest fallback ignore
+        }
+      }
+
       if (isHandingOverRef.current) return;
 
       if (secEl && !secEl.paused && nextTrack && queue.length > 1 && repeat !== "one") {
