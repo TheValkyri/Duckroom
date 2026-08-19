@@ -123,7 +123,7 @@ export function loadStoredLibrary() {
 async function canPersistMasterLibrary(): Promise<boolean> {
   if (typeof window === "undefined") return false;
   try {
-    const { supabase } = await import("../lib/supabase");
+    const { supabase } = await import("../lib/supabase-client");
     const { data } = await supabase.auth.getSession();
     return Boolean(data.session?.user);
   } catch {
