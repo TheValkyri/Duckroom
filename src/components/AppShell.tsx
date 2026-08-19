@@ -4,6 +4,7 @@ import {
   Disc,
   Disc3,
   Film,
+  Heart,
   Home,
   ListMusic,
   Loader2,
@@ -11,29 +12,31 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  ShieldCheck,
   UploadCloud,
   User,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
-import { easeDuck, springPill, springSnappy, tapScale, tweenBase } from "../lib/motion";
+import { easeDuck, springPill, springSnappy, tapScale } from "../lib/motion";
 import { getUploadState, subscribeUploadState, updateUploadState, type UploadState } from "../lib/upload-store";
 import { useAuth } from "../lib/useAuth";
+import { useDuckroomRole } from "../lib/useRole";
 import { cn } from "../lib/utils";
 import { NowPlaying } from "./player/NowPlaying";
 import { PlayerBar } from "./player/PlayerBar";
 
 // Sidebar co giãn dùng tween (không dùng spring) và main content padding
 // dùng CSS transition CÙNG duration + easing ("easeDuck") — để 2 hệ thống
-// animation khác nhau (Framer Motion vs CSS transition) luôn khớp khung hình
-// với nhau, tránh hiện tượng nội dung "chạy trước/sau" mép sidebar khi thu/mở.
+// animation khớp khung hình với nhau, tránh hiện tượng giật cục khi thu/mở.
 const SIDEBAR_TRANSITION_MS = 320;
 const sidebarTween = { duration: SIDEBAR_TRANSITION_MS / 1000, ease: easeDuck };
 
 const nav = [
   { to: "/", label: "Trang chủ", icon: Home },
   { to: "/library", label: "Thư viện", icon: ListMusic },
+  { to: "/my-library", label: "Kho của tôi", icon: Heart },
   { to: "/albums", label: "Albums", icon: Disc3 },
   { to: "/singles", label: "Đĩa đơn", icon: Disc },
   { to: "/videos", label: "MV", icon: Film },
@@ -86,6 +89,8 @@ export function ModernDuckLogo({ className = "size-8" }: { className?: string })
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { user, isLoggedIn, signOut } = useAuth();
+  const { isOwner } = useDuckroomRole();
+  const visibleNav = nav.filter((item) => item.to !== "/upload" || isOwner);
   const [uploadState, setUploadState] = useState<UploadState>(getUploadState());
   const [collapsed, setCollapsed] = useState(false);
 
@@ -179,17 +184,20 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="flex flex-col gap-1.5 relative">
-          {nav.map(({ to, label, icon: Icon }) => {
+          {visibleNav.map(({ to, label, icon: Icon }) => {
             const isActive = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
             return (
               <Link
                 key={to}
                 to={to}
+                preload="intent"
                 activeOptions={{ exact: to === "/" }}
                 title={collapsed ? label : undefined}
                 className={cn(
                   "flex items-center gap-3.5 rounded-xl px-3 py-3 text-sm font-medium transition-colors relative group cursor-pointer",
-                  isActive ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
+                  isActive
+                    ? "text-foreground font-semibold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/40",
                 )}
               >
                 {isActive && (
@@ -199,7 +207,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                     className="absolute inset-0 rounded-xl bg-accent/80 border border-white/10 shadow-sm z-0"
                   />
                 )}
-                <Icon className={cn("size-5 shrink-0 z-10 transition-transform group-hover:scale-110", isActive ? "text-primary font-bold" : "text-primary/70")} />
+                <Icon
+                  className={cn(
+                    "size-5 shrink-0 z-10 transition-transform group-hover:scale-110",
+                    isActive ? "text-primary font-bold" : "text-primary/70",
+                  )}
+                />
                 {!collapsed && <span className="whitespace-nowrap truncate z-10">{label}</span>}
                 {to === "/upload" && uploadState.isUploading && (
                   <span className="ml-auto size-2 rounded-full bg-primary animate-pulse shrink-0 z-10" />
@@ -207,6 +220,34 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+
+          {isOwner && (
+            <Link
+              to="/admin"
+              title={collapsed ? "Owner Console" : undefined}
+              className={cn(
+                "flex items-center gap-3.5 rounded-xl px-3 py-3 text-sm font-medium transition-colors relative group cursor-pointer mt-1",
+                location.pathname === "/admin"
+                  ? "text-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/40",
+              )}
+            >
+              {location.pathname === "/admin" && (
+                <motion.div
+                  layoutId="sidebar-active-pill"
+                  transition={springPill}
+                  className="absolute inset-0 rounded-xl bg-accent/80 border border-white/10 shadow-sm z-0"
+                />
+              )}
+              <ShieldCheck
+                className={cn(
+                  "size-5 shrink-0 z-10 transition-transform group-hover:scale-110",
+                  location.pathname === "/admin" ? "text-emerald-400 font-bold" : "text-emerald-400/70",
+                )}
+              />
+              {!collapsed && <span className="whitespace-nowrap truncate z-10">Owner Console</span>}
+            </Link>
+          )}
         </nav>
 
         <div className="mt-auto flex flex-col gap-2">
@@ -216,9 +257,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <div className="px-3 py-2.5 rounded-xl bg-card/60 border border-white/5 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <User className="size-4 text-primary shrink-0" />
-                    <span className="text-xs text-foreground font-medium truncate">
-                      {user?.email || "Thành viên"}
-                    </span>
+                    <div className="min-w-0">
+                      <span className="text-xs text-foreground font-medium truncate block">
+                        {user?.email || "Thành viên"}
+                      </span>
+                      {isOwner && (
+                        <span className="text-[10px] text-emerald-400 uppercase tracking-wider font-semibold">
+                          Owner
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={() => signOut()}
@@ -274,12 +322,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
         </Link>
         <div className="flex items-center gap-1 overflow-x-auto">
-          {nav.map(({ to, label }) => {
+          {visibleNav.map(({ to, label }) => {
             const isActive = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
             return (
               <Link
                 key={to}
                 to={to}
+                preload="intent"
                 activeOptions={{ exact: to === "/" }}
                 className={cn(
                   "relative rounded-full px-3 py-1 text-xs whitespace-nowrap transition-colors",
@@ -297,6 +346,17 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+          {isOwner && (
+            <Link
+              to="/admin"
+              className={cn(
+                "relative rounded-full px-3 py-1 text-xs whitespace-nowrap transition-colors",
+                location.pathname === "/admin" ? "text-emerald-400 font-medium bg-emerald-500/10" : "text-muted-foreground",
+              )}
+            >
+              Admin
+            </Link>
+          )}
           {isLoggedIn ? (
             <button
               onClick={() => signOut()}
@@ -320,10 +380,18 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main
         className={cn(
           "pt-14 pb-32 lg:pt-0 overflow-x-hidden min-h-screen transition-[padding] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
-          collapsed ? "lg:pl-20" : "lg:pl-64"
+          collapsed ? "lg:pl-20" : "lg:pl-64",
         )}
       >
-        {children}
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.12, ease: "easeOut" }}
+          className="w-full"
+        >
+          {children}
+        </motion.div>
       </main>
       <PlayerBar />
       <NowPlaying />

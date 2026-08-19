@@ -63,20 +63,27 @@ export function QueuePanel() {
               over === i && "ring-primary/60 ring-1",
             )}
           >
-            <GripVertical className="text-muted-foreground size-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
+            <GripVertical className="text-muted-foreground size-3.5 opacity-0 transition-opacity group-hover:opacity-100 shrink-0" />
             <button onClick={() => jumpTo(i)} className="flex min-w-0 flex-1 items-center gap-3 cursor-pointer">
               <img
-                src={albumById(t.albumId)?.cover}
+                src={t.cover || albumById(t.albumId)?.cover || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"}
                 alt=""
                 loading="lazy"
                 decoding="async"
-                className="size-9 rounded object-cover"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  const fallback = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+                  if (target.src !== fallback) {
+                    target.src = fallback;
+                  }
+                }}
+                className="size-9 rounded-lg object-cover bg-card/60 border border-white/5 shrink-0"
                 width={36}
                 height={36}
               />
               <span className="min-w-0 flex-1 text-left">
                 <span
-                  className={cn("block truncate text-sm", i === index && "text-primary")}
+                  className={cn("block truncate text-sm font-medium", i === index ? "text-primary font-semibold" : "text-foreground")}
                 >
                   {t.title}
                 </span>

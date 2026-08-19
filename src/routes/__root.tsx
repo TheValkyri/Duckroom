@@ -12,6 +12,8 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { PlayerProvider } from "../lib/player";
+import { MemberLibraryProvider } from "../lib/member-library-context";
+import { RoleProvider } from "../lib/role-context";
 import { AppShell } from "../components/AppShell";
 
 function NotFoundComponent() {
@@ -157,12 +159,16 @@ function RootComponent() {
         {/* reducedMotion="user": tự động tôn trọng cài đặt "Giảm chuyển động"
             của hệ điều hành cho MỌI animation Framer Motion trong app. */}
         <MotionConfig reducedMotion="user">
-          <PlayerProvider>
-            <AppShell>
-              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-              <Outlet />
-            </AppShell>
-          </PlayerProvider>
+          <RoleProvider>
+            <MemberLibraryProvider>
+              <PlayerProvider>
+                <AppShell>
+                  {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+                  <Outlet />
+                </AppShell>
+              </PlayerProvider>
+            </MemberLibraryProvider>
+          </RoleProvider>
         </MotionConfig>
       </QueryClientProvider>
     </RootDocument>

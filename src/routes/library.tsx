@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Music2, RefreshCw, Trash2, UploadCloud } from "lucide-react";
+import { Music2, RefreshCw, Search, Trash2, UploadCloud, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TrackRow } from "../components/TrackRow";
-import { deleteTrack, saveStoredLibrary, syncLibraryWithS3, type Track } from "../data/library";
+import { clearAllTracks, deleteTrack, syncLibraryWithS3, type Track } from "../data/library";
 import { springPill, springSnappy, tapScale, tweenBase } from "../lib/motion";
-import { usePlayer } from "../lib/player";
+import { useAuth } from "../lib/useAuth";
 import { useLibrary } from "../lib/useLibrary";
+import { usePlayer } from "../lib/player";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/library")({
@@ -31,8 +32,6 @@ export const Route = createFileRoute("/library")({
   component: LibraryPage,
 });
 
-import { useAuth } from "../lib/useAuth";
-
 function LibraryPage() {
   const { playQueue } = usePlayer();
   const { tracks, albums } = useLibrary();
@@ -48,40 +47,43 @@ function LibraryPage() {
     setIsSyncing(false);
   };
 
-  const handleClearAll = useCallback(() => {
+  const handleClearAll = async () => {
     if (!isLoggedIn) return;
-    if (confirm("Bạn có chắc chắn muốn xóa toàn bộ danh sách bài hát không?")) {
-      tracks.length = 0;
-      saveStoredLibrary(true);
+    if (confirm("Bạn có chắc chắn muốn xóa TOÀN BỘ bài hát và album trong bộ nhớ không?")) {
+      clearAllTracks();
     }
-  }, [isLoggedIn, tracks]);
+  };
 
-  const handleDelete = useCallback((id: string) => {
-    if (!isLoggedIn) return;
-    void deleteTrack(id);
-  }, [isLoggedIn]);
-
-  const hasSingles = useMemo(
-    () => tracks.some((t) => !t.albumId || t.albumId === "singles" || t.albumId === "single-collection"),
-    [tracks]
+  const handleDelete = useCallback(
+    (id: string) => {
+      if (!isLoggedIn) return;
+      if (confirm("Xóa bài hát này khỏi thư viện?")) {
+        deleteTrack(id);
+      }
+    },
+    [isLoggedIn],
   );
 
-  const filteredAlbums = useMemo(
-    () => albums.filter((a) => a.id !== "singles" && a.id !== "single-collection"),
-    [albums]
-  );
+  const hasSingles = useMemo(() => {
+    return tracks.some((t) => !t.albumId || t.albumId === "singles" || t.albumId === "single-collection" || t.albumId === "single");
+  }, [tracks]);
+
+  const filteredAlbums = useMemo(() => {
+    return albums
+      .filter((a) => a.id !== "singles" && a.id !== "single-collection")
+      .map((a) => ({ id: a.id, title: a.title }));
+  }, [albums]);
 
   const list = useMemo(() => {
     const qLower = q.trim().toLowerCase();
     return tracks
       .filter((t) => {
-        const isSingle = !t.albumId || t.albumId === "singles" || t.albumId === "single-collection";
-        const matchesFilter =
-          filter === "all"
-            ? true
-            : filter === "singles"
-            ? isSingle
-            : t.albumId === filter;
+        let matchesFilter = true;
+        if (filter === "singles") {
+          matchesFilter = !t.albumId || t.albumId === "singles" || t.albumId === "single-collection" || t.albumId === "single";
+        } else if (filter !== "all") {
+          matchesFilter = t.albumId === filter;
+        }
 
         const matchesSearch =
           !qLower ||
@@ -115,28 +117,23 @@ function LibraryPage() {
   );
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={tweenBase}
-      className="mx-auto max-w-6xl px-6 py-12"
-    >
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-6xl px-6 py-12">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border/60">
         <div>
-          <h1 className="font-display text-5xl">Thư viện</h1>
+          <h1 className="font-display text-4xl sm:text-5xl font-bold tracking-tight text-foreground">Thư viện</h1>
           <p className="text-muted-foreground mt-2 text-sm">
-            {tracks.length} bản thu · tổng {totalSizeGB} GB · không nén lại
+            {tracks.length} bản thu · tổng {totalSizeGB} GB · chất lượng gốc không nén lại
           </p>
         </div>
         {isLoggedIn && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <motion.button
               type="button"
               onClick={handleSyncS3}
               disabled={isSyncing}
               whileTap={tapScale}
               transition={springSnappy}
-              className="border-border text-muted-foreground hover:text-foreground flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
+              className="border-border text-muted-foreground hover:text-foreground flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer bg-card/40"
               title="Kiểm tra Pikamc S3 và dọn dẹp các bài hát đã bị xóa trên Storage"
             >
               <RefreshCw className={cn("size-3.5", isSyncing && "animate-spin")} />
@@ -148,7 +145,7 @@ function LibraryPage() {
                 onClick={handleClearAll}
                 whileTap={tapScale}
                 transition={springSnappy}
-                className="text-muted-foreground hover:text-destructive border-border flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
+                className="text-muted-foreground hover:text-destructive border-border flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer bg-card/40"
               >
                 <Trash2 className="size-3.5" />
                 <span>Xóa sạch bài cũ</span>
@@ -159,32 +156,51 @@ function LibraryPage() {
       </div>
 
       {tracks.length > 0 && (
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Tìm bài hát, nghệ sĩ…"
-            className="border-border bg-card focus:ring-ring w-64 rounded-md border px-3 py-2 text-sm outline-none focus:ring-1"
-          />
-          {filterTabs.map((a) => (
-            <button
-              key={a.id}
-              onClick={() => setFilter(a.id)}
-              className={cn(
-                "relative border-border rounded-full border px-3 py-1.5 text-xs transition-colors cursor-pointer",
-                filter === a.id ? "text-primary-foreground font-medium border-transparent" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {filter === a.id && (
-                <motion.span
-                  layoutId="library-filter-pill"
-                  transition={springPill}
-                  className="absolute inset-0 rounded-full bg-primary -z-10"
-                />
-              )}
-              {a.title}
-            </button>
-          ))}
+        <div className="mt-8 flex flex-col md:flex-row md:items-center gap-4">
+          <div className="relative w-full md:w-72 shrink-0">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Tìm bài hát, nghệ sĩ…"
+              className="w-full bg-card/70 border border-border focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl pl-9.5 pr-8 py-2 text-sm outline-none transition-all"
+            />
+            {q && (
+              <button
+                type="button"
+                onClick={() => setQ("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 cursor-pointer"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
+            {filterTabs.map((a) => {
+              const isSelected = filter === a.id;
+              return (
+                <button
+                  key={a.id}
+                  onClick={() => setFilter(a.id)}
+                  className={cn(
+                    "relative rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors cursor-pointer select-none overflow-hidden",
+                    isSelected
+                      ? "text-primary-foreground font-semibold"
+                      : "text-muted-foreground hover:text-foreground border border-border/80 hover:bg-accent/40"
+                  )}
+                >
+                  {isSelected && (
+                    <motion.span
+                      layoutId="library-filter-pill"
+                      transition={springPill}
+                      className="absolute inset-0 rounded-full bg-primary"
+                    />
+                  )}
+                  <span className="relative z-10">{a.title}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -231,6 +247,6 @@ function LibraryPage() {
           <p className="text-muted-foreground py-16 text-center text-sm">Không tìm thấy bài nào.</p>
         ) : null}
       </div>
-    </motion.div>
+    </div>
   );
 }

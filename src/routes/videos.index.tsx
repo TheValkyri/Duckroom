@@ -77,17 +77,16 @@ function VideosPage() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={tweenBase}
-      className="mx-auto max-w-6xl px-6 py-12"
-    >
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-6xl px-6 py-12">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border/60">
         <div>
-          <h1 className="font-display text-5xl">MV & Video</h1>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-primary mb-2">
+            <Film className="size-4" />
+            <span>Thước phim & Live Session</span>
+          </div>
+          <h1 className="font-display text-4xl sm:text-5xl font-bold tracking-tight text-foreground">MV & Video</h1>
           <p className="text-muted-foreground mt-2 text-sm">
-            Lưu bản master, phát nguyên codec và bitrate gốc.
+            {videos.length} video · Lưu bản master, phát nguyên codec và bitrate gốc.
           </p>
         </div>
         <motion.button
@@ -96,7 +95,7 @@ function VideosPage() {
           disabled={isSyncing}
           whileTap={tapScale}
           transition={springSnappy}
-          className="border-border text-muted-foreground hover:text-foreground flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors cursor-pointer"
+          className="border-border bg-card/60 text-muted-foreground hover:text-foreground flex items-center gap-2 rounded-full border px-3.5 py-2 text-xs transition-colors cursor-pointer shrink-0"
           title="Kiểm tra Pikamc S3 và dọn dẹp các MV đã bị xóa trên Storage"
         >
           <RefreshCw className={cn("size-3.5", isSyncing && "animate-spin")} />
@@ -131,6 +130,6 @@ function VideosPage() {
           </motion.div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }

@@ -102,6 +102,17 @@
 @layer base {
   * {
     border-color: var(--color-border);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    background-color: oklch(0.76 0.14 66 / 0.35);
+    color: oklch(0.98 0 0);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
   }
 
   body {
@@ -109,6 +120,8 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
   }
 
   ::-webkit-scrollbar {

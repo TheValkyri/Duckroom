@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { usePlayer, usePlayerTime } from "../../lib/player";
 import { cn } from "../../lib/utils";
 
@@ -131,47 +132,55 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
           "linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)",
       }}
     >
-      <div
-        ref={containerRef}
-        onWheel={handleUserScroll}
-        onTouchMove={handleUserScroll}
-        className="flex h-full flex-col gap-6 md:gap-7 overflow-y-auto pt-16 pb-48 px-4 md:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+      <motion.div
+        key={current?.id || "lyrics-pane"}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+        className="h-full w-full"
       >
-        {lines.map((line, i) => {
-          const isActive = i === activeIndex;
-          const isPassed = i < activeIndex;
+        <div
+          ref={containerRef}
+          onWheel={handleUserScroll}
+          onTouchMove={handleUserScroll}
+          className="flex h-full flex-col gap-6 md:gap-7 overflow-y-auto pt-16 pb-48 px-4 md:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {lines.map((line, i) => {
+            const isActive = i === activeIndex;
+            const isPassed = i < activeIndex;
 
-          return (
-            <button
-              key={`${line.time}-${i}`}
-              ref={(el) => {
-                itemRefs.current[i] = el;
-              }}
-              onClick={() => {
-                isUserScrollingRef.current = false;
-                seek(line.time);
-              }}
-              className={cn(
-                // Identical font-bold geometry across ALL states to permanently prevent layout reflow/expansion
-                "text-left font-sans font-bold tracking-tight leading-snug md:leading-normal transition-all duration-300 transform-gpu cursor-pointer group block w-full outline-none antialiased subpixel-antialiased",
-                "[text-wrap:balance] [text-wrap:pretty] break-words [word-break:keep-all]",
-                compact
-                  ? "text-base md:text-lg"
-                  : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
-                isActive
-                  ? "text-white opacity-100"
-                  : isPassed
-                  ? "text-white/45 opacity-45 hover:text-white/85 hover:opacity-85"
-                  : "text-white/20 opacity-25 hover:text-white/80 hover:opacity-80",
-              )}
-            >
-              <span className="inline-block transition-colors duration-200">
-                {line.text}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <button
+                key={`${line.time}-${i}`}
+                ref={(el) => {
+                  itemRefs.current[i] = el;
+                }}
+                onClick={() => {
+                  isUserScrollingRef.current = false;
+                  seek(line.time);
+                }}
+                className={cn(
+                  // Identical font-bold geometry across ALL states to permanently prevent layout reflow/expansion
+                  "text-left font-sans font-bold tracking-tight leading-snug md:leading-normal transition-all duration-300 transform-gpu cursor-pointer group block w-full outline-none antialiased",
+                  "[text-wrap:balance] [text-wrap:pretty] break-words [word-break:keep-all]",
+                  compact
+                    ? "text-base md:text-lg"
+                    : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
+                  isActive
+                    ? "text-white opacity-100 scale-[1.02] origin-left"
+                    : isPassed
+                    ? "text-white/45 opacity-45 hover:text-white/85 hover:opacity-85 hover:scale-[1.01] origin-left"
+                    : "text-white/20 opacity-25 hover:text-white/80 hover:opacity-80 hover:scale-[1.01] origin-left",
+                )}
+              >
+                <span className="inline-block transition-all duration-300">
+                  {line.text}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </motion.div>
     </div>
   );
 }

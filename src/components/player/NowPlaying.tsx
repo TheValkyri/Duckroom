@@ -22,9 +22,80 @@ function NowPlayingTimeLabel({ duration }: { duration: number }) {
   );
 }
 
+interface AmbientLayer {
+  id: string;
+  cover: string;
+  accent: string;
+}
+
+function AmbientCrossfadeBackground({ cover, accent }: { cover: string; accent?: string | undefined }) {
+  const currentAccent = accent || "oklch(0.3 0.1 260)";
+  const [layers, setLayers] = useState<AmbientLayer[]>([
+    { id: `init-${cover}`, cover, accent: currentAccent },
+  ]);
+
+  useEffect(() => {
+    setLayers((prev) => {
+      const active = prev[prev.length - 1];
+      if (active && active.cover === cover && active.accent === currentAccent) {
+        return prev;
+      }
+      return [
+        { id: active?.id || "prev", cover: active?.cover || cover, accent: active?.accent || currentAccent },
+        { id: `layer-${cover}-${Date.now()}`, cover, accent: currentAccent },
+      ];
+    });
+  }, [cover, currentAccent]);
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden select-none -z-10 bg-background">
+      <AnimatePresence>
+        {layers.map((layer) => (
+          <motion.div
+            key={layer.id}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute inset-0 size-full transform-gpu"
+          >
+            {/* Dynamic radial color glow */}
+            <div
+              className="absolute inset-0 opacity-45"
+              style={{
+                background: `radial-gradient(120% 90% at 50% 30%, ${layer.accent} 0%, transparent 68%)`,
+              }}
+            />
+            {/* Soft blurred artwork aura */}
+            <img
+              src={layer.cover}
+              alt=""
+              aria-hidden
+              decoding="async"
+              className="absolute inset-0 size-full scale-125 object-cover opacity-15 blur-3xl transform-gpu"
+            />
+          </motion.div>
+        ))}
+      </AnimatePresence>
+      {/* Cinematic vignette */}
+      <div className="from-background/90 via-transparent to-background/80 absolute inset-0 bg-gradient-to-t pointer-events-none" />
+    </div>
+  );
+}
+
 export function NowPlaying() {
-  const { current, queue, index, expanded, setExpanded, isPlaying, lyricsOpen, setLyricsOpen, next } =
-    usePlayer();
+  const {
+    current,
+    queue,
+    index,
+    expanded,
+    setExpanded,
+    isPlaying,
+    lyricsOpen,
+    setLyricsOpen,
+    next,
+    direction,
+  } = usePlayer();
   const open = expanded;
   const album = current ? albumById(current.albumId) : undefined;
   const fallbackCover =
@@ -77,31 +148,11 @@ export function NowPlaying() {
           }}
           className="bg-background grain fixed inset-0 z-50 flex flex-col justify-between overflow-hidden select-none"
         >
-          {/* Ambient Crossfading Radial Gradient & Artwork Background */}
-          <AnimatePresence mode="popLayout">
-            <motion.div
-              key={current.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              className="pointer-events-none absolute inset-0"
-            >
-              <div
-                className="absolute inset-0 opacity-40"
-                style={{
-                  background: `radial-gradient(120% 90% at 50% 30%, ${album?.accent || "oklch(0.3 0.1 260)"} 0%, transparent 65%)`,
-                }}
-              />
-              <img
-                src={cleanCoverUrl || fallbackCover}
-                alt=""
-                aria-hidden
-                decoding="async"
-                className="absolute inset-0 size-full scale-110 object-cover opacity-15 blur-3xl"
-              />
-            </motion.div>
-          </AnimatePresence>
+          {/* Ambient Dual-Buffer Crossfading Background */}
+          <AmbientCrossfadeBackground
+            cover={rawCoverUrl}
+            accent={album?.accent}
+          />
 
           {/* Top Header Bar */}
           <div
@@ -159,101 +210,154 @@ export function NowPlaying() {
                 layout
                 transition={springSmooth}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-6 w-full max-w-md shrink-0 z-10",
+                  "flex flex-col items-center justify-center gap-5 w-full max-w-md shrink-0 z-10",
                   lyricsOpen ? "lg:mr-auto lg:ml-0" : "mx-auto"
                 )}
               >
-                {/* Vinyl Record & Cover Container. mode="popLayout" (thay vì "wait"):
-                    ảnh bìa mới bắt đầu bay vào NGAY khi ảnh cũ bắt đầu bay ra (chạy
-                    song song) thay vì đợi ảnh cũ biến mất hết mới hiện ảnh mới —
-                    loại bỏ khoảng "đứng hình" ~150-200ms mỗi lần chuyển bài. */}
-                <AnimatePresence mode="popLayout" initial={false}>
-                  <motion.div
-                    key={current.id}
-                    initial={{ opacity: 0, scale: 0.82, x: -90, rotate: -12 }}
-                    animate={{ opacity: 1, scale: 1, x: 0, rotate: 0 }}
-                    exit={{ opacity: 0, scale: 0.82, x: 130, rotate: 18 }}
-                    transition={springSmooth}
-                    className="relative flex items-center justify-center my-2 w-full"
-                  >
-                    {/* Spinning Vinyl Record Disc - Continuous Center Rotation */}
+                {/* Vinyl Record & Sleeve Container: Directional Glide & Tactile Disc */}
+                <div className="relative flex items-center justify-center my-2 w-full min-h-[min(36vh,290px)]">
+                  <AnimatePresence mode="popLayout" initial={false}>
                     <motion.div
-                      animate={isPlaying ? { rotate: 360 } : { rotate: 0 }}
-                      transition={
-                        isPlaying
-                          ? { rotate: { repeat: Infinity, duration: 18, ease: "linear" } }
-                          : { duration: 0.5 }
-                      }
-                      style={{ transformOrigin: "center center" }}
-                      className={cn(
-                        "absolute size-[min(36vh,280px)] rounded-full border-4 border-neutral-900 bg-neutral-950 shadow-2xl pointer-events-none transition-all duration-700 z-0",
-                        isPlaying ? "translate-x-12 md:translate-x-16 opacity-95" : "translate-x-0 opacity-0",
-                      )}
+                      key={current.id}
+                      initial={{
+                        opacity: 0,
+                        x: direction * 90,
+                        scale: 0.9,
+                        rotate: direction * 3,
+                      }}
+                      animate={{
+                        opacity: 1,
+                        x: 0,
+                        scale: 1,
+                        rotate: 0,
+                      }}
+                      exit={{
+                        opacity: 0,
+                        x: -direction * 90,
+                        scale: 0.9,
+                        rotate: -direction * 3,
+                      }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 220,
+                        damping: 24,
+                        mass: 0.9,
+                      }}
+                      className="relative flex items-center justify-center w-full"
                     >
-                      <div className="absolute inset-4 rounded-full border border-neutral-800/60" />
-                      <div className="absolute inset-8 rounded-full border border-neutral-800/40" />
-                      <div className="absolute inset-12 rounded-full border border-neutral-800/60" />
-                      <div className="absolute inset-16 rounded-full border border-neutral-800/40" />
-                      <div className="bg-primary/20 border-primary/40 absolute inset-0 m-auto flex size-16 items-center justify-center rounded-full border">
-                        <div className="bg-background size-4 rounded-full" />
+                      {/* Spinning Vinyl Record Disc - Slides out from behind the sleeve */}
+                      <motion.div
+                        initial={{ x: 0, opacity: 0 }}
+                        animate={{
+                          x: isPlaying ? (lyricsOpen ? 46 : 64) : 0,
+                          opacity: isPlaying ? 0.95 : 0,
+                        }}
+                        exit={{ x: 0, opacity: 0 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 190,
+                          damping: 20,
+                          delay: 0.14,
+                        }}
+                        className="absolute size-[min(34vh,270px)] rounded-full border-4 border-neutral-900 bg-neutral-950 shadow-2xl pointer-events-none z-0"
+                      >
+                        <motion.div
+                          animate={isPlaying ? { rotate: 360 } : { rotate: 0 }}
+                          transition={
+                            isPlaying
+                              ? { rotate: { repeat: Infinity, duration: 16, ease: "linear" } }
+                              : { duration: 0.5 }
+                          }
+                          style={{ transformOrigin: "center center" }}
+                          className="size-full relative rounded-full"
+                        >
+                          <div className="absolute inset-4 rounded-full border border-neutral-800/60" />
+                          <div className="absolute inset-8 rounded-full border border-neutral-800/40" />
+                          <div className="absolute inset-12 rounded-full border border-neutral-800/60" />
+                          <div className="absolute inset-16 rounded-full border border-neutral-800/40" />
+                          <div className="bg-primary/20 border-primary/40 absolute inset-0 m-auto flex size-14 items-center justify-center rounded-full border">
+                            <div className="bg-background size-3.5 rounded-full" />
+                          </div>
+                        </motion.div>
+                      </motion.div>
+
+                      {/* Album / Track Jacket (Vỏ bìa đĩa) */}
+                      <div
+                        className={cn(
+                          "relative z-10 rounded-2xl overflow-hidden shadow-[0_25px_80px_-15px_oklch(0_0_0/0.95)] border border-white/10 transition-all duration-500 bg-neutral-900",
+                          isLandscape
+                            ? "w-full max-w-[min(48vh,400px)] aspect-video"
+                            : "aspect-square w-full max-w-[min(34vh,270px)] md:max-w-[min(36vh,290px)]"
+                        )}
+                      >
+                        <motion.img
+                          src={cleanCoverUrl || rawCoverUrl}
+                          alt={`Bìa ${current.title}`}
+                          decoding="async"
+                          onLoad={handleImageLoad}
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            if (target.src !== fallbackCover) {
+                              target.src = fallbackCover;
+                            }
+                          }}
+                          animate={{ scale: isPlaying ? 1 : 0.97 }}
+                          transition={{ type: "spring", stiffness: 220, damping: 20 }}
+                          className="size-full object-cover rounded-2xl"
+                        />
                       </div>
                     </motion.div>
+                  </AnimatePresence>
+                </div>
 
-                    {/* Album / Track Artwork Image with Smart Aspect Ratio Auto-Adjustment */}
-                    <div
-                      className={cn(
-                        "relative z-10 rounded-2xl overflow-hidden shadow-[0_25px_80px_-15px_oklch(0_0_0/0.95)] border border-white/10 transition-all duration-500 bg-neutral-900",
-                        isLandscape
-                          ? "w-full max-w-[min(48vh,400px)] aspect-video"
-                          : "aspect-square w-full max-w-[min(36vh,280px)] md:max-w-[min(38vh,300px)]"
-                      )}
-                    >
-                      <motion.img
-                        src={cleanCoverUrl || fallbackCover}
-                        alt={`Bìa ${current.title}`}
-                        decoding="async"
-                        onLoad={handleImageLoad}
-                        onError={(e) => {
-                          const target = e.currentTarget;
-                          if (target.src !== fallbackCover) {
-                            target.src = fallbackCover;
-                          }
+                {/* Track Information & Fixed Controls (Permanent & Rock-solid) */}
+                <div className="w-full max-w-sm text-center">
+                  {/* Only Title & Artist crossfade directionally inside a fixed height box */}
+                  <div className="relative min-h-[4.25rem] flex items-center justify-center overflow-hidden">
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      <motion.div
+                        key={`title-${current.id}`}
+                        initial={{
+                          opacity: 0,
+                          x: direction * 35,
                         }}
-                        animate={{ scale: isPlaying ? 1 : 0.96 }}
-                        transition={{ type: "spring", stiffness: 120, damping: 18 }}
-                        className="size-full object-cover rounded-2xl"
-                      />
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
+                        animate={{
+                          opacity: 1,
+                          x: 0,
+                        }}
+                        exit={{
+                          opacity: 0,
+                          x: -direction * 35,
+                        }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 260,
+                          damping: 26,
+                        }}
+                        className="w-full"
+                      >
+                        <h1 className="font-display text-2xl md:text-4xl truncate text-foreground">
+                          {current.title}
+                        </h1>
+                        <p className="text-muted-foreground mt-1 text-xs md:text-sm truncate">
+                          {current.artist} — {album?.title || "Single Collection"} ({album?.year || 2026})
+                        </p>
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
 
-                {/* Track Title, Visualizer & Controls */}
-                <AnimatePresence mode="popLayout" initial={false}>
-                  <motion.div
-                    key={`info-${current.id}`}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={tweenBase}
-                    className="w-full max-w-sm text-center"
-                  >
-                    <h1 className="font-display text-2xl md:text-4xl truncate">{current.title}</h1>
-                    <p className="text-muted-foreground mt-1 text-xs md:text-sm truncate">
-                      {current.artist} — {album?.title || "Single Collection"} ({album?.year || 2026})
-                    </p>
+                  {/* Fixed Stable Visualizer, Seekbar & Controls (NEVER remounts or jumps) */}
+                  <Visualizer playing={isPlaying} bars={36} height={38} className="mt-3" />
 
-                    <Visualizer playing={isPlaying} bars={36} height={38} className="mt-4" />
+                  <div className="mt-2">
+                    <SeekBar />
+                    <NowPlayingTimeLabel duration={current.duration} />
+                  </div>
 
-                    <div className="mt-2">
-                      <SeekBar />
-                      <NowPlayingTimeLabel duration={current.duration} />
-                    </div>
-
-                    <div className="mt-4 flex justify-center">
-                      <TransportControls size="lg" />
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
+                  <div className="mt-4 flex justify-center">
+                    <TransportControls size="lg" />
+                  </div>
+                </div>
               </motion.div>
 
               {/* Right Column: Lyrics Pane (Absolute overlay on desktop to eliminate layout reflow jump) */}

@@ -51,6 +51,7 @@ type PlayerState = {
   expanded: boolean;
   lyricsOpen: boolean;
   queueOpen: boolean;
+  direction: number; // 1 for next/forward, -1 for prev/backward
   audioRef: React.RefObject<HTMLAudioElement | null>;
   playQueue: (list: Track[], startIndex?: number, shuffleNow?: boolean) => void;
   toggle: () => void;
@@ -110,6 +111,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     getTime: () => timeRef.current,
   }).current;
 
+  // Track retry attempts for self-healing expired presigned audio URLs
+  const retriedTracksRef = useRef<Map<string, number>>(new Map());
+
   const [volume, setVolumeState] = useState(0.8);
   const [isMuted, setIsMuted] = useState(false);
   const [prevVolume, setPrevVolume] = useState(0.8);
@@ -119,6 +123,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [expanded, setExpanded] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
+  const [direction, setDirection] = useState(1); // 1 = forward/next, -1 = backward/prev
 
   // Sync library updates when user uploads or edits songs
   useEffect(() => {
@@ -186,6 +191,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const playQueue = useCallback(
     (list: Track[], startIndex = 0, shuffleNow?: boolean) => {
+      setDirection(1);
       const start = list[startIndex];
       const useShuffle = shuffleNow ?? shuffle;
       const nextList = useShuffle && start ? shuffled(list, start) : list;
@@ -216,6 +222,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const next = useCallback(
     (manual = false) => {
+      setDirection(1);
       setTime(0);
       if (secondaryAudioRef.current) {
         secondaryAudioRef.current.pause();
@@ -248,6 +255,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const prev = useCallback(() => {
+    setDirection(-1);
     setTime(0);
     if (secondaryAudioRef.current) {
       secondaryAudioRef.current.pause();
@@ -443,6 +451,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setTime(currentTime);
 
       const dur = el.duration || current.duration || 1;
+
+      // Update MediaSession lockscreen position state
+      if (
+        typeof navigator !== "undefined" &&
+        "mediaSession" in navigator &&
+        navigator.mediaSession.setPositionState &&
+        dur > 0 &&
+        Number.isFinite(dur) &&
+        currentTime <= dur
+      ) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: dur,
+            playbackRate: el.playbackRate || 1,
+            position: currentTime,
+          });
+        } catch {
+          // Ignore transient position sync errors
+        }
+      }
+
       const remaining = dur - currentTime;
       const windowSec = Math.min(crossfade, Math.floor(dur / 3));
 
@@ -564,6 +593,99 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const toggle = useCallback(() => setPlaying((p) => !p), []);
 
+  // Self-healing audio engine: Auto-refresh expired S3 presigned URLs on playback failure
+  useEffect(() => {
+    const el = primaryAudioRef.current;
+    if (!el || !current) return;
+
+    const onError = async () => {
+      const trackId = current.id;
+      const retries = retriedTracksRef.current.get(trackId) || 0;
+      if (retries >= 2) {
+        console.warn(`[Duckroom Audio] Max self-healing retries reached for: "${current.title}"`);
+        return;
+      }
+      retriedTracksRef.current.set(trackId, retries + 1);
+
+      const targetSrc = current.src || "";
+      const s3Key = extractS3KeyFromUrl(targetSrc);
+      if (!s3Key) return;
+
+      console.info(`[Duckroom Audio] Self-healing URL for "${current.title}" (Key: ${s3Key})`);
+      try {
+        const freshSignedUrl = await createPresignedUrl(s3Key);
+        if (freshSignedUrl && el) {
+          const savedPosition = timeRef.current;
+          el.src = freshSignedUrl;
+          el.currentTime = savedPosition;
+          if (isPlaying) {
+            void el.play().catch((err) => console.warn("Failed to resume self-healed track:", err));
+          }
+        }
+      } catch (err) {
+        console.error("Self-healing presigned URL refresh error:", err);
+      }
+    };
+
+    el.addEventListener("error", onError);
+    return () => {
+      el.removeEventListener("error", onError);
+    };
+  }, [current, isPlaying, primaryAudioRef]);
+
+  // MediaSession API Integration for Lockscreen, Control Center & Bluetooth controls
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+
+    if (current) {
+      const fallbackArtwork = "https://duckroom.vercel.app/og-image.jpg";
+      const artUrl = current.cover || fallbackArtwork;
+
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: current.title,
+        artist: current.artist,
+        album: current.albumId && current.albumId !== "singles" ? current.albumId : "Duckroom Lossless",
+        artwork: [
+          { src: artUrl, sizes: "96x96", type: "image/jpeg" },
+          { src: artUrl, sizes: "128x128", type: "image/jpeg" },
+          { src: artUrl, sizes: "256x256", type: "image/jpeg" },
+          { src: artUrl, sizes: "512x512", type: "image/jpeg" },
+        ],
+      });
+    }
+
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+
+    try {
+      navigator.mediaSession.setActionHandler("play", () => {
+        setPlaying(true);
+      });
+      navigator.mediaSession.setActionHandler("pause", () => {
+        setPlaying(false);
+      });
+      navigator.mediaSession.setActionHandler("previoustrack", () => {
+        prev();
+      });
+      navigator.mediaSession.setActionHandler("nexttrack", () => {
+        next(true);
+      });
+      navigator.mediaSession.setActionHandler("seekto", (details) => {
+        if (details.seekTime != null) seek(details.seekTime);
+      });
+      navigator.mediaSession.setActionHandler("seekbackward", (details) => {
+        seek(Math.max(0, timeRef.current - (details.seekOffset || 10)));
+      });
+      navigator.mediaSession.setActionHandler("seekforward", (details) => {
+        seek(Math.min(current?.duration || 180, timeRef.current + (details.seekOffset || 10)));
+      });
+      navigator.mediaSession.setActionHandler("stop", () => {
+        setPlaying(false);
+      });
+    } catch (err) {
+      console.warn("MediaSession action handler error:", err);
+    }
+  }, [current, isPlaying, next, prev, seek]);
+
   // Hotkeys
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -615,7 +737,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setExpanded,
       setLyricsOpen,
       setQueueOpen,
+      direction,
       jumpTo: (i: number) => {
+        setDirection(i >= index ? 1 : -1);
         setTime(0);
         if (secondaryAudioRef.current) {
           secondaryAudioRef.current.pause();
@@ -642,6 +766,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       expanded,
       lyricsOpen,
       queueOpen,
+      direction,
       primaryAudioRef,
       secondaryAudioRef,
       playQueue,

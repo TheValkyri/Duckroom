@@ -30,11 +30,8 @@ export { BUCKET_NAME };
 export function getS3ServerClient() {
   const endpoint = requireEnv("S3_ENDPOINT", "https://s3.pikamc.vn");
   const region = requireEnv("S3_REGION", "vn-hcm-1");
-  const accessKeyId = requireEnv("S3_ACCESS_KEY_ID", "PK40a0c4c3bbf5351b9b");
-  const secretAccessKey = requireEnv(
-    "S3_SECRET_ACCESS_KEY",
-    "e7c6ahUMujp8vsZs9TrbaFdMQkxQYfhlNNriyfLSLJo="
-  );
+  const accessKeyId = requireEnv("S3_ACCESS_KEY_ID");
+  const secretAccessKey = requireEnv("S3_SECRET_ACCESS_KEY");
 
   return new S3Client({
     endpoint,

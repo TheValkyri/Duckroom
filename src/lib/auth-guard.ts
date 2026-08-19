@@ -1,5 +1,6 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { verifyMemberAuthorization } from "./auth.server";
+import { getAccessToken } from "./useAuth";
 
 const ALLOWED_EXTENSIONS = new Set([
   "flac",
@@ -48,16 +49,14 @@ export function validateStorageKey(key: string): void {
 }
 
 /**
- * Server middleware enforcing request integrity & Origin validation.
+ * Server middleware enforcing request integrity.
  */
 export const serverSecurityMiddleware = createMiddleware({ type: "function" }).server(async ({ next }) => {
   return next();
 });
 
-import { getAccessToken } from "./useAuth";
-
 /**
- * Server middleware enforcing REAL Supabase Auth & allowed_emails Authorization.
+ * Server middleware enforcing REAL Supabase Auth Member Authorization.
  */
 export const requireMemberMiddleware = createMiddleware({ type: "function" })
   .client(async ({ next }) => {
@@ -70,13 +69,12 @@ export const requireMemberMiddleware = createMiddleware({ type: "function" })
     });
   })
   .server(async ({ next, context }) => {
-    const passedToken = (context as any)?.authToken || null;
-
+    const passedToken = (context as { authToken?: string | null })?.authToken || null;
     const auth = await verifyMemberAuthorization(undefined, passedToken);
 
     if (!auth.isAuthorized) {
       throw new Response(
-        JSON.stringify({ error: auth.error || "Unauthorized: Member email required" }),
+        JSON.stringify({ error: auth.error || "Unauthorized: Member login required" }),
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -84,3 +82,31 @@ export const requireMemberMiddleware = createMiddleware({ type: "function" })
     return next({ context: { auth } });
   });
 
+/**
+ * Server middleware enforcing Owner role authorization for destructive/admin operations.
+ */
+export const requireOwnerMiddleware = createMiddleware({ type: "function" })
+  .client(async ({ next }) => {
+    const token = typeof window !== "undefined" ? await getAccessToken() : null;
+    return next({
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      sendContext: { authToken: token },
+    });
+  })
+  .server(async ({ next, context }) => {
+    const passedToken = (context as { authToken?: string | null })?.authToken || null;
+    const auth = await verifyMemberAuthorization(undefined, passedToken);
+    if (!auth.isAuthorized) {
+      throw new Response(JSON.stringify({ error: auth.error || "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (auth.role !== "owner") {
+      throw new Response(JSON.stringify({ error: "Owner role required" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return next({ context: { auth } });
+  });

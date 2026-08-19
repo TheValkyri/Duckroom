@@ -4,9 +4,9 @@ import { motion } from "motion/react";
 import { useRef, useState } from "react";
 import { deleteVideo, formatTime, videoById } from "../data/library";
 import { springSnappy, tapScale, tweenBase } from "../lib/motion";
-import { usePlayer } from "../lib/player";
-
+import { useAuth } from "../lib/useAuth";
 import { useLibrary } from "../lib/useLibrary";
+import { usePlayer } from "../lib/player";
 
 export const Route = createFileRoute("/videos/$videoId")({
   loader: ({ params }) => {
@@ -31,8 +31,6 @@ export const Route = createFileRoute("/videos/$videoId")({
   },
   component: VideoPage,
 });
-
-import { useAuth } from "../lib/useAuth";
 
 function VideoPage() {
   const { video: loadedVideo, videoId: paramVideoId } = Route.useLoaderData();
@@ -89,12 +87,7 @@ function VideoPage() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={tweenBase}
-      className="mx-auto max-w-5xl px-6 py-12"
-    >
+    <div className="mx-auto max-w-5xl px-6 py-12">
       <div className="mb-6 flex items-center justify-between">
         <Link
           to="/videos"
@@ -242,6 +235,6 @@ function VideoPage() {
           </div>
         ))}
       </dl>
-    </motion.div>
+    </div>
   );
 }

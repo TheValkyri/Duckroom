@@ -45,10 +45,12 @@ export const Route = createFileRoute("/upload")({
 
 import { useLibrary } from "../lib/useLibrary";
 import { useAuth } from "../lib/useAuth";
+import { useDuckroomRole } from "../lib/useRole";
 
 function UploadPage() {
   const navigate = useNavigate();
   const { isLoggedIn, isLoading: isAuthLoading } = useAuth();
+  const { isOwner, loading: isRoleLoading } = useDuckroomRole();
   const { albums } = useLibrary();
   const [storeState, setStoreState] = useState<UploadState>(getUploadState());
   const [over, setOver] = useState(false);
@@ -60,8 +62,10 @@ function UploadPage() {
   useEffect(() => {
     if (!isAuthLoading && !isLoggedIn) {
       void navigate({ to: "/login" });
+    } else if (!isAuthLoading && !isRoleLoading && isLoggedIn && !isOwner) {
+      void navigate({ to: "/my-library" });
     }
-  }, [isAuthLoading, isLoggedIn, navigate]);
+  }, [isAuthLoading, isRoleLoading, isLoggedIn, isOwner, navigate]);
 
   useEffect(() => {
     return subscribeUploadState(setStoreState);
@@ -81,6 +85,7 @@ function UploadPage() {
     artist,
     album,
     year,
+    trackNo,
     lyricsText,
     isVideo,
   } = storeState;
@@ -122,9 +127,10 @@ function UploadPage() {
       if (meta.artist && (!artist || artist === autoArtist)) updates.artist = meta.artist;
       if (meta.album && !album) updates.album = meta.album;
       if (meta.year && !year) updates.year = meta.year;
+      if (meta.trackNo) updates.trackNo = String(meta.trackNo);
       if (meta.lyrics) {
         updates.lyricsText = meta.lyrics;
-        updates.successMessage = `✨ Đã tự động trích xuất lời bài hát nhúng sẵn từ metadata (${meta.lyrics.length} ký tự)!`;
+        updates.successMessage = `✨ Đã tự động trích xuất thông tin thẻ và lời bài hát nhúng sẵn (${meta.lyrics.length} ký tự)!`;
       }
       updateUploadState(updates);
     } else {
@@ -138,16 +144,17 @@ function UploadPage() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={tweenBase}
-      className="mx-auto max-w-3xl px-6 py-12"
-    >
-      <h1 className="font-display text-5xl">Tải lên</h1>
-      <p className="text-muted-foreground mt-2 text-sm">
-        Lưu trữ bản thu master gốc, giữ nguyên độ phân giải và chất lượng âm thanh.
-      </p>
+    <div className="mx-auto max-w-3xl px-6 py-12">
+      <div className="pb-6 border-b border-border/60 mb-8">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-primary mb-2">
+          <UploadCloud className="size-4" />
+          <span>Kho lưu trữ đám mây S3</span>
+        </div>
+        <h1 className="font-display text-4xl sm:text-5xl font-bold tracking-tight text-foreground">Tải lên</h1>
+        <p className="text-muted-foreground mt-2 text-sm">
+          Lưu trữ bản thu master gốc, giữ nguyên độ phân giải và chất lượng âm thanh FLAC, WAV, ProRes 4K.
+        </p>
+      </div>
 
       <AnimatePresence initial={false}>
         {successMessage && (
@@ -379,8 +386,18 @@ function UploadPage() {
           value={year}
           disabled={isUploading}
           onChange={(v) => updateUploadState({ year: v })}
-          placeholder="Nhập năm phát hành"
+          placeholder="Nhập năm phát hành (VD: 2024)"
         />
+        {!isVideo && (
+          <Field
+            id="field-trackno"
+            label="Số thứ tự Track (Tùy chọn)"
+            value={trackNo}
+            disabled={isUploading}
+            onChange={(v) => updateUploadState({ trackNo: v })}
+            placeholder="Tự động theo thứ tự hoặc metadata (VD: 1)"
+          />
+        )}
 
         {/* Custom Artwork Image Upload Field */}
         <div className="md:col-span-2 border-t border-border/60 pt-4">
@@ -654,7 +671,7 @@ function UploadPage() {
           />
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
 

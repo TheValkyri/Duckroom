@@ -12,7 +12,7 @@ import {
   deleteTrack,
   formatTime,
   removeTrackFromAlbum,
-  tracks,
+  syncLibraryWithS3,
   type Track,
 } from "../data/library";
 import {
@@ -25,10 +25,10 @@ import {
   tapScale,
   tweenBase,
 } from "../lib/motion";
+import { useAuth } from "../lib/useAuth";
+import { useLibrary } from "../lib/useLibrary";
 import { usePlayer } from "../lib/player";
 import { cn } from "../lib/utils";
-
-import { syncLibraryWithS3 } from "../data/library";
 
 export const Route = createFileRoute("/albums/$albumId")({
   loader: ({ params }) => {
@@ -65,9 +65,10 @@ function AddTracksModal({
   onClose: () => void;
   onAdded: () => void;
 }) {
+  const { tracks: libraryTracks } = useLibrary();
   const available = useMemo(
-    () => tracks.filter((t) => !currentTrackIds.has(t.id)),
-    [currentTrackIds]
+    () => libraryTracks.filter((t) => !currentTrackIds.has(t.id)),
+    [libraryTracks, currentTrackIds]
   );
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -174,10 +175,6 @@ function AddTracksModal({
   );
 }
 
-import { useLibrary } from "../lib/useLibrary";
-
-import { useAuth } from "../lib/useAuth";
-
 function AlbumPage() {
   const { album: loadedAlbum, albumId: paramAlbumId } = Route.useLoaderData();
   const { tracks, albums, refresh } = useLibrary();
@@ -226,12 +223,7 @@ function AlbumPage() {
   );
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={tweenBase}
-      className="relative"
-    >
+    <div className="relative">
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-[460px] opacity-40 transition-all duration-1000 ease-out"
         style={{ background: `linear-gradient(180deg, ${album.accent} 0%, transparent 100%)` }}
@@ -426,6 +418,6 @@ function AlbumPage() {
           />
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }

@@ -10,18 +10,26 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as MyLibraryRouteImport } from './routes/my-library'
 import { Route as SinglesRouteImport } from './routes/singles'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as AlbumsIndexRouteImport } from './routes/albums.index'
 import { Route as AlbumsAlbumIdRouteImport } from './routes/albums.$albumId'
+import { Route as STokenRouteImport } from './routes/s.$token'
 import { Route as VideosIndexRouteImport } from './routes/videos.index'
 import { Route as VideosVideoIdRouteImport } from './routes/videos.$videoId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LibraryRoute = LibraryRouteImport.update({
@@ -32,6 +40,11 @@ const LibraryRoute = LibraryRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyLibraryRoute = MyLibraryRouteImport.update({
+  id: '/my-library',
+  path: '/my-library',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SinglesRoute = SinglesRouteImport.update({
@@ -54,6 +67,11 @@ const AlbumsAlbumIdRoute = AlbumsAlbumIdRouteImport.update({
   path: '/albums/$albumId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const STokenRoute = STokenRouteImport.update({
+  id: '/s/$token',
+  path: '/s/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VideosIndexRoute = VideosIndexRouteImport.update({
   id: '/videos/',
   path: '/videos/',
@@ -67,22 +85,28 @@ const VideosVideoIdRoute = VideosVideoIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
+  '/my-library': typeof MyLibraryRoute
   '/singles': typeof SinglesRoute
   '/upload': typeof UploadRoute
   '/albums/$albumId': typeof AlbumsAlbumIdRoute
+  '/s/$token': typeof STokenRoute
   '/videos/$videoId': typeof VideosVideoIdRoute
   '/albums/': typeof AlbumsIndexRoute
   '/videos/': typeof VideosIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
+  '/my-library': typeof MyLibraryRoute
   '/singles': typeof SinglesRoute
   '/upload': typeof UploadRoute
   '/albums/$albumId': typeof AlbumsAlbumIdRoute
+  '/s/$token': typeof STokenRoute
   '/videos/$videoId': typeof VideosVideoIdRoute
   '/albums': typeof AlbumsIndexRoute
   '/videos': typeof VideosIndexRoute
@@ -90,11 +114,14 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
+  '/my-library': typeof MyLibraryRoute
   '/singles': typeof SinglesRoute
   '/upload': typeof UploadRoute
   '/albums/$albumId': typeof AlbumsAlbumIdRoute
+  '/s/$token': typeof STokenRoute
   '/videos/$videoId': typeof VideosVideoIdRoute
   '/albums/': typeof AlbumsIndexRoute
   '/videos/': typeof VideosIndexRoute
@@ -103,33 +130,42 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/library'
     | '/login'
+    | '/my-library'
     | '/singles'
     | '/upload'
     | '/albums/$albumId'
+    | '/s/$token'
     | '/videos/$videoId'
     | '/albums/'
     | '/videos/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/library'
     | '/login'
+    | '/my-library'
     | '/singles'
     | '/upload'
     | '/albums/$albumId'
+    | '/s/$token'
     | '/videos/$videoId'
     | '/albums'
     | '/videos'
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/library'
     | '/login'
+    | '/my-library'
     | '/singles'
     | '/upload'
     | '/albums/$albumId'
+    | '/s/$token'
     | '/videos/$videoId'
     | '/albums/'
     | '/videos/'
@@ -137,11 +173,14 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   LibraryRoute: typeof LibraryRoute
   LoginRoute: typeof LoginRoute
+  MyLibraryRoute: typeof MyLibraryRoute
   SinglesRoute: typeof SinglesRoute
   UploadRoute: typeof UploadRoute
   AlbumsAlbumIdRoute: typeof AlbumsAlbumIdRoute
+  STokenRoute: typeof STokenRoute
   VideosVideoIdRoute: typeof VideosVideoIdRoute
   AlbumsIndexRoute: typeof AlbumsIndexRoute
   VideosIndexRoute: typeof VideosIndexRoute
@@ -156,6 +195,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/library': {
       id: '/library'
       path: '/library'
@@ -168,6 +214,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-library': {
+      id: '/my-library'
+      path: '/my-library'
+      fullPath: '/my-library'
+      preLoaderRoute: typeof MyLibraryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/singles': {
@@ -198,6 +251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AlbumsAlbumIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/s/$token': {
+      id: '/s/$token'
+      path: '/s/$token'
+      fullPath: '/s/$token'
+      preLoaderRoute: typeof STokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/videos/': {
       id: '/videos/'
       path: '/videos'
@@ -217,11 +277,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   LibraryRoute: LibraryRoute,
   LoginRoute: LoginRoute,
+  MyLibraryRoute: MyLibraryRoute,
   SinglesRoute: SinglesRoute,
   UploadRoute: UploadRoute,
   AlbumsAlbumIdRoute: AlbumsAlbumIdRoute,
+  STokenRoute: STokenRoute,
   VideosVideoIdRoute: VideosVideoIdRoute,
   AlbumsIndexRoute: AlbumsIndexRoute,
   VideosIndexRoute: VideosIndexRoute,

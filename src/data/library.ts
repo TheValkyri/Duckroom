@@ -6,7 +6,7 @@ import {
   saveLibraryManifestServer,
 } from "../lib/s3-functions";
 import { extractS3KeyFromUrl } from "../lib/s3-key";
-import { correctVietnameseLyrics } from "../lib/lyrics-formatter";
+import { getPublicMasterLibraryServer, replaceMasterLibraryServer } from "../lib/master-library";
 
 export type LyricLine = { time: number; text: string };
 
@@ -17,7 +17,7 @@ export type Track = {
   albumId: string;
   duration: number; // seconds
   trackNo: number;
-  format: "FLAC" | "ALAC" | "WAV";
+  format: "FLAC" | "ALAC" | "WAV" | "MP3" | "M4A" | "UNKNOWN";
   bitDepth: number;
   sampleRate: number; // kHz
   sizeMB: number;
@@ -88,11 +88,6 @@ export function loadStoredLibrary() {
         if (t.cover?.startsWith("blob:")) {
           delete t.cover;
         }
-        if (Array.isArray(t.lyrics)) {
-          t.lyrics.forEach((l) => {
-            if (l.text) l.text = correctVietnameseLyrics(l.text);
-          });
-        }
       });
       tracks.length = 0;
       tracks.push(...parsed);
@@ -125,13 +120,12 @@ export function loadStoredLibrary() {
   }
 }
 
-function isLoggedInClient(): boolean {
+async function canPersistMasterLibrary(): Promise<boolean> {
   if (typeof window === "undefined") return false;
   try {
-    const raw = localStorage.getItem("sb-lvrcqcghwebxlkrsisby-auth-token");
-    if (!raw) return false;
-    const data = JSON.parse(raw);
-    return Boolean(data?.access_token);
+    const { supabase } = await import("../lib/supabase");
+    const { data } = await supabase.auth.getSession();
+    return Boolean(data.session?.user);
   } catch {
     return false;
   }
@@ -141,11 +135,6 @@ let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function saveStoredLibrary(immediate = false) {
   if (typeof window === "undefined") return;
-
-  // Only allow saving if user is logged in
-  if (!isLoggedInClient()) {
-    return;
-  }
 
   // Strip signed URL query params before saving to localStorage and manifest
   const cleanTracks = tracks.map((t) => {
@@ -162,19 +151,33 @@ export function saveStoredLibrary(immediate = false) {
     console.warn("Error saving library to localStorage:", e);
   }
 
-  const persistManifest = () => {
+  const persistManifest = async () => {
+    if (!(await canPersistMasterLibrary())) return;
     const manifest = { albums, tracks: cleanTracks, videos };
-    void saveLibraryManifestServer({ data: { jsonString: JSON.stringify(manifest) } });
+    try {
+      const canonical = await replaceMasterLibraryServer({ data: { albums, tracks: cleanTracks, videos } });
+      if (!canonical.success) console.error("Failed to persist canonical library");
+    } catch (error) {
+      console.error("Canonical library persistence failed:", error);
+    }
+    try {
+      const result = await saveLibraryManifestServer({ data: { jsonString: JSON.stringify(manifest) } });
+      if (!result.success) console.error("Failed to persist recovery manifest");
+    } catch (error) {
+      console.error("Recovery manifest persistence failed:", error);
+    }
   };
 
   if (immediate) {
     if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
-    persistManifest();
+    void persistManifest();
     return;
   }
 
   if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
-  saveDebounceTimer = setTimeout(persistManifest, 800);
+  saveDebounceTimer = setTimeout(() => {
+    void persistManifest();
+  }, 800);
 }
 
 export function removeTrackFromLibrary(id: string) {
@@ -187,13 +190,14 @@ export function removeTrackFromLibrary(id: string) {
 
 export async function deleteTrack(trackId: string) {
   const track = tracks.find((t) => t.id === trackId);
-  if (track && track.src) {
-    const key = extractS3KeyFromUrl(track.src);
-    if (key) {
-      void deleteS3ObjectServer({ data: { key } });
-    }
+  if (!track) return false;
+  const key = track.src ? extractS3KeyFromUrl(track.src) : null;
+  if (key) {
+    const result = await deleteS3ObjectServer({ data: { key } });
+    if (!result.success) throw new Error("S3 delete failed");
   }
   removeTrackFromLibrary(trackId);
+  return true;
 }
 
 export async function deleteVideo(videoId: string) {
@@ -223,7 +227,24 @@ export async function syncLibraryWithS3(force = false) {
   lastSyncTime = now;
 
   try {
-    // 1. Fetch S3 Cloud Manifest first for 100% exact metadata across all devices
+    // V2 canonical path: Supabase metadata first.
+    try {
+      const canonical = await getPublicMasterLibraryServer();
+      if (canonical.tracks.length > 0 || canonical.albums.length > 0 || canonical.videos.length > 0) {
+        albums.length = 0;
+        albums.push(...(canonical.albums as Album[]));
+        tracks.length = 0;
+        tracks.push(...(canonical.tracks as Track[]));
+        videos.length = 0;
+        videos.push(...(canonical.videos as Video[]));
+        notifyLibrarySubscribers();
+        return;
+      }
+    } catch (canonicalError) {
+      console.warn("Canonical library unavailable; falling back to recovery manifest", canonicalError);
+    }
+
+    // Legacy recovery path. Do not treat it as the long-term source of truth.
     const { manifest } = await getLibraryManifestServer();
 
     if (manifest && Array.isArray(manifest.albums) && Array.isArray(manifest.tracks)) {
@@ -240,11 +261,6 @@ export async function syncLibraryWithS3(force = false) {
         manifest.tracks.forEach((t: Track) => {
           if (t.cover?.startsWith("blob:")) {
             delete t.cover;
-          }
-          if (Array.isArray(t.lyrics)) {
-            t.lyrics.forEach((l) => {
-              if (l.text) l.text = correctVietnameseLyrics(l.text);
-            });
           }
         });
         tracks.length = 0;
@@ -272,7 +288,13 @@ export async function syncLibraryWithS3(force = false) {
               if (fresh) track.src = fresh;
             }
           }
-          if (track.cover && (track.cover.startsWith("artworks/") || track.cover.startsWith("covers/") || track.cover.includes("s3.pikamc.vn") || track.cover.includes("pikamc"))) {
+          if (
+            track.cover &&
+            (track.cover.startsWith("artworks/") ||
+              track.cover.startsWith("covers/") ||
+              track.cover.includes("s3.pikamc.vn") ||
+              track.cover.includes("pikamc"))
+          ) {
             const key = extractS3KeyFromUrl(track.cover);
             if (key) {
               const fresh = await createPresignedUrl(key);
@@ -281,8 +303,18 @@ export async function syncLibraryWithS3(force = false) {
           }
         }),
         ...albums.map(async (album) => {
-          if (album.cover && (album.cover.startsWith("artworks/") || album.cover.startsWith("covers/") || album.cover.includes("s3.pikamc.vn") || album.cover.includes("pikamc") || album.cover.includes("HVL") || album.title.toLowerCase() === "hvl")) {
-            const key = extractS3KeyFromUrl(album.cover) || (album.title.toLowerCase() === "hvl" ? "artworks/31-1786731489463-2rml2-HVL.jpg" : null);
+          if (
+            album.cover &&
+            (album.cover.startsWith("artworks/") ||
+              album.cover.startsWith("covers/") ||
+              album.cover.includes("s3.pikamc.vn") ||
+              album.cover.includes("pikamc") ||
+              album.cover.includes("HVL") ||
+              album.title.toLowerCase() === "hvl")
+          ) {
+            const key =
+              extractS3KeyFromUrl(album.cover) ||
+              (album.title.toLowerCase() === "hvl" ? "artworks/31-1786731489463-2rml2-HVL.jpg" : null);
             if (key) {
               const fresh = await createPresignedUrl(key);
               if (fresh) album.cover = fresh;
@@ -297,7 +329,13 @@ export async function syncLibraryWithS3(force = false) {
               if (fresh) video.src = fresh;
             }
           }
-          if (video.thumb && (video.thumb.startsWith("artworks/") || video.thumb.startsWith("covers/") || video.thumb.includes("s3.pikamc.vn") || video.thumb.includes("pikamc"))) {
+          if (
+            video.thumb &&
+            (video.thumb.startsWith("artworks/") ||
+              video.thumb.startsWith("covers/") ||
+              video.thumb.includes("s3.pikamc.vn") ||
+              video.thumb.includes("pikamc"))
+          ) {
             const key = extractS3KeyFromUrl(video.thumb);
             if (key) {
               const fresh = await createPresignedUrl(key);

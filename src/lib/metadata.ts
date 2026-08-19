@@ -9,6 +9,8 @@ export interface ExtractedAudioMetadata {
   artist: string | null;
   album: string | null;
   year: string | null;
+  trackNo: number | null;
+  genre: string | null;
 }
 
 export function getAudioFileDuration(file: File): Promise<number> {
@@ -143,6 +145,8 @@ export async function extractAudioMetadata(
     artist: null,
     album: null,
     year: null,
+    trackNo: null,
+    genre: null,
   };
 
   try {
@@ -210,6 +214,11 @@ export async function extractAudioMetadata(
                     } else if ((key === "DATE" || key === "YEAR") && !result.year) {
                       const matchYear = val.match(/\b(19\d\d|20\d\d)\b/);
                       result.year = matchYear ? matchYear[0] : val.slice(0, 4);
+                    } else if ((key === "TRACKNUMBER" || key === "TRACK" || key === "TRACKNO") && result.trackNo === null) {
+                      const parsedNo = parseInt(val.split("/")[0] || "", 10);
+                      if (!isNaN(parsedNo) && parsedNo > 0) result.trackNo = parsedNo;
+                    } else if (key === "GENRE" && !result.genre) {
+                      result.genre = val;
                     } else if (
                       (key === "LYRICS" ||
                         key === "UNSYNCEDLYRICS" ||
@@ -355,6 +364,12 @@ export async function extractAudioMetadata(
           const y = decodeId3Text(view, offset, frameSize);
           const matchYear = y.match(/\b(19\d\d|20\d\d)\b/);
           result.year = matchYear ? matchYear[0] : y.slice(0, 4);
+        } else if (frameId === "TRCK" && result.trackNo === null) {
+          const trckStr = decodeId3Text(view, offset, frameSize);
+          const parsedNo = parseInt(trckStr.split("/")[0] || "", 10);
+          if (!isNaN(parsedNo) && parsedNo > 0) result.trackNo = parsedNo;
+        } else if (frameId === "TCON" && !result.genre) {
+          result.genre = decodeId3Text(view, offset, frameSize);
         }
 
         offset += frameSize;

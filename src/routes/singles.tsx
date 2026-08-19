@@ -6,12 +6,15 @@ import {
   Grid,
   List,
   Music2,
+  Pause,
   Play,
   Plus,
   RefreshCw,
+  Search,
   Shuffle,
   Trash2,
   UploadCloud,
+  X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useMemo, useState } from "react";
@@ -184,7 +187,11 @@ function SingleCard({
               transition={springSnappy}
               className="size-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg cursor-pointer pointer-events-auto"
             >
-              <Play className="size-5 ml-0.5" fill="currentColor" />
+              {isThisPlaying ? (
+                <Pause className="size-5" fill="currentColor" />
+              ) : (
+                <Play className="size-5 ml-0.5" fill="currentColor" />
+              )}
             </motion.button>
           </div>
         </div>
@@ -293,12 +300,7 @@ function SinglesPage() {
   );
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={tweenBase}
-      className="mx-auto max-w-6xl px-6 py-12"
-    >
+    <div className="mx-auto max-w-6xl px-6 py-12">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border/60">
         <div>
@@ -365,19 +367,31 @@ function SinglesPage() {
       {/* Filter and View Mode Switcher */}
       {singles.length > 0 && (
         <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm kiếm đĩa đơn, nghệ sĩ..."
-            className="border-border bg-card/60 focus:ring-ring w-full sm:w-80 rounded-xl border px-3.5 py-2.5 text-sm outline-none focus:ring-1 transition-all"
-          />
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm kiếm đĩa đơn, nghệ sĩ..."
+              className="w-full bg-card/70 border border-border focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl pl-9.5 pr-8 py-2 text-sm outline-none transition-all"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 cursor-pointer"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-1 self-end sm:self-auto bg-card/80 border border-border/80 p-1 rounded-xl">
             <button
               onClick={() => setViewMode("grid")}
               className={cn(
-                "relative p-2 rounded-lg text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5",
-                viewMode === "grid" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                "relative p-2 rounded-lg text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 overflow-hidden",
+                viewMode === "grid" ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"
               )}
               title="Chế độ lưới đĩa than"
             >
@@ -385,17 +399,17 @@ function SinglesPage() {
                 <motion.span
                   layoutId="singles-view-pill"
                   transition={springPill}
-                  className="absolute inset-0 rounded-lg bg-accent shadow-sm -z-10"
+                  className="absolute inset-0 rounded-lg bg-accent shadow-sm"
                 />
               )}
-              <Grid className="size-4" />
-              <span className="hidden sm:inline">Lưới</span>
+              <Grid className="size-4 relative z-10" />
+              <span className="hidden sm:inline relative z-10">Lưới</span>
             </button>
             <button
               onClick={() => setViewMode("list")}
               className={cn(
-                "relative p-2 rounded-lg text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5",
-                viewMode === "list" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                "relative p-2 rounded-lg text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 overflow-hidden",
+                viewMode === "list" ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"
               )}
               title="Chế độ danh sách"
             >
@@ -403,11 +417,11 @@ function SinglesPage() {
                 <motion.span
                   layoutId="singles-view-pill"
                   transition={springPill}
-                  className="absolute inset-0 rounded-lg bg-accent shadow-sm -z-10"
+                  className="absolute inset-0 rounded-lg bg-accent shadow-sm"
                 />
               )}
-              <List className="size-4" />
-              <span className="hidden sm:inline">Danh sách</span>
+              <List className="size-4 relative z-10" />
+              <span className="hidden sm:inline relative z-10">Danh sách</span>
             </button>
           </div>
         </div>
@@ -526,6 +540,6 @@ function SinglesPage() {
           />
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }

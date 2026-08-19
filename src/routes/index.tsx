@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Disc, Disc3, Music2, Pencil, Play, Shuffle, UploadCloud } from "lucide-react";
+import { Disc, Disc3, Music2, Pause, Pencil, Play, Shuffle, UploadCloud } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useMemo, useState } from "react";
 import { AlbumCard } from "../components/AlbumCard";
@@ -112,9 +112,14 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20">
             <button
               onClick={onPlay}
+              aria-label={isThisPlaying ? "Tạm dừng" : "Phát"}
               className="size-11 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg transform transition-transform hover:scale-110 active:scale-95 cursor-pointer"
             >
-              <Play className="size-4 ml-0.5" fill="currentColor" />
+              {isThisPlaying ? (
+                <Pause className="size-4" fill="currentColor" />
+              ) : (
+                <Play className="size-4 ml-0.5" fill="currentColor" />
+              )}
             </button>
           </div>
         </div>
@@ -228,7 +233,7 @@ function Index() {
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={tweenBase}>
+    <div>
       {/* Hero Featured Album */}
       <section className="grain relative overflow-hidden">
         <img
@@ -394,7 +399,7 @@ function Index() {
           />
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
 

@@ -1,45 +1,38 @@
-import { createClient } from "@supabase/supabase-js";
-
-function getEnvVar(name: string): string {
-  if (typeof process !== "undefined" && process.env?.[name]) {
-    const val = process.env[name] as string;
-    if (val && typeof val === "string" && val.trim()) return val.trim();
-  }
-  if (typeof import.meta !== "undefined" && import.meta.env?.[`VITE_${name}`]) {
-    const val = import.meta.env[`VITE_${name}`] as string;
-    if (val && typeof val === "string" && val.trim()) return val.trim();
-  }
-  return "";
-}
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { requireServerEnv } from "./server-env";
 
 const supabaseUrl =
-  getEnvVar("SUPABASE_URL") ||
-  getEnvVar("VITE_SUPABASE_URL") ||
+  (typeof import.meta !== "undefined" && import.meta.env ? (import.meta.env["VITE_SUPABASE_URL"] as string | undefined)?.trim() : undefined) ||
+  (typeof process !== "undefined" && process.env ? (process.env["SUPABASE_URL"] as string | undefined)?.trim() : undefined) ||
   "https://lvrcqcghwebxlkrsisby.supabase.co";
 
-const DEFAULT_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2cmNxY2dod2VieGxrcnNpc2J5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1ODczMjIsImV4cCI6MjEwMjE2MzMyMn0.TEUxf8buGs-2wTa78LU762-ymJKdXGUu_kRCXvOlmn4";
-
-const DEFAULT_SERVICE_ROLE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2cmNxY2dod2VieGxrcnNpc2J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjU4NzMyMiwiZXhwIjoyMTAyMTYzMzIyfQ.8G4haeWpmMu_m0SrJ2nsCugd2RlyDM4imuHLnCCnQpQ";
-
 const supabaseAnonKey =
-  getEnvVar("SUPABASE_ANON_KEY") ||
-  getEnvVar("VITE_SUPABASE_ANON_KEY") ||
-  DEFAULT_ANON_KEY;
+  (typeof import.meta !== "undefined" && import.meta.env ? (import.meta.env["VITE_SUPABASE_ANON_KEY"] as string | undefined)?.trim() : undefined) ||
+  (typeof process !== "undefined" && process.env ? (process.env["SUPABASE_ANON_KEY"] as string | undefined)?.trim() : undefined) ||
+  "";
 
-const supabaseServiceKey =
-  getEnvVar("SUPABASE_SERVICE_ROLE_KEY") ||
-  getEnvVar("VITE_SUPABASE_SERVICE_ROLE_KEY") ||
-  DEFAULT_SERVICE_ROLE_KEY;
+/** Public/browser Supabase client. Only anon key is allowed here. */
+export const supabase = createClient(supabaseUrl, supabaseAnonKey || "dummy-anon-key");
 
-/** Client phía browser/public */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+let adminClient: SupabaseClient | null = null;
 
-/** Client phía server (Service Role - Quyền tối cao, CHỈ dùng phía Server) */
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+/**
+ * Server-only Supabase client. Never exported as a singleton from a shared
+ * module so the service-role secret cannot accidentally enter the client graph.
+ */
+export function getSupabaseAdmin(): SupabaseClient {
+  if (typeof window !== "undefined") {
+    throw new Error("[SUPABASE_CONFIG] Service-role client is server-only");
+  }
+  if (!adminClient) {
+    const url = (typeof process !== "undefined" && process.env ? (process.env["SUPABASE_URL"] as string | undefined)?.trim() : undefined) || supabaseUrl;
+    const serviceRoleKey = requireServerEnv("SUPABASE_SERVICE_ROLE_KEY");
+    adminClient = createClient(url, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+  }
+  return adminClient;
+}

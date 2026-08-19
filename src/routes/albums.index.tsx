@@ -391,16 +391,15 @@ function AlbumsPage() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={tweenBase}
-      className="mx-auto max-w-6xl px-6 py-12"
-    >
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-6xl px-6 py-12">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border/60">
         <div>
-          <h1 className="font-display text-5xl">Albums</h1>
-          <p className="text-muted-foreground mt-2 text-sm">{albums.length} album đã lưu trữ</p>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-primary mb-2">
+            <Disc3 className="size-4" />
+            <span>Bộ sưu tập Album</span>
+          </div>
+          <h1 className="font-display text-4xl sm:text-5xl font-bold tracking-tight text-foreground">Albums</h1>
+          <p className="text-muted-foreground mt-2 text-sm">{albums.length} album đã lưu trữ · Master nguyên gốc</p>
         </div>
         {isLoggedIn && (
           <motion.button
@@ -408,9 +407,9 @@ function AlbumsPage() {
             whileTap={tapScale}
             whileHover={{ y: -1 }}
             transition={springSnappy}
-            className="bg-primary text-primary-foreground flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium cursor-pointer"
+            className="bg-primary text-primary-foreground flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-semibold shadow-md cursor-pointer shrink-0"
           >
-            <Plus className="size-4" />
+            <Plus className="size-3.5" />
             Tạo Album
           </motion.button>
         )}
@@ -477,6 +476,6 @@ function AlbumsPage() {
           />
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }

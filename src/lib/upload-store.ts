@@ -16,6 +16,7 @@ export type UploadState = {
   artist: string;
   album: string;
   year: string;
+  trackNo: string;
   lyricsText: string;
   extractedCover: string | null;
   artworkFile: File | null;
@@ -38,6 +39,7 @@ let currentState: UploadState = {
   artist: "",
   album: "",
   year: "",
+  trackNo: "",
   lyricsText: "",
   extractedCover: null,
   artworkFile: null,
@@ -101,7 +103,7 @@ function padNumber(n: number): string {
 const ALLOWED_EXTENSIONS = new Set(["flac", "alac", "wav", "mp3", "m4a", "mp4", "mkv", "jpg", "jpeg", "png", "webp"]);
 
 export async function executeGlobalUpload() {
-  const { selectedFile, title, artist, album, year, lyricsText, extractedCover, artworkFile, artworkPreview, isVideo } = currentState;
+  const { selectedFile, title, artist, album, year, trackNo, lyricsText, extractedCover, artworkFile, artworkPreview, isVideo } = currentState;
 
   if (!selectedFile) {
     updateUploadState({ errorMessage: "Vui lòng chọn một tệp âm thanh hoặc video trước." });
@@ -321,12 +323,13 @@ export async function executeGlobalUpload() {
       const audioFormat = formatMap[fileExt] || "FLAC";
 
       const parsedYear = parseInt(year, 10);
+      const explicitTrackNo = parseInt(trackNo, 10);
       const newTrack: Track = {
         id: fileId,
         title: title.trim(),
         artist: artist.trim() || "Nghệ sĩ",
         albumId,
-        trackNo: albumTrackCount,
+        trackNo: !isNaN(explicitTrackNo) && explicitTrackNo > 0 ? explicitTrackNo : albumTrackCount,
         duration: realDuration,
         format: audioFormat,
         bitDepth: 24,

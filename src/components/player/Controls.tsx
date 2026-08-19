@@ -1,5 +1,5 @@
 import { Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { formatTime } from "../../data/library";
 import { springSnappy, tapScale } from "../../lib/motion";
@@ -45,15 +45,26 @@ export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
         whileHover={{ scale: 1.06 }}
         transition={{ type: "spring", stiffness: 520, damping: 24 }}
         className={cn(
-          "grid place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_30px_-8px_oklch(0.76_0.14_66/0.7)] cursor-pointer",
+          "grid place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_30px_-8px_oklch(0.76_0.14_66/0.7)] cursor-pointer overflow-hidden",
           big ? "size-16" : "size-11",
         )}
       >
-        {isPlaying ? (
-          <Pause className={big ? "size-7" : "size-5"} fill="currentColor" />
-        ) : (
-          <Play className={cn(big ? "size-7" : "size-5", "translate-x-[1px]")} fill="currentColor" />
-        )}
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.span
+            key={isPlaying ? "pause" : "play"}
+            initial={{ scale: 0.75, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.75, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 750, damping: 32 }}
+            className="grid place-items-center"
+          >
+            {isPlaying ? (
+              <Pause className={big ? "size-7" : "size-5"} fill="currentColor" />
+            ) : (
+              <Play className={cn(big ? "size-7" : "size-5", "translate-x-[1px]")} fill="currentColor" />
+            )}
+          </motion.span>
+        </AnimatePresence>
       </motion.button>
       <motion.button
         aria-label="Bài sau"
