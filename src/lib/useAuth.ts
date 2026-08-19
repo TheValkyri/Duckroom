@@ -10,11 +10,17 @@ export function useAuth() {
 
   useEffect(() => {
     setIsMounted(true);
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.warn("Supabase auth session error:", err);
+        setIsLoading(false);
+      });
 
     const {
       data: { subscription },
@@ -25,12 +31,16 @@ export function useAuth() {
     });
 
     return () => {
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn("Sign out error:", err);
+    }
   };
 
   return {

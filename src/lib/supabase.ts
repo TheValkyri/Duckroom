@@ -1,18 +1,29 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { requireServerEnv } from "./server-env";
 
+const DEFAULT_SUPABASE_URL = "https://lvrcqcghwebxlkrsisby.supabase.co";
+const DEFAULT_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2cmNxY2dod2VieGxrcnNpc2J5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1ODczMjIsImV4cCI6MjEwMjE2MzMyMn0.TEUxf8buGs-2wTa78LU762-ymJKdXGUu_kRCXvOlmn4";
+
+interface CustomImportMetaEnv {
+  VITE_SUPABASE_URL?: string;
+  VITE_SUPABASE_ANON_KEY?: string;
+}
+
+const customEnv = (typeof import.meta !== "undefined" ? (import.meta.env as unknown as CustomImportMetaEnv) : undefined);
+
 const supabaseUrl =
-  (typeof import.meta !== "undefined" && import.meta.env ? (import.meta.env["VITE_SUPABASE_URL"] as string | undefined)?.trim() : undefined) ||
-  (typeof process !== "undefined" && process.env ? (process.env["SUPABASE_URL"] as string | undefined)?.trim() : undefined) ||
-  "https://lvrcqcghwebxlkrsisby.supabase.co";
+  customEnv?.VITE_SUPABASE_URL ||
+  (typeof process !== "undefined" ? process.env["SUPABASE_URL"] : undefined) ||
+  DEFAULT_SUPABASE_URL;
 
 const supabaseAnonKey =
-  (typeof import.meta !== "undefined" && import.meta.env ? (import.meta.env["VITE_SUPABASE_ANON_KEY"] as string | undefined)?.trim() : undefined) ||
-  (typeof process !== "undefined" && process.env ? (process.env["SUPABASE_ANON_KEY"] as string | undefined)?.trim() : undefined) ||
-  "";
+  customEnv?.VITE_SUPABASE_ANON_KEY ||
+  (typeof process !== "undefined" ? process.env["SUPABASE_ANON_KEY"] : undefined) ||
+  DEFAULT_ANON_KEY;
 
-/** Public/browser Supabase client. Only anon key is allowed here. */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey || "dummy-anon-key");
+/** Public/browser Supabase client (Always initialized with valid public anon key) */
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 let adminClient: SupabaseClient | null = null;
 
@@ -25,7 +36,7 @@ export function getSupabaseAdmin(): SupabaseClient {
     throw new Error("[SUPABASE_CONFIG] Service-role client is server-only");
   }
   if (!adminClient) {
-    const url = (typeof process !== "undefined" && process.env ? (process.env["SUPABASE_URL"] as string | undefined)?.trim() : undefined) || supabaseUrl;
+    const url = (typeof process !== "undefined" ? process.env["SUPABASE_URL"] : undefined) || supabaseUrl;
     const serviceRoleKey = requireServerEnv("SUPABASE_SERVICE_ROLE_KEY");
     adminClient = createClient(url, serviceRoleKey, {
       auth: {

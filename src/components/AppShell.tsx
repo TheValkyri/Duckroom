@@ -161,14 +161,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link to="/" className="flex items-center gap-3 overflow-hidden">
             <ModernDuckLogo className="size-8 shrink-0" />
             {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="font-display text-2xl tracking-tight whitespace-nowrap"
-              >
+              <span className="font-display text-2xl tracking-tight whitespace-nowrap">
                 <span className="text-primary">Duck</span>
                 <span className="text-foreground">room</span>
-              </motion.span>
+              </span>
             )}
           </Link>
           <motion.button
