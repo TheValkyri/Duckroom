@@ -78,24 +78,44 @@ export function notifyLibrarySubscribers() {
   });
 }
 
-export function sortAlbumsDeterministically(albumList: Album[]): Album[] {
-  const ALBUM_PRIORITY: Record<string, number> = {
-    hvl: 1,
-    "danh-doi": 2,
-    "danh doi": 2,
-    "đánh đổi": 2,
-    bay: 3,
-    bảy: 3,
-    "trai-tim-bang-bo": 4,
-    "trai tim bang bo": 4,
-    "trái tim băng bổ": 4,
-  };
+export function getAlbumPriority(album: { id?: string; title?: string }): number {
+  const title = (album.title || "").toLowerCase().trim();
+  const id = (album.id || "").toLowerCase().trim();
 
+  // 1. HVL (MCK)
+  if (title === "hvl" || title.includes("hvl") || id.includes("hvl")) return 1;
+  // 2. Đánh Đổi (Obito)
+  if (
+    title === "đánh đổi" ||
+    title === "danh doi" ||
+    title.includes("đánh đổi") ||
+    title.includes("danh doi") ||
+    id.includes("danh-doi")
+  ) {
+    return 2;
+  }
+  // 3. Bảy (HAZEL)
+  if (title === "bảy" || title === "bay" || title.includes("bảy") || title.includes("bay") || id.includes("bay")) {
+    return 3;
+  }
+  // 4. Trái Tim Băng Bổ (Dangrangto)
+  if (
+    title.includes("trái tim") ||
+    title.includes("trai tim") ||
+    title.includes("băng b") ||
+    title.includes("bang b") ||
+    id.includes("trai-tim")
+  ) {
+    return 4;
+  }
+
+  return 999;
+}
+
+export function sortAlbumsDeterministically(albumList: Album[]): Album[] {
   return [...albumList].sort((a, b) => {
-    const keyA = (a.id || a.title).toLowerCase().trim();
-    const keyB = (b.id || b.title).toLowerCase().trim();
-    const pA = ALBUM_PRIORITY[keyA] ?? 999;
-    const pB = ALBUM_PRIORITY[keyB] ?? 999;
+    const pA = getAlbumPriority(a);
+    const pB = getAlbumPriority(b);
     if (pA !== pB) return pA - pB;
     return (b.year || 0) - (a.year || 0) || a.title.localeCompare(b.title);
   });
@@ -382,27 +402,30 @@ export function clearAllTracks() {
 }
 
 export const albumById = (id: string) => {
-  const cleanId = (id || "").toLowerCase();
+  if (!id) return undefined;
+  const cleanId = id.toLowerCase().trim();
   return (
     albums.find((a) => a.id === id) ||
-    albums.find((a) => a.id.toLowerCase() === cleanId) ||
-    albums.find((a) => a.title.toLowerCase() === cleanId) ||
-    albums.find((a) => cleanId.includes(a.title.toLowerCase()) || a.title.toLowerCase().includes(cleanId))
+    albums.find((a) => a.id.toLowerCase().trim() === cleanId) ||
+    albums.find((a) => a.title.toLowerCase().trim() === cleanId)
   );
 };
 export const trackById = (id: string) => tracks.find((t) => t.id === id);
 export const albumTracks = (id: string) => {
   const targetAlbum = albumById(id);
-  const targetTitle = targetAlbum?.title.toLowerCase() || id.toLowerCase();
-  const targetId = id.toLowerCase();
+  if (!targetAlbum) return [];
+
+  const targetId = targetAlbum.id.toLowerCase().trim();
+  const targetTitle = targetAlbum.title.toLowerCase().trim();
 
   const list = tracks.filter((t) => {
-    const trackAlbum = (t.albumId || "").toLowerCase();
-    return (
-      trackAlbum === targetId ||
-      trackAlbum === targetTitle ||
-      (targetAlbum && (trackAlbum.includes(targetTitle) || targetTitle.includes(trackAlbum)))
-    );
+    if (!t.albumId) return false;
+    const trackAlbum = t.albumId.toLowerCase().trim();
+    if (!trackAlbum || trackAlbum === "singles" || trackAlbum === "single" || trackAlbum === "single-collection") {
+      return false;
+    }
+
+    return trackAlbum === targetId || trackAlbum === targetTitle;
   });
 
   const hasDistinctTrackNos = new Set(list.map((t) => t.trackNo)).size > 1;
