@@ -123,7 +123,8 @@ function VideoPage() {
         <video
           ref={videoRef}
           src={videoSrc || undefined}
-          poster={video.thumb}
+          poster={video.thumb || undefined}
+          preload="metadata"
           playsInline
           className="aspect-video w-full object-contain"
           onPlay={() => {

@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
-import { easeDuck, springPill, springSnappy, tapScale } from "../lib/motion";
+import { springSnappy, tapScale } from "../lib/motion";
 import { getIngestionStoreState, subscribeIngestionStore, type IngestionStoreState } from "../lib/upload-store";
 import { useAuth } from "../lib/useAuth";
 import { useDuckroomRole } from "../lib/useRole";
@@ -27,11 +27,13 @@ import { cn } from "../lib/utils";
 import { NowPlaying } from "./player/NowPlaying";
 import { PlayerBar } from "./player/PlayerBar";
 
-// Sidebar co giãn dùng tween (không dùng spring) và main content padding
-// dùng CSS transition CÙNG duration + easing ("easeDuck") — để 2 hệ thống
-// animation khớp khung hình với nhau, tránh hiện tượng giật cục khi thu/mở.
-const SIDEBAR_TRANSITION_MS = 320;
-const sidebarTween = { duration: SIDEBAR_TRANSITION_MS / 1000, ease: easeDuck };
+// Perf fix 2026-08-25: thu/mở sidebar dùng CSS transition width thuần thay vì
+// framer-motion. Animation JS (animate={{width}}) re-render + set style mỗi
+// frame và tranh main thread với route change → giật. CSS transition không tốn
+// thêm một render nào; main padding bên dưới đã dùng CÙNG duration + easing
+// nên 2 bên vẫn khớp khung hình.
+const SIDEBAR_WIDTH_EXPANDED = 256;
+const SIDEBAR_WIDTH_COLLAPSED = 80;
 
 const nav = [
   { to: "/", label: "Trang chủ", icon: Home },
@@ -123,11 +125,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       </AnimatePresence>
 
       {/* Desktop Animated Collapsible Sidebar */}
-      <motion.aside
-        animate={{ width: collapsed ? 80 : 256 }}
-        transition={sidebarTween}
-        style={{ willChange: "width" }}
-        className="border-border bg-sidebar/95 backdrop-blur-xl fixed inset-y-0 left-0 z-30 hidden flex-col border-r px-3 py-6 lg:flex overflow-hidden select-none"
+      <aside
+        style={{ width: collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED }}
+        className="border-border bg-sidebar/95 backdrop-blur-xl fixed inset-y-0 left-0 z-30 hidden flex-col border-r px-3 py-6 lg:flex overflow-hidden select-none transition-[width] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
       >
         <div className="flex items-center justify-between px-2 mb-8">
           <Link to="/" className="flex items-center gap-3 overflow-hidden">
@@ -190,19 +190,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               to="/admin"
               title={collapsed ? "Owner Console" : undefined}
               className={cn(
-                "flex items-center gap-3.5 rounded-xl px-3 py-3 text-sm font-medium transition-colors relative group cursor-pointer mt-1",
+                // CSS active state thuần — đồng bộ với các nav item khác, không
+                // đo layout (layoutId) mỗi route change.
+                "flex items-center gap-3.5 rounded-xl px-3 py-3 text-sm font-medium transition-colors duration-200 relative group cursor-pointer mt-1",
                 location.pathname === "/admin"
-                  ? "text-foreground font-semibold"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent/40",
+                  ? "bg-accent/80 border border-white/10 shadow-sm text-foreground font-semibold"
+                  : "border border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/40",
               )}
             >
-              {location.pathname === "/admin" && (
-                <motion.div
-                  layoutId="sidebar-active-pill"
-                  transition={springPill}
-                  className="absolute inset-0 rounded-xl bg-accent/80 border border-white/10 shadow-sm z-0"
-                />
-              )}
               <ShieldCheck
                 className={cn(
                   "size-5 shrink-0 z-10 transition-transform group-hover:scale-110",
@@ -275,7 +270,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </motion.div>
           )}
         </div>
-      </motion.aside>
+      </aside>
 
       {/* Mobile Top Navigation */}
       <nav className="glass border-border fixed inset-x-0 top-0 z-30 flex items-center justify-between border-b px-4 py-2.5 lg:hidden">
@@ -296,16 +291,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 activeOptions={{ exact: to === "/" }}
                 className={cn(
                   "relative rounded-full px-3 py-1 text-xs whitespace-nowrap transition-colors",
-                  isActive ? "text-foreground font-medium" : "text-muted-foreground",
+                  isActive ? "text-foreground font-medium bg-accent" : "text-muted-foreground",
                 )}
               >
-                {isActive && (
-                  <motion.span
-                    layoutId="mobile-tab-pill"
-                    transition={springPill}
-                    className="absolute inset-0 rounded-full bg-accent -z-10"
-                  />
-                )}
                 {label}
               </Link>
             );

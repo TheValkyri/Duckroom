@@ -30,7 +30,6 @@ export function PlayerBar() {
     seek,
     toggle: togglePlayback,
   } = usePlayer();
-  const time = usePlayerTime();
 
   const [coverLoaded, setCoverLoaded] = useState(false);
 
@@ -131,7 +130,7 @@ export function PlayerBar() {
           <div className="flex w-[38vw] max-w-2xl min-w-[280px] flex-col items-center">
             <TransportControls />
             <div className="flex w-full items-center gap-3 mt-0.5">
-              <span className="text-muted-foreground w-10 text-right text-[11px] tabular-nums">{formatTime(time)}</span>
+              <PlayerBarElapsedLabel />
               <div className="flex-1">
                 <SeekBar compact />
               </div>
@@ -211,6 +210,18 @@ export function PlayerBar() {
       </motion.footer>
     </>
   );
+}
+
+/**
+ * Perf fix 2026-08-25: label thời gian trôi được tách ra component riêng.
+ * Trước đây PlayerBar gọi usePlayerTime() ở top-level → toàn bộ footer
+ * (~20 nút motion + Visualizer + cover) re-render 4-60 lần/giây theo
+ * timeupdate, chiếm main thread liên tục và làm MỌI tương tác (kể cả click
+ * sidebar) bị khựng. Giờ chỉ node chữ này re-render mỗi tick.
+ */
+function PlayerBarElapsedLabel() {
+  const time = usePlayerTime();
+  return <span className="text-muted-foreground w-10 text-right text-[11px] tabular-nums">{formatTime(time)}</span>;
 }
 
 /** ReplayGain mode cycler (Master Plan §11.5): Off → Track → Album → Off. */

@@ -84,10 +84,31 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
     setOffsetMs(readStoredOffset(current?.id));
   }, [current?.id]);
 
+  // Fix 2026-08-25: pill chỉnh lệch lời tự ẩn khi rảnh (offset = 0 + không
+  // hover) — trước đây chữ "Lời" đứng lơ lửng góc phải mãi mãi.
+  const [pillVisible, setPillVisible] = useState(false);
+  const pillTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearPillTimer = () => {
+    if (pillTimerRef.current) {
+      clearTimeout(pillTimerRef.current);
+      pillTimerRef.current = null;
+    }
+  };
+  const showPill = () => {
+    clearPillTimer();
+    setPillVisible(true);
+  };
+  const schedulePillHide = () => {
+    clearPillTimer();
+    pillTimerRef.current = setTimeout(() => setPillVisible(false), 2200);
+  };
+
   const updateOffsetMs = (next: number) => {
     const clamped = Math.max(-OFFSET_LIMIT_MS, Math.min(OFFSET_LIMIT_MS, next));
     setOffsetMs(clamped);
     writeStoredOffset(current?.id, clamped);
+    showPill();
+    schedulePillHide();
   };
 
   const lines = useMemo(
@@ -153,6 +174,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   }, [activeIndex]);
 
   useEffect(() => () => cancelScrollRef.current(), []);
+  useEffect(() => () => clearPillTimer(), []);
 
   if (!lines.length) {
     return (
@@ -168,13 +190,21 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   return (
     <div
       className={cn("relative h-full w-full overflow-hidden select-none", compact ? "h-64" : "h-full")}
+      onMouseEnter={showPill}
+      onMouseLeave={schedulePillHide}
       style={{
         WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)",
         maskImage: "linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)",
       }}
     >
-      {/* §10.4 offset controls — positive = lyrics appear later; click value to reset */}
-      <div className="absolute top-2 right-4 z-10 flex items-center gap-1.5 rounded-full border border-white/10 bg-black/30 px-1.5 py-1 backdrop-blur-md">
+      {/* §10.4 offset controls — positive = lyrics appear later; click value to reset.
+          Auto-hide khi offset = 0 và không tương tác (fix chữ "Lời" đứng vĩnh viễn). */}
+      <div
+        className={cn(
+          "absolute top-2 right-4 z-10 flex items-center gap-1.5 rounded-full border border-white/10 bg-black/30 px-1.5 py-1 backdrop-blur-md transition-opacity duration-300",
+          pillVisible || offsetMs !== 0 ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+      >
         <button
           type="button"
           title="Lời xuất hiện sớm hơn (−200ms)"
@@ -192,7 +222,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
             offsetMs === 0 ? "text-white/40" : "text-primary hover:bg-white/10",
           )}
         >
-          {offsetMs === 0 ? "Lời" : `${offsetMs > 0 ? "+" : ""}${(offsetMs / 1000).toFixed(1)}s`}
+          {offsetMs === 0 ? "0.0s" : `${offsetMs > 0 ? "+" : ""}${(offsetMs / 1000).toFixed(1)}s`}
         </button>
         <button
           type="button"

@@ -28,6 +28,36 @@ interface AmbientLayer {
   accent: string;
 }
 
+// Perf/UX fix 2026-08-25 (chuyển bài bị chớp + khựng):
+// cropBlackLetterbox là công việc canvas full-res trên main thread. Trước đây
+// ảnh bìa chỉ được swap SAU khi crop xong → ảnh cũ linger rồi nhảy đột ngột
+// (flash), đồng thời đúng lúc chuyển bài main thread bị chiếm bởi crop.
+// Giờ crop được cache + prefetch SỚM cho bài kế tiếp (dedupe bằng promise
+// cache) — khi chuyển bài, ảnh đã sẵn sàng, swap tức thì.
+const croppedCoverCache = new Map<string, string>();
+const cropPromiseCache = new Map<string, Promise<string>>();
+
+function getCroppedCover(url: string): Promise<string> {
+  const cached = croppedCoverCache.get(url);
+  if (cached) return Promise.resolve(cached);
+  let p = cropPromiseCache.get(url);
+  if (!p) {
+    p = cropBlackLetterbox(url)
+      .then((cropped) => {
+        const finalUrl = cropped || url;
+        if (croppedCoverCache.size > 60) {
+          croppedCoverCache.clear();
+          cropPromiseCache.clear();
+        }
+        if (finalUrl !== url) croppedCoverCache.set(url, finalUrl);
+        return finalUrl;
+      })
+      .catch(() => url);
+    cropPromiseCache.set(url, p);
+  }
+  return p;
+}
+
 function AmbientCrossfadeBackground({ cover, accent }: { cover: string; accent?: string | undefined }) {
   const currentAccent = accent || "oklch(0.3 0.1 260)";
   const [layers, setLayers] = useState<AmbientLayer[]>([{ id: `init-${cover}`, cover, accent: currentAccent }]);
@@ -54,7 +84,7 @@ function AmbientCrossfadeBackground({ cover, accent }: { cover: string; accent?:
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             className="absolute inset-0 size-full transform-gpu"
           >
             {/* Dynamic radial color glow */}
@@ -93,37 +123,42 @@ export function NowPlaying() {
   const rawCover = current?.cover || album?.cover;
   const rawCoverUrl = rawCover && !rawCover.startsWith("blob:") ? rawCover : fallbackCover;
   const nextTrack = queue[(index + 1) % queue.length];
+  const nextAlbum = nextTrack ? albumById(nextTrack.albumId) : undefined;
+  const nextCoverUrl = nextTrack?.cover || nextAlbum?.cover;
 
-  const [cleanCoverUrl, setCleanCoverUrl] = useState<string | undefined>(rawCoverUrl);
+  // Hiển thị tức thì: cache hit (đã crop sẵn) hoặc raw — KHÔNG chờ crop.
+  // Crop chỉ chạy nền để nâng cấp ảnh khi xong, tránh flash ảnh cũ.
+  const [cleanCoverUrl, setCleanCoverUrl] = useState<string>(() => croppedCoverCache.get(rawCoverUrl) ?? rawCoverUrl);
   const [isLandscape, setIsLandscape] = useState(false);
 
   useEffect(() => {
-    if (!rawCoverUrl) {
-      setCleanCoverUrl(fallbackCover);
+    const cached = croppedCoverCache.get(rawCoverUrl);
+    if (cached) {
+      setCleanCoverUrl(cached);
       return;
     }
+    // Continuity tức thì với ảnh raw (đã preload từ bài trước), crop nền sau.
+    setCleanCoverUrl(rawCoverUrl || fallbackCover);
     let isMounted = true;
-    cropBlackLetterbox(rawCoverUrl)
-      .then((cropped) => {
-        // Crop lỗi (cover private/404) → GIỮ ảnh cũ nếu có, tránh flash vỡ ảnh
-        if (!isMounted) return;
-        setCleanCoverUrl((prev) => cropped || prev || rawCoverUrl || fallbackCover);
-      })
-      .catch(() => {
-        if (isMounted) setCleanCoverUrl((prev) => prev || fallbackCover);
-      });
+    void getCroppedCover(rawCoverUrl).then((finalUrl) => {
+      if (isMounted && finalUrl !== rawCoverUrl) setCleanCoverUrl(finalUrl);
+    });
     return () => {
       isMounted = false;
     };
   }, [rawCoverUrl]);
 
-  // Preload cover bài kế tiếp → chuyển bài không phải chờ tải ảnh (chống flash)
+  // Preload cover bài kế tiếp (raw + bản đã crop) → chuyển bài không phải
+  // chờ tải ảnh lẫn chờ canvas crop (chống flash + chống khựng main thread).
   useEffect(() => {
-    if (nextTrack?.cover && typeof Image !== "undefined") {
-      const img = new Image();
-      img.src = nextTrack.cover;
+    if (nextCoverUrl) {
+      void getCroppedCover(nextCoverUrl);
+      if (typeof Image !== "undefined") {
+        const img = new Image();
+        img.src = nextCoverUrl;
+      }
     }
-  }, [nextTrack?.cover]);
+  }, [nextCoverUrl]);
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = e.currentTarget;
@@ -228,27 +263,27 @@ export function NowPlaying() {
                       key={current.id}
                       initial={{
                         opacity: 0,
-                        x: direction * 90,
-                        scale: 0.9,
-                        rotate: direction * 3,
+                        x: direction * 48,
+                        scale: 0.94,
                       }}
                       animate={{
                         opacity: 1,
                         x: 0,
                         scale: 1,
-                        rotate: 0,
                       }}
                       exit={{
                         opacity: 0,
-                        x: -direction * 90,
-                        scale: 0.9,
-                        rotate: -direction * 3,
+                        x: -direction * 48,
+                        scale: 0.94,
                       }}
                       transition={{
+                        // Fix 2026-08-25: bỏ rotate + rút ngắn quãng trượt, spring
+                        // nhanh hơn — animation nhiều ≠ mượt; chuyển bài phải
+                        // "đáp" gọn thay vì lơ lửng nảy vài trăm ms.
                         type: "spring",
-                        stiffness: 220,
-                        damping: 24,
-                        mass: 0.9,
+                        stiffness: 340,
+                        damping: 32,
+                        mass: 0.8,
                       }}
                       className="relative flex items-center justify-center w-full"
                     >
@@ -338,8 +373,8 @@ export function NowPlaying() {
                         }}
                         transition={{
                           type: "spring",
-                          stiffness: 260,
-                          damping: 26,
+                          stiffness: 320,
+                          damping: 30,
                         }}
                         className="w-full"
                       >

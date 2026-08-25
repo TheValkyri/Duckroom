@@ -366,17 +366,35 @@ export async function extractAudioCover(file: File): Promise<string | null> {
 
 export function extractVideoThumbnail(file: File): Promise<string | null> {
   return new Promise((resolve) => {
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    video.src = URL.createObjectURL(file);
-    video.muted = true;
-    video.playsInline = true;
+    if (typeof document === "undefined") return resolve(null);
 
-    video.onloadedmetadata = () => {
-      video.currentTime = Math.min(1.0, video.duration / 2);
+    // Fix 2026-08-25 (MV thumbnails bị mất):
+    // - `preload="metadata"` + seek khiến nhiều container/codec không bao giờ
+    //   có frame decode được → `onseeked` không fire → promise treo vĩnh viễn.
+    //   Giờ chờ `loadeddata` (frame đầu decode xong) trước khi seek.
+    // - Codec browser không giải mã được (HEVC không có hardware decode...)
+    //   phải resolve `null` thay vì treo: hard timeout 8s.
+    // - Thử nhiều mốc seek (1s → 25% → 0.1s): một số stream chỉ decode được
+    //   gần keyframe đầu tiên.
+    const video = document.createElement("video");
+    let settled = false;
+    let objectUrl: string | null = URL.createObjectURL(file);
+
+    const finish = (result: string | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      video.onloadeddata = null;
+      video.onseeked = null;
+      video.onerror = null;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        objectUrl = null;
+      }
+      resolve(result);
     };
 
-    video.onseeked = () => {
+    const captureFrame = (): string | null => {
       try {
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth || 1280;
@@ -384,22 +402,38 @@ export function extractVideoThumbnail(file: File): Promise<string | null> {
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-          URL.revokeObjectURL(video.src);
-          resolve(dataUrl);
-          return;
+          return canvas.toDataURL("image/jpeg", 0.85);
         }
       } catch (err) {
         console.warn("Video thumbnail error:", err);
       }
-      URL.revokeObjectURL(video.src);
-      resolve(null);
+      return null;
     };
 
-    video.onerror = () => {
-      URL.revokeObjectURL(video.src);
-      resolve(null);
+    const seekTargets = [1.0, 0.25, 0.1];
+    let attempt = 0;
+
+    const trySeek = () => {
+      const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+      const target = duration > 0 ? Math.min(seekTargets[attempt] ?? 0.1, duration / 2) : 0.1;
+      attempt += 1;
+      video.currentTime = target;
     };
+
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    video.src = objectUrl;
+
+    video.onloadeddata = () => trySeek();
+    video.onseeked = () => {
+      const frame = captureFrame();
+      if (frame || attempt >= seekTargets.length) finish(frame);
+      else trySeek();
+    };
+    video.onerror = () => finish(null);
+
+    const timeoutId = setTimeout(() => finish(null), 8000);
   });
 }
 
