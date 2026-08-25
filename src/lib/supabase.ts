@@ -26,9 +26,8 @@ export function getSupabaseAdmin(): SupabaseClient {
   }
   if (!adminClient) {
     const url =
-      (typeof process !== "undefined"
-        ? process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"]
-        : undefined) || requireServerEnv("SUPABASE_URL");
+      (typeof process !== "undefined" ? process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"] : undefined) ||
+      requireServerEnv("SUPABASE_URL");
     const serviceRoleKey = requireServerEnv("SUPABASE_SERVICE_ROLE_KEY");
     adminClient = createClient(url, serviceRoleKey, {
       auth: {
