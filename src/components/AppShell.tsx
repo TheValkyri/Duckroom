@@ -162,22 +162,18 @@ export function AppShell({ children }: { children: ReactNode }) {
                 activeOptions={{ exact: to === "/" }}
                 title={collapsed ? label : undefined}
                 className={cn(
-                  "flex items-center gap-3.5 rounded-xl px-3 py-3 text-sm font-medium transition-colors relative group cursor-pointer",
+                  // Perf fix 2026-08-25: bỏ layoutId flying-pill (bắt buộc đo
+                  // layout + animate chéo cây mỗi route change = khựng). Active
+                  // state giờ là CSS thuần — vẫn mượt, chi phí gần bằng 0.
+                  "flex items-center gap-3.5 rounded-xl px-3 py-3 text-sm font-medium transition-colors duration-200 relative group cursor-pointer",
                   isActive
-                    ? "text-foreground font-semibold"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/40",
+                    ? "bg-accent/80 border border-white/10 shadow-sm text-foreground font-semibold"
+                    : "border border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/40",
                 )}
               >
-                {isActive && (
-                  <motion.div
-                    layoutId="sidebar-active-pill"
-                    transition={springPill}
-                    className="absolute inset-0 rounded-xl bg-accent/80 border border-white/10 shadow-sm z-0"
-                  />
-                )}
                 <Icon
                   className={cn(
-                    "size-5 shrink-0 z-10 transition-transform group-hover:scale-110",
+                    "size-5 shrink-0 z-10 transition-transform duration-200 group-hover:scale-110",
                     isActive ? "text-primary font-bold" : "text-primary/70",
                   )}
                 />

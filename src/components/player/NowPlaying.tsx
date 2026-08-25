@@ -86,7 +86,10 @@ export function NowPlaying() {
     usePlayer();
   const open = expanded;
   const album = current ? albumById(current.albumId) : undefined;
-  const fallbackCover = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+  // Fallback NỘI BỘ (gradient) — không tải ảnh mạng nữa: trước đây dùng
+  // unsplash → mỗi lần chuyển bài lỗi cover là 1 request mạng + flash trắng.
+  const fallbackCover =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2327272a'/%3E%3Cstop offset='0.55' stop-color='%233f2d12'/%3E%3Cstop offset='1' stop-color='%23713f12'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='600' height='600' fill='url(%23g)'/%3E%3C/svg%3E";
   const rawCover = current?.cover || album?.cover;
   const rawCoverUrl = rawCover && !rawCover.startsWith("blob:") ? rawCover : fallbackCover;
   const nextTrack = queue[(index + 1) % queue.length];
@@ -100,13 +103,27 @@ export function NowPlaying() {
       return;
     }
     let isMounted = true;
-    cropBlackLetterbox(rawCoverUrl).then((cropped) => {
-      if (isMounted) setCleanCoverUrl(cropped || rawCoverUrl || fallbackCover);
-    });
+    cropBlackLetterbox(rawCoverUrl)
+      .then((cropped) => {
+        // Crop lỗi (cover private/404) → GIỮ ảnh cũ nếu có, tránh flash vỡ ảnh
+        if (!isMounted) return;
+        setCleanCoverUrl((prev) => cropped || prev || rawCoverUrl || fallbackCover);
+      })
+      .catch(() => {
+        if (isMounted) setCleanCoverUrl((prev) => prev || fallbackCover);
+      });
     return () => {
       isMounted = false;
     };
   }, [rawCoverUrl]);
+
+  // Preload cover bài kế tiếp → chuyển bài không phải chờ tải ảnh (chống flash)
+  useEffect(() => {
+    if (nextTrack?.cover && typeof Image !== "undefined") {
+      const img = new Image();
+      img.src = nextTrack.cover;
+    }
+  }, [nextTrack?.cover]);
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = e.currentTarget;
@@ -171,17 +188,20 @@ export function NowPlaying() {
               </motion.button>
             )}
 
-            <motion.button
-              onClick={() => setLyricsOpen(!lyricsOpen)}
-              whileTap={tapScale}
-              transition={springSnappy}
-              className={cn(
-                "text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm transition-colors cursor-pointer px-3.5 py-1.5 rounded-full border border-transparent",
-                lyricsOpen && "text-primary border-primary/30 bg-primary/10 font-medium",
-              )}
-            >
-              <Mic2 className="size-4" /> Lời
-            </motion.button>
+            {/* Nút Lời: chỉ hiện khi bài HAT có lyrics — tránh pill trống lơ lửng */}
+            {current?.lyrics && current.lyrics.length > 0 && (
+              <motion.button
+                onClick={() => setLyricsOpen(!lyricsOpen)}
+                whileTap={tapScale}
+                transition={springSnappy}
+                className={cn(
+                  "text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm transition-colors cursor-pointer px-3.5 py-1.5 rounded-full border border-transparent",
+                  lyricsOpen && "text-primary border-primary/30 bg-primary/10 font-medium",
+                )}
+              >
+                <Mic2 className="size-4" /> Lời
+              </motion.button>
+            )}
           </div>
 
           {/* Main Content Stage */}

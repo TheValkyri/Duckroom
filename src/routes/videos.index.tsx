@@ -34,7 +34,7 @@ function VideoCard({ v }: { v: any }) {
           <SmoothImage
             src={v.thumb || undefined}
             alt={`Ảnh nền MV ${v.title}`}
-            fallbackSrc="https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=800&auto=format&fit=crop&q=80"
+            fallbackSrc="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='456'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2327272a'/%3E%3Cstop offset='1' stop-color='%23713f12'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='800' height='456' fill='url(%23g)'/%3E%3C/svg%3E"
             containerClassName="aspect-video w-full"
             className="aspect-video w-full object-cover transition-all duration-500 group-hover:scale-105"
           />
