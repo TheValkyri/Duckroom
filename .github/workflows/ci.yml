@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Prevent concurrent deploys/gates from interleaving on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck · Lint · Test · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      # Build-time placeholders. Real secrets live only in deployment env —
+      # requireServerEnv() fails closed at request time if they are missing.
+      S3_ACCESS_KEY_ID: ci-placeholder
+      S3_SECRET_ACCESS_KEY: ci-placeholder
+      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies (clean)
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Unit & integration tests
+        run: npx vitest run
+
+      - name: Production build
+        run: npm run build
+
+      # Release-gate invariant (Master Plan §21): no credential MATERIAL may
+      # ever reach the client bundle. Scans by value shape (AWS key ids,
+      # service-role JWT claims, raw env reads) — identifier mentions in error
+      # strings are NOT leaks and must not fail the gate.
+      - name: Secret-leak scan on client bundle
+        run: npm run scan:secrets
