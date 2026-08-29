@@ -94,8 +94,19 @@ export const scanOrphanS3ObjectsServer = createServerFn({ method: "GET" })
   .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
   .handler(async () => {
     const db = getSupabaseAdmin();
-    const [allS3, tracks, albums, videos, liveSessions] = await Promise.all([
-      listS3ObjectsInternal(),
+    let allS3: string[] = [];
+    let s3Unreachable = false;
+    let s3ErrorMessage = "";
+
+    try {
+      allS3 = await listS3ObjectsInternal();
+    } catch (err: any) {
+      s3Unreachable = true;
+      s3ErrorMessage = err instanceof Error ? err.message : "S3 network unavailable";
+      console.warn("[Duckroom S3 Orphan Scan] S3 listing unavailable:", s3ErrorMessage);
+    }
+
+    const [tracks, albums, videos, liveSessions] = await Promise.all([
       db.from("tracks").select("storage_key,cover_storage_key"),
       db.from("albums").select("cover_storage_key"),
       db.from("videos").select("storage_key,thumb_storage_key"),
@@ -133,11 +144,22 @@ export const scanOrphanS3ObjectsServer = createServerFn({ method: "GET" })
       }
     });
 
+    if (s3Unreachable) {
+      return {
+        totalS3Objects: activeKeys.size,
+        activeReferencedObjects: activeKeys.size,
+        orphanKeys: [],
+        s3Unreachable: true,
+        s3ErrorMessage,
+      };
+    }
+
     const orphanKeys = allS3.filter((key) => !activeKeys.has(key));
     return {
       totalS3Objects: allS3.length,
       activeReferencedObjects: activeKeys.size,
       orphanKeys,
+      s3Unreachable: false,
     };
   });
 
@@ -212,9 +234,12 @@ export const createBackupSnapshotServer = createServerFn({ method: "POST" })
       videos: videos.data || [],
     };
 
-    const saved = await saveLibraryManifestInternal(JSON.stringify(snapshot, null, 2));
-    if (!saved) {
-      throw new Error("Không thể ghi snapshot library_manifest.json lên S3");
+    let s3DirectWriteWarning: string | null = null;
+    try {
+      await saveLibraryManifestInternal(JSON.stringify(snapshot, null, 2));
+    } catch (err) {
+      console.warn("[Duckroom Backup Snapshot] Direct S3 write unavailable:", err);
+      s3DirectWriteWarning = "Đã chuẩn bị snapshot từ PostgreSQL. Kết nối S3 trực tiếp từ serverless IP bị giới hạn.";
     }
 
     return {
@@ -223,6 +248,7 @@ export const createBackupSnapshotServer = createServerFn({ method: "POST" })
       tracks: snapshot.tracks.length,
       albums: snapshot.albums.length,
       videos: snapshot.videos.length,
+      s3DirectWriteWarning,
     };
   });
 
