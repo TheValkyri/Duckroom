@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
-import { springSnappy, tapScale } from "../lib/motion";
+import { pageVariants, springSnappy, tapScale } from "../lib/motion";
 import { getIngestionStoreState, subscribeIngestionStore, type IngestionStoreState } from "../lib/upload-store";
 import { useAuth } from "../lib/useAuth";
 import { useDuckroomRole } from "../lib/useRole";
@@ -339,9 +339,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <motion.div
           key={location.pathname}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.12, ease: "easeOut" }}
+          variants={pageVariants}
+          initial="initial"
+          animate="animate"
           className="w-full"
         >
           {children}

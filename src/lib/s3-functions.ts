@@ -34,6 +34,14 @@ export function getS3ServerClient() {
       secretAccessKey,
     },
     forcePathStyle: true,
+    // Fix 2026-08-25 (403 playback + ERR_HTTP2_PROTOCOL_ERROR khi upload):
+    // SDK v3.729+ mặc định "WHEN_SUPPORTED" — gắn x-amz-checksum-mode=ENABLED
+    // vào presigned GET và yêu cầu checksum header cho presigned PUT. S3
+    // compatible (Pikamc) tính chữ ký trên TOÀN BỘ query → chữ ký lệch →
+    // 403 mọi ảnh bìa/nhạc, và PUT upload bị ngắt stream giữa chừng.
+    // "WHEN_REQUIRED" chỉ thêm checksum khi bucket thực sự yêu cầu.
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
   });
 }
 

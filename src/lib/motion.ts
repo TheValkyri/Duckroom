@@ -69,3 +69,11 @@ export const modalPanelVariants = {
   show: { opacity: 1, scale: 1, y: 0, transition: springSmooth },
   exit: { opacity: 0, scale: 0.96, y: 8, transition: tweenFast },
 } as const;
+
+// Cross-dissolve cho cover art swap — chỉ opacity, không y-shift, tránh layout shift
+export const coverSwapVariants = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1, transition: { duration: 0.25, ease: easeDuck } },
+  exit: { opacity: 0, transition: { duration: 0.2, ease: "easeIn" } },
+} as const;
+

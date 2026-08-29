@@ -21,7 +21,7 @@ import { useCallback, useMemo, useState } from "react";
 import { EditTrackModal } from "../components/EditTrackModal";
 import { TrackRow } from "../components/TrackRow";
 import { deleteTrack, syncLibraryWithS3, type Track } from "../data/library";
-import { springGentle, springPill, springSnappy, tapScale, tweenBase } from "../lib/motion";
+import { listContainerVariants, listItemVariants, springGentle, springPill, springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { usePlayer } from "../lib/player";
 import { useAuth } from "../lib/useAuth";
 import { useLibrary } from "../lib/useLibrary";
@@ -425,10 +425,10 @@ function SinglesPage() {
             {viewMode === "grid" ? (
               <motion.div
                 key="grid"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={tweenBase}
+                variants={listContainerVariants}
+                initial="hidden"
+                animate="show"
+                exit="hidden"
                 className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
               >
                 <AnimatePresence initial={false}>
@@ -436,9 +436,7 @@ function SinglesPage() {
                     <motion.div
                       key={track.id}
                       layout
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0, transition: { ...tweenBase, delay: Math.min(i, 14) * 0.02 } }}
-                      exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                      variants={listItemVariants}
                     >
                       <SingleCard
                         track={track}
@@ -456,10 +454,10 @@ function SinglesPage() {
             ) : (
               <motion.div
                 key="list"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={tweenBase}
+                variants={listContainerVariants}
+                initial="hidden"
+                animate="show"
+                exit="hidden"
                 className="space-y-1 bg-card/20 border border-white/5 rounded-2xl p-3"
               >
                 <AnimatePresence initial={false}>
@@ -467,9 +465,7 @@ function SinglesPage() {
                     <motion.div
                       key={track.id}
                       layout
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0, transition: { ...tweenBase, delay: Math.min(i, 14) * 0.02 } }}
-                      exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                      variants={listItemVariants}
                     >
                       <TrackRow
                         track={track}

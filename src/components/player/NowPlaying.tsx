@@ -84,7 +84,8 @@ function AmbientCrossfadeBackground({ cover, accent }: { cover: string; accent?:
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            style={{ willChange: "opacity" }}
             className="absolute inset-0 size-full transform-gpu"
           >
             {/* Dynamic radial color glow */}
@@ -119,7 +120,7 @@ export function NowPlaying() {
   // Fallback NỘI BỘ (gradient) — không tải ảnh mạng nữa: trước đây dùng
   // unsplash → mỗi lần chuyển bài lỗi cover là 1 request mạng + flash trắng.
   const fallbackCover =
-    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2327272a'/%3E%3Cstop offset='0.55' stop-color='%233f2d12'/%3E%3Cstop offset='1' stop-color='%23713f12'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='600' height='600' fill='url(%23g)'/%3E%3C/svg%3E";
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='600' height='600' fill='%2318181b'/%3E%3C/svg%3E";
   const rawCover = current?.cover || album?.cover;
   const rawCoverUrl = rawCover && !rawCover.startsWith("blob:") ? rawCover : fallbackCover;
   const nextTrack = queue[(index + 1) % queue.length];

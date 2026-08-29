@@ -223,7 +223,7 @@ function LibraryPage() {
           out. Nếu dùng stagger container thông thường, mỗi lần gõ phím tìm
           kiếm cả danh sách sẽ "nháy" lại toàn bộ — phản tác dụng, gây rối mắt. */}
       <div className="mt-6 space-y-1">
-        <AnimatePresence initial={false}>
+        <AnimatePresence>
           {list.map((t, i) => (
             <motion.div
               key={t.id}

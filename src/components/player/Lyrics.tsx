@@ -10,7 +10,6 @@ import { cn } from "../../lib/utils";
  * NEVER rewritten — offset is applied at display time only.
  */
 const OFFSET_STORAGE_PREFIX = "duckroom.lyricsOffset.";
-const OFFSET_STEP_MS = 200;
 const OFFSET_LIMIT_MS = 10_000;
 
 function readStoredOffset(trackId: string | undefined): number {
@@ -22,15 +21,6 @@ function readStoredOffset(trackId: string | undefined): number {
     return Math.max(-OFFSET_LIMIT_MS, Math.min(OFFSET_LIMIT_MS, parsed));
   } catch {
     return 0;
-  }
-}
-
-function writeStoredOffset(trackId: string | undefined, offsetMs: number): void {
-  if (!trackId || typeof window === "undefined" || !window.localStorage) return;
-  try {
-    window.localStorage.setItem(OFFSET_STORAGE_PREFIX + trackId, String(offsetMs));
-  } catch {
-    // Storage unavailable (private mode/quota) — offset stays session-only.
   }
 }
 
@@ -78,38 +68,15 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   const cancelScrollRef = useRef<() => void>(() => {});
   const isInitialMountRef = useRef(true);
 
-  // §10.4 — global offset: display-time shift only, per-track persistence
+  // §10.4 — global offset: display-time shift only, per-track persistence.
+  // Fix 2026-08-25: pill UI chỉnh offset (− / giá trị / +) đã bị XÓA SẠCH theo
+  // yêu cầu — không còn bất kỳ control nào trên pane lời. Offset đã lưu trong
+  // localStorage (nếu có) vẫn được áp dụng khi hiển thị.
   const [offsetMs, setOffsetMs] = useState(0);
   useEffect(() => {
     setOffsetMs(readStoredOffset(current?.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.id]);
-
-  // Fix 2026-08-25: pill chỉnh lệch lời tự ẩn khi rảnh (offset = 0 + không
-  // hover) — trước đây chữ "Lời" đứng lơ lửng góc phải mãi mãi.
-  const [pillVisible, setPillVisible] = useState(false);
-  const pillTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const clearPillTimer = () => {
-    if (pillTimerRef.current) {
-      clearTimeout(pillTimerRef.current);
-      pillTimerRef.current = null;
-    }
-  };
-  const showPill = () => {
-    clearPillTimer();
-    setPillVisible(true);
-  };
-  const schedulePillHide = () => {
-    clearPillTimer();
-    pillTimerRef.current = setTimeout(() => setPillVisible(false), 2200);
-  };
-
-  const updateOffsetMs = (next: number) => {
-    const clamped = Math.max(-OFFSET_LIMIT_MS, Math.min(OFFSET_LIMIT_MS, next));
-    setOffsetMs(clamped);
-    writeStoredOffset(current?.id, clamped);
-    showPill();
-    schedulePillHide();
-  };
 
   const lines = useMemo(
     () => (offsetMs === 0 ? originalLines : applyLyricsOffset(originalLines, offsetMs)),
@@ -174,7 +141,6 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   }, [activeIndex]);
 
   useEffect(() => () => cancelScrollRef.current(), []);
-  useEffect(() => () => clearPillTimer(), []);
 
   if (!lines.length) {
     return (
@@ -190,49 +156,11 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   return (
     <div
       className={cn("relative h-full w-full overflow-hidden select-none", compact ? "h-64" : "h-full")}
-      onMouseEnter={showPill}
-      onMouseLeave={schedulePillHide}
       style={{
         WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)",
         maskImage: "linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)",
       }}
     >
-      {/* §10.4 offset controls — positive = lyrics appear later; click value to reset.
-          Auto-hide khi offset = 0 và không tương tác (fix chữ "Lời" đứng vĩnh viễn). */}
-      <div
-        className={cn(
-          "absolute top-2 right-4 z-10 flex items-center gap-1.5 rounded-full border border-white/10 bg-black/30 px-1.5 py-1 backdrop-blur-md transition-opacity duration-300",
-          pillVisible || offsetMs !== 0 ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-      >
-        <button
-          type="button"
-          title="Lời xuất hiện sớm hơn (−200ms)"
-          onClick={() => updateOffsetMs(offsetMs - OFFSET_STEP_MS)}
-          className="grid size-6 place-items-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-        >
-          −
-        </button>
-        <button
-          type="button"
-          title="Đặt lại lệch thời gian về 0"
-          onClick={() => updateOffsetMs(0)}
-          className={cn(
-            "min-w-[3.25rem] rounded-full px-1 py-0.5 text-center text-[11px] font-medium tabular-nums transition-colors",
-            offsetMs === 0 ? "text-white/40" : "text-primary hover:bg-white/10",
-          )}
-        >
-          {offsetMs === 0 ? "0.0s" : `${offsetMs > 0 ? "+" : ""}${(offsetMs / 1000).toFixed(1)}s`}
-        </button>
-        <button
-          type="button"
-          title="Lời xuất hiện muộn hơn (+200ms)"
-          onClick={() => updateOffsetMs(offsetMs + OFFSET_STEP_MS)}
-          className="grid size-6 place-items-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-        >
-          +
-        </button>
-      </div>
       <motion.div
         key={current?.id || "lyrics-pane"}
         initial={{ opacity: 0, y: 12 }}

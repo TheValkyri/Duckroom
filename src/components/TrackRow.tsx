@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { memo, useCallback, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { albumById, formatTime, type Track } from "../data/library";
-import { springSnappy, tapScale } from "../lib/motion";
 import { usePlayer } from "../lib/player";
 import { cn } from "../lib/utils";
 import { EditTrackModal } from "./EditTrackModal";
@@ -11,6 +10,7 @@ import { useAuth } from "../lib/useAuth";
 import { useMemberLibraryContext } from "../lib/member-library-context";
 import { useDuckroomRole } from "../lib/useRole";
 import { createAndShareLink } from "../lib/share-client";
+import { springSnappy, tapScale } from "../lib/motion";
 
 function LiveAudioWaves() {
   return (
@@ -111,11 +111,13 @@ export const TrackRow = memo(function TrackRow({
 
   return (
     <>
-      <motion.div
-        whileHover={{ x: 2 }}
-        transition={springSnappy}
+      {/* Perf overhaul 2026-08-25: hàng track dùng CSS thuần (hover shift +
+          active scale) thay vì framer-motion. Trước đây mỗi hàng có 4-5 node
+          motion → 68 bài = ~300 subscription JS chạy mỗi render của danh sách.
+          CSS transform/transition được GPU composite, chi phí ~0 và vẫn mượt. */}
+      <div
         className={cn(
-          "group hover:bg-accent/40 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors relative border border-transparent hover:border-white/5",
+          "group hover:bg-accent/40 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-[background-color,border-color,transform] duration-200 relative border border-transparent hover:border-white/5 hover:translate-x-[2px]",
           active && "bg-accent/50 border-primary/20",
         )}
       >
@@ -223,7 +225,7 @@ export const TrackRow = memo(function TrackRow({
             <Trash2 className="size-4" />
           </motion.button>
         )}
-      </motion.div>
+      </div>
 
       <AnimatePresence>
         {showLoginPrompt && (

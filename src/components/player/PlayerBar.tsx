@@ -1,4 +1,4 @@
-import { AudioLines, ChevronUp, ListMusic, Mic2, Sparkles, Volume2, VolumeX } from "lucide-react";
+import { ChevronUp, ListMusic, Mic2, Sparkles, Volume2, VolumeX } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { albumById, formatTime } from "../../data/library";
@@ -35,7 +35,7 @@ export function PlayerBar() {
 
   if (!current) return null;
   const album = albumById(current.albumId);
-  const fallbackCover = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+  const fallbackCover = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Crect width='56' height='56' fill='%2318181b'/%3E%3C/svg%3E";
   const rawCover = current.cover || album?.cover;
   const coverUrl = rawCover && !rawCover.startsWith("blob:") ? rawCover : fallbackCover;
 
@@ -169,7 +169,6 @@ export function PlayerBar() {
               <Sparkles className={cn("size-3.5", crossfade > 0 && "text-amber-400 animate-pulse")} />
               <span className="hidden sm:inline font-mono">{crossfade > 0 ? `${crossfade}s` : "Mix Off"}</span>
             </motion.button>
-            <ReplayGainButton />
             <motion.button
               aria-label="Lời bài hát"
               title={lyricsOpen ? "Ẩn lời bài hát" : "Xem lời bài hát"}
@@ -222,40 +221,6 @@ export function PlayerBar() {
 function PlayerBarElapsedLabel() {
   const time = usePlayerTime();
   return <span className="text-muted-foreground w-10 text-right text-[11px] tabular-nums">{formatTime(time)}</span>;
-}
-
-/** ReplayGain mode cycler (Master Plan §11.5): Off → Track → Album → Off. */
-function ReplayGainButton() {
-  const { replayGainMode, cycleReplayGain } = usePlayer();
-  const labels: Record<typeof replayGainMode, string> = {
-    off: "RG Off",
-    track: "RG Track",
-    album: "RG Album",
-  };
-  const titles: Record<typeof replayGainMode, string> = {
-    off: "ReplayGain đang TẮT (nhấn để bật Track Gain)",
-    track: "ReplayGain TRACK GAIN — chuẩn hóa theo từng bài (nhấn để chuyển Album Gain)",
-    album: "ReplayGain ALBUM GAIN — giữ động năng cả album (nhấn để tắt)",
-  };
-  return (
-    <motion.button
-      aria-label="Chế độ ReplayGain"
-      title={titles[replayGainMode]}
-      onClick={cycleReplayGain}
-      whileTap={tapScale}
-      whileHover={{ y: -1 }}
-      transition={springSnappy}
-      className={cn(
-        "text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border border-white/10 cursor-pointer shadow-sm",
-        replayGainMode !== "off"
-          ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10 shadow-[0_0_12px_rgba(52,211,153,0.15)]"
-          : "hover:bg-accent/50",
-      )}
-    >
-      <AudioLines className={cn("size-3.5", replayGainMode !== "off" && "text-emerald-400")} />
-      <span className="hidden lg:inline font-mono">{labels[replayGainMode]}</span>
-    </motion.button>
-  );
 }
 
 function VolumeBar() {

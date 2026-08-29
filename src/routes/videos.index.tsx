@@ -3,10 +3,11 @@ import { Film, Play, RefreshCw, UploadCloud } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { formatTime, syncLibraryWithS3 } from "../data/library";
-import { listContainerVariants, listItemVariants, springSnappy, tapScale, tweenBase } from "../lib/motion";
+import { listContainerVariants, listItemVariants, springSnappy, tapScale } from "../lib/motion";
 import { useLibrary } from "../lib/useLibrary";
 import { useAuth } from "../lib/useAuth";
 import { cn } from "../lib/utils";
+import { VideoThumb } from "../components/VideoThumb";
 
 export const Route = createFileRoute("/videos/")({
   head: () => ({
@@ -24,19 +25,16 @@ export const Route = createFileRoute("/videos/")({
   component: VideosPage,
 });
 
-import { SmoothImage } from "../components/SmoothImage";
-
 function VideoCard({ v }: { v: any }) {
   return (
     <motion.div variants={listItemVariants} whileHover={{ y: -6 }} transition={springSnappy}>
       <Link to="/videos/$videoId" params={{ videoId: v.id }} className="group block">
         <div className="relative overflow-hidden rounded-xl bg-card/60 aspect-video">
-          <SmoothImage
-            src={v.thumb || undefined}
+          <VideoThumb
+            src={v.src || undefined}
+            thumb={v.thumb || undefined}
             alt={`Ảnh nền MV ${v.title}`}
-            fallbackSrc="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='456'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2327272a'/%3E%3Cstop offset='1' stop-color='%23713f12'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='800' height='456' fill='url(%23g)'/%3E%3C/svg%3E"
-            containerClassName="aspect-video w-full"
-            className="aspect-video w-full object-cover transition-all duration-500 group-hover:scale-105"
+            className="transition-all duration-500 group-hover:scale-105"
           />
           <div className="bg-background/30 absolute inset-0 grid place-items-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
             <span className="bg-primary text-primary-foreground grid size-14 place-items-center rounded-full shadow-xl">

@@ -6,6 +6,7 @@ import { AlbumCard } from "../components/AlbumCard";
 import { EditAlbumModal } from "../components/EditAlbumModal";
 import { TrackRow } from "../components/TrackRow";
 import { Visualizer } from "../components/Visualizer";
+import { VideoThumb } from "../components/VideoThumb";
 import { albumTracks, type Album, type Track } from "../data/library";
 import { listContainerVariants, listItemVariants, springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { usePlayer } from "../lib/player";
@@ -381,15 +382,14 @@ function Index() {
             {videos.map((v) => (
               <motion.div key={v.id} variants={listItemVariants}>
                 <Link to="/videos/$videoId" params={{ videoId: v.id }} className="group block">
-                  <img
-                    src={v.thumb || undefined}
-                    alt={`Ảnh nền MV ${v.title}`}
-                    loading="lazy"
-                    decoding="async"
-                    width={800}
-                    height={456}
-                    className="aspect-video w-full rounded-xl object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-                  />
+                  <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-card/60">
+                    <VideoThumb
+                      src={v.src || undefined}
+                      thumb={v.thumb || undefined}
+                      alt={`Ảnh nền MV ${v.title}`}
+                      className="transition-transform duration-500 group-hover:scale-[1.02]"
+                    />
+                  </div>
                   <h3 className="font-display mt-3 text-xl">{v.title}</h3>
                   <p className="text-muted-foreground text-xs">
                     {v.resolution} · {v.codec}
