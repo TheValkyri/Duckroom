@@ -478,6 +478,10 @@ export async function verifyAndAnalyzeServerUploadInternal(
     throw new ForbiddenSessionAccessError();
   }
 
+  if (session.status === "cancelled") {
+    throw new IngestionVerificationError("Phiên tải lên đã bị hủy bỏ.");
+  }
+
   const validVerifyingStates = ["approved", "uploading", "uploaded", "verifying", "analyzing_server"];
   assertLegalTransition(session.status, "verifying");
 

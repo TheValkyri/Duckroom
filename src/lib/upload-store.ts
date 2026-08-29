@@ -512,6 +512,8 @@ async function processApprovedIngestionItem(itemId: string) {
       });
     }
 
+    if (!storeState.items.some((i) => i.id === itemId)) return;
+
     // 4. Server-Side Verification & Authoritative Media Analysis
     updateIngestionItem(itemId, {
       stage: "verifying_server",
@@ -526,6 +528,8 @@ async function processApprovedIngestionItem(itemId: string) {
         clientAnalysis: item.localAnalysis ? sanitizeAnalysisResult(item.localAnalysis) : undefined,
       },
     });
+
+    if (!storeState.items.some((i) => i.id === itemId)) return;
 
     // Review Center truth sync (Master Plan §8.3): server verification is the
     // authority for integrity/artwork/duplicate statuses. Warnings are never
@@ -561,6 +565,8 @@ async function processApprovedIngestionItem(itemId: string) {
       );
     }
 
+    if (!storeState.items.some((i) => i.id === itemId)) return;
+
     // 5. Ensure Album Exists (if not singles)
     let finalAlbumId = "singles";
     if (!item.isVideo && item.metadata.album && item.metadata.album.trim().toLowerCase() !== "singles") {
@@ -578,6 +584,8 @@ async function processApprovedIngestionItem(itemId: string) {
         finalAlbumId = created.id;
       }
     }
+
+    if (!storeState.items.some((i) => i.id === itemId)) return;
 
     // 6. Safe Canonical Commit (Server Technical Truth Wins)
     updateIngestionItem(itemId, {
@@ -605,6 +613,8 @@ async function processApprovedIngestionItem(itemId: string) {
       },
     });
 
+    if (!storeState.items.some((i) => i.id === itemId)) return;
+
     // 7. Complete immediately and Hydrate Cache in background
     updateIngestionItem(itemId, {
       stage: "complete",
@@ -617,6 +627,7 @@ async function processApprovedIngestionItem(itemId: string) {
 
     void syncLibraryWithS3(true);
   } catch (err) {
+    if (!storeState.items.some((i) => i.id === itemId)) return;
     const msg = err instanceof Error ? err.message : String(err);
     console.error("Ingestion item processing failed:", err);
     updateIngestionItem(itemId, {
