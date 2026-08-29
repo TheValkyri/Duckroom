@@ -35,7 +35,8 @@ export function PlayerBar() {
 
   if (!current) return null;
   const album = albumById(current.albumId);
-  const fallbackCover = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Crect width='56' height='56' fill='%2318181b'/%3E%3C/svg%3E";
+  const fallbackCover =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Crect width='56' height='56' fill='%2318181b'/%3E%3C/svg%3E";
   const rawCover = current.cover || album?.cover;
   const coverUrl = rawCover && !rawCover.startsWith("blob:") ? rawCover : fallbackCover;
 

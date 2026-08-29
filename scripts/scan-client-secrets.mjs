@@ -63,9 +63,7 @@ for (const root of process.argv.slice(2)) {
       }
     }
 
-    const envPattern = new RegExp(
-      `process\\.env\\s*(?:\\.|\\[)\\s*["']?(?:${SECRET_ENV_NAMES.join("|")})`,
-    );
+    const envPattern = new RegExp(`process\\.env\\s*(?:\\.|\\[)\\s*["']?(?:${SECRET_ENV_NAMES.join("|")})`);
     if (envPattern.test(src)) findings.push(`${file}: raw process.env read of a server-only secret`);
   }
 }

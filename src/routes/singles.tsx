@@ -21,7 +21,15 @@ import { useCallback, useMemo, useState } from "react";
 import { EditTrackModal } from "../components/EditTrackModal";
 import { TrackRow } from "../components/TrackRow";
 import { deleteTrack, syncLibraryWithS3, type Track } from "../data/library";
-import { listContainerVariants, listItemVariants, springGentle, springPill, springSnappy, tapScale, tweenBase } from "../lib/motion";
+import {
+  listContainerVariants,
+  listItemVariants,
+  springGentle,
+  springPill,
+  springSnappy,
+  tapScale,
+  tweenBase,
+} from "../lib/motion";
 import { usePlayer } from "../lib/player";
 import { useAuth } from "../lib/useAuth";
 import { useLibrary } from "../lib/useLibrary";
@@ -433,11 +441,7 @@ function SinglesPage() {
               >
                 <AnimatePresence initial={false}>
                   {filteredSingles.map((track, i) => (
-                    <motion.div
-                      key={track.id}
-                      layout
-                      variants={listItemVariants}
-                    >
+                    <motion.div key={track.id} layout variants={listItemVariants}>
                       <SingleCard
                         track={track}
                         onPlay={() => {
@@ -462,11 +466,7 @@ function SinglesPage() {
               >
                 <AnimatePresence initial={false}>
                   {filteredSingles.map((track, i) => (
-                    <motion.div
-                      key={track.id}
-                      layout
-                      variants={listItemVariants}
-                    >
+                    <motion.div key={track.id} layout variants={listItemVariants}>
                       <TrackRow
                         track={track}
                         n={i + 1}

@@ -12,7 +12,10 @@ const fs = require("fs");
 const path = require("path");
 
 const dir = path.join(__dirname, "..", "supabase", "migrations");
-const files = fs.readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
+const files = fs
+  .readdirSync(dir)
+  .filter((f) => f.endsWith(".sql"))
+  .sort();
 
 // ---- Pass 1: build schema map -------------------------------------------
 const tables = new Map(); // table -> Set<column>
@@ -57,9 +60,32 @@ for (const f of files) {
 // the chain's statements actually reference. A brand-new Supabase project
 // needs this baseline created first (tracked OPEN gap).
 const LEGACY_BASELINE = {
-  tracks: ["id", "artist", "storage_key", "format", "sample_rate", "bit_depth", "duration_seconds", "size_mb", "lyrics", "title", "created_at"],
+  tracks: [
+    "id",
+    "artist",
+    "storage_key",
+    "format",
+    "sample_rate",
+    "bit_depth",
+    "duration_seconds",
+    "size_mb",
+    "lyrics",
+    "title",
+    "created_at",
+  ],
   albums: ["id", "artist", "year", "cover_storage_key", "title", "created_at"],
-  videos: ["id", "artist", "storage_key", "codec", "resolution", "duration_seconds", "size_mb", "thumb_storage_key", "title", "created_at"],
+  videos: [
+    "id",
+    "artist",
+    "storage_key",
+    "codec",
+    "resolution",
+    "duration_seconds",
+    "size_mb",
+    "thumb_storage_key",
+    "title",
+    "created_at",
+  ],
 };
 for (const [table, cols] of Object.entries(LEGACY_BASELINE)) {
   for (const c of cols) addCol(table, c);
@@ -76,7 +102,8 @@ function resolveAliases(stmt) {
   const map = new Map(); // alias -> table
   const re = /(?:FROM|JOIN|UPDATE)\s+(?:ONLY\s+)?(?:public\.)?([a-z_][a-z0-9_]*)\s+(?:AS\s+)?([a-z_][a-z0-9_]*)/gi;
   for (const m of stmt.matchAll(re)) {
-    if (["set", "on", "where", "left", "inner", "right", "full", "cross", "returning"].includes(m[2].toLowerCase())) continue;
+    if (["set", "on", "where", "left", "inner", "right", "full", "cross", "returning"].includes(m[2].toLowerCase()))
+      continue;
     map.set(m[2].toLowerCase(), m[1].toLowerCase());
   }
   // UPDATE table alias? (UPDATE public.x tf) covered above. Also "DELETE FROM x alias".
@@ -87,9 +114,7 @@ for (const f of files) {
   const t = fs.readFileSync(path.join(dir, f), "utf8");
   // Strip SQL comments first (-- line + block) so documented examples and
   // correction notes are not mistaken for live references.
-  const noComments = t
-    .replace(/\/\*[\s\S]*?\*\//g, (s) => s.replace(/[^\n]/g, " "))
-    .replace(/--[^\n]*/g, "");
+  const noComments = t.replace(/\/\*[\s\S]*?\*\//g, (s) => s.replace(/[^\n]/g, " ")).replace(/--[^\n]*/g, "");
   // split into statements roughly by semicolon at line ends (functions bodies excluded crudely)
   const noFunctions = noComments.replace(/(\$[a-z]*\$[\s\S]*?\$[a-z]*\$)/g, (s) => s.replace(/[^\n]/g, " ")); // blank out dollar-quoted bodies
   for (const stmt of noFunctions.split(/;\s*\n/)) {

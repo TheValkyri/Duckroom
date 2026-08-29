@@ -76,4 +76,3 @@ export const coverSwapVariants = {
   animate: { opacity: 1, transition: { duration: 0.25, ease: easeDuck } },
   exit: { opacity: 0, transition: { duration: 0.2, ease: "easeIn" } },
 } as const;
-
