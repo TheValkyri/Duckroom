@@ -167,6 +167,26 @@ export const replaceMasterLibraryServer = createServerFn({ method: "POST" })
  * Returns all public canonical tracks, albums, and videos with short-lived (15 min) signed URLs.
  * Throws explicit error if database is unreachable (does NOT return fake empty arrays).
  */
+const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
+
+function getCachedSignedUrl(key: string, inline: boolean): string | null {
+  const cacheKey = `${key}::${inline ? "inline" : "attach"}`;
+  const hit = signedUrlCache.get(cacheKey);
+  if (hit && hit.expiresAt > Date.now() + 60_000) {
+    return hit.url;
+  }
+  return null;
+}
+
+function setCachedSignedUrl(key: string, inline: boolean, url: string) {
+  const cacheKey = `${key}::${inline ? "inline" : "attach"}`;
+  // Prune cache if it grows too large
+  if (signedUrlCache.size > 500) {
+    signedUrlCache.clear();
+  }
+  signedUrlCache.set(cacheKey, { url, expiresAt: Date.now() + 720_000 });
+}
+
 export async function getPublicMasterLibraryInternal() {
   const db = getSupabaseAdmin();
   const [albums, tracks, videos] = await Promise.all([
@@ -207,9 +227,11 @@ export async function getPublicMasterLibraryInternal() {
     if (cleanKey.startsWith("http://") || cleanKey.startsWith("https://")) {
       return cleanKey;
     }
+    const cached = getCachedSignedUrl(cleanKey, inline);
+    if (cached) return cached;
     try {
       validateStorageKey(cleanKey);
-      return await getSignedUrl(
+      const signed = await getSignedUrl(
         s3,
         new GetObjectCommand({
           Bucket: BUCKET_NAME,
@@ -218,6 +240,8 @@ export async function getPublicMasterLibraryInternal() {
         }),
         { expiresIn: 900 },
       );
+      if (signed) setCachedSignedUrl(cleanKey, inline, signed);
+      return signed;
     } catch (err) {
       console.warn(`[Duckroom Storage] Could not sign key: "${cleanKey}"`, err);
       return undefined;
@@ -355,6 +379,10 @@ export async function getPublicMasterLibraryInternal() {
   );
 
   return { albums: albumRows, tracks: trackRows, videos: videoRows };
+}
+
+export function clearSignedUrlCache() {
+  signedUrlCache.clear();
 }
 
 /**
