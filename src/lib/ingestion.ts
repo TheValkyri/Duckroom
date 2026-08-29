@@ -321,11 +321,37 @@ export async function createUploadSessionInternal(data: CreateUploadSessionInput
     inserted.artwork_staging_key = canonicalArtworkStagingKey;
   }
 
+  let uploadUrl: string | null = null;
+  let artworkUploadUrl: string | null = null;
+
+  try {
+    const s3 = getS3ServerClient();
+
+    const mediaCommand = new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: inserted.staging_storage_key,
+      ContentType: inserted.expected_mime,
+    });
+    uploadUrl = await getSignedUrl(s3, mediaCommand, { expiresIn: 3600 });
+
+    if (inserted.artwork_staging_key) {
+      const artCommand = new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: inserted.artwork_staging_key,
+      });
+      artworkUploadUrl = await getSignedUrl(s3, artCommand, { expiresIn: 3600 });
+    }
+  } catch {
+    // S3 client or credentials might not be configured in unit tests or offline; presigning will occur on demand
+  }
+
   return {
     session: inserted,
     duplicateStatus,
     matchedEntityId,
     matchedEntity,
+    uploadUrl,
+    artworkUploadUrl,
   };
 }
 
@@ -780,7 +806,10 @@ export async function verifyAndAnalyzeServerUploadInternal(
         artErr?.message?.includes("fetch failed");
 
       if (isNetworkError) {
-        console.warn("[Duckroom Ingestion] S3 Artwork download timed out from Serverless IP, trusting client upload:", artErr);
+        console.warn(
+          "[Duckroom Ingestion] S3 Artwork download timed out from Serverless IP, trusting client upload:",
+          artErr,
+        );
         artworkStatus = "verified";
         artworkMime = "image/jpeg";
       } else {
