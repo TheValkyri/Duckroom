@@ -143,6 +143,65 @@ export function sortAlbumsDeterministically(albumList: Album[]): Album[] {
   });
 }
 
+export function sortTracksDeterministically(trackList: Track[], albumList: Album[] = albums): Track[] {
+  const albumMap = new Map<string, { priority: number; year: number; title: string }>();
+  const sortedAlbums = sortAlbumsDeterministically(albumList);
+
+  sortedAlbums.forEach((a, idx) => {
+    albumMap.set(a.id.toLowerCase().trim(), { priority: idx, year: a.year || 0, title: a.title });
+    albumMap.set(a.title.toLowerCase().trim(), { priority: idx, year: a.year || 0, title: a.title });
+  });
+
+  return [...trackList].sort((a, b) => {
+    const cleanAlbumA = a.albumId?.toLowerCase().trim();
+    const cleanAlbumB = b.albumId?.toLowerCase().trim();
+
+    const isSingleA =
+      !cleanAlbumA ||
+      cleanAlbumA === "singles" ||
+      cleanAlbumA === "single" ||
+      cleanAlbumA === "single-collection" ||
+      !albumMap.has(cleanAlbumA);
+    const isSingleB =
+      !cleanAlbumB ||
+      cleanAlbumB === "singles" ||
+      cleanAlbumB === "single" ||
+      cleanAlbumB === "single-collection" ||
+      !albumMap.has(cleanAlbumB);
+
+    // 1. Both are in albums
+    if (!isSingleA && !isSingleB) {
+      const aInfo = albumMap.get(cleanAlbumA!)!;
+      const bInfo = albumMap.get(cleanAlbumB!)!;
+
+      if (aInfo.priority !== bInfo.priority) {
+        return aInfo.priority - bInfo.priority;
+      }
+      // Same album: sort by trackNo ASC
+      if (a.trackNo !== b.trackNo && a.trackNo > 0 && b.trackNo > 0) {
+        return a.trackNo - b.trackNo;
+      }
+      const tA = parseInt(a.id, 10) || 0;
+      const tB = parseInt(b.id, 10) || 0;
+      if (tA && tB && tA !== tB) return tA - tB;
+      return a.title.localeCompare(b.title);
+    }
+
+    // 2. Album tracks come first, Singles at bottom!
+    if (!isSingleA && isSingleB) return -1;
+    if (isSingleA && !isSingleB) return 1;
+
+    // 3. Both are singles -> sort by trackNo / timestamp / title
+    if (a.trackNo !== b.trackNo && a.trackNo > 0 && b.trackNo > 0) {
+      return a.trackNo - b.trackNo;
+    }
+    const tA = parseInt(a.id, 10) || 0;
+    const tB = parseInt(b.id, 10) || 0;
+    if (tA && tB && tA !== tB) return tA - tB;
+    return a.title.localeCompare(b.title);
+  });
+}
+
 let lastSyncTime = 0;
 
 /**
@@ -165,7 +224,7 @@ export async function syncLibraryWithS3(force = false): Promise<{ albums: Album[
     albums.length = 0;
     albums.push(...sortAlbumsDeterministically((canonical.albums as Album[]) || []));
     tracks.length = 0;
-    tracks.push(...((canonical.tracks as unknown as Track[]) || []));
+    tracks.push(...sortTracksDeterministically((canonical.tracks as unknown as Track[]) || [], albums));
     videos.length = 0;
     videos.push(...((canonical.videos as unknown as Video[]) || []));
 
@@ -251,12 +310,15 @@ export const albumTracks = (id: string) => {
     return trackAlbum === targetId || trackAlbum === targetTitle;
   });
 
-  const hasDistinctTrackNos = new Set(list.map((t) => t.trackNo)).size > 1;
-  if (hasDistinctTrackNos) {
-    return list.sort((a, b) => (a.trackNo || 0) - (b.trackNo || 0));
-  }
-
-  return list;
+  return list.sort((a, b) => {
+    if (a.trackNo !== b.trackNo && a.trackNo > 0 && b.trackNo > 0) {
+      return a.trackNo - b.trackNo;
+    }
+    const tA = parseInt(a.id, 10) || 0;
+    const tB = parseInt(b.id, 10) || 0;
+    if (tA && tB && tA !== tB) return tA - tB;
+    return a.title.localeCompare(b.title);
+  });
 };
 
 export const videoById = (id: string) => videos.find((v) => v.id === id);

@@ -346,6 +346,50 @@ export async function getPublicMasterLibraryInternal() {
     }),
   );
 
+  const albumOrderMap = new Map<string, { priority: number }>();
+  albumRows.forEach((a, idx) => {
+    albumOrderMap.set(a.id.toLowerCase().trim(), { priority: idx });
+    albumOrderMap.set(a.title.toLowerCase().trim(), { priority: idx });
+  });
+
+  trackRows.sort((a, b) => {
+    const cleanAlbumA = a.albumId?.toLowerCase().trim();
+    const cleanAlbumB = b.albumId?.toLowerCase().trim();
+
+    const isSingleA =
+      !cleanAlbumA ||
+      cleanAlbumA === "singles" ||
+      cleanAlbumA === "single" ||
+      cleanAlbumA === "single-collection" ||
+      !albumOrderMap.has(cleanAlbumA);
+    const isSingleB =
+      !cleanAlbumB ||
+      cleanAlbumB === "singles" ||
+      cleanAlbumB === "single" ||
+      cleanAlbumB === "single-collection" ||
+      !albumOrderMap.has(cleanAlbumB);
+
+    if (!isSingleA && !isSingleB) {
+      const aInfo = albumOrderMap.get(cleanAlbumA!)!;
+      const bInfo = albumOrderMap.get(cleanAlbumB!)!;
+      if (aInfo.priority !== bInfo.priority) return aInfo.priority - bInfo.priority;
+      if (a.trackNo !== b.trackNo && a.trackNo > 0 && b.trackNo > 0) return a.trackNo - b.trackNo;
+      const tA = parseInt(a.id, 10) || 0;
+      const tB = parseInt(b.id, 10) || 0;
+      if (tA && tB && tA !== tB) return tA - tB;
+      return a.title.localeCompare(b.title);
+    }
+
+    if (!isSingleA && isSingleB) return -1;
+    if (isSingleA && !isSingleB) return 1;
+
+    if (a.trackNo !== b.trackNo && a.trackNo > 0 && b.trackNo > 0) return a.trackNo - b.trackNo;
+    const tA = parseInt(a.id, 10) || 0;
+    const tB = parseInt(b.id, 10) || 0;
+    if (tA && tB && tA !== tB) return tA - tB;
+    return a.title.localeCompare(b.title);
+  });
+
   const videoRows = await Promise.all(
     (videos.data ?? []).map(async (v: any) => {
       const files = Array.isArray(v.video_files) ? v.video_files : v.video_files ? [v.video_files] : [];

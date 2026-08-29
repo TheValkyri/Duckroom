@@ -2,9 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Music2, RefreshCw, Search, Trash2, UploadCloud, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { TrackRow } from "../components/TrackRow";
-import { clearAllTracks, deleteTrack, syncLibraryWithS3, type Track } from "../data/library";
-import { springPill, springSnappy, tapScale, tweenBase } from "../lib/motion";
+import {
+  clearAllTracks,
+  deleteTrack,
+  sortTracksDeterministically,
+  syncLibraryWithS3,
+  type Track,
+} from "../data/library";
 import { useAuth } from "../lib/useAuth";
 import { useLibrary } from "../lib/useLibrary";
 import { usePlayer } from "../lib/player";
@@ -87,27 +91,23 @@ function LibraryPage() {
 
   const list = useMemo(() => {
     const qLower = q.trim().toLowerCase();
-    return tracks
-      .filter((t) => {
-        let matchesFilter = true;
-        if (filter === "singles") {
-          matchesFilter =
-            !t.albumId || t.albumId === "singles" || t.albumId === "single-collection" || t.albumId === "single";
-        } else if (filter !== "all") {
-          matchesFilter = t.albumId === filter;
-        }
+    const filtered = tracks.filter((t) => {
+      let matchesFilter = true;
+      if (filter === "singles") {
+        matchesFilter =
+          !t.albumId || t.albumId === "singles" || t.albumId === "single-collection" || t.albumId === "single";
+      } else if (filter !== "all") {
+        matchesFilter = t.albumId === filter;
+      }
 
-        const matchesSearch =
-          !qLower || t.title.toLowerCase().includes(qLower) || t.artist.toLowerCase().includes(qLower);
+      const matchesSearch =
+        !qLower || t.title.toLowerCase().includes(qLower) || t.artist.toLowerCase().includes(qLower);
 
-        return matchesFilter && matchesSearch;
-      })
-      .sort((a, b) => {
-        const timeA = parseInt(a.id.split("-")[0] || "0", 10) || a.trackNo;
-        const timeB = parseInt(b.id.split("-")[0] || "0", 10) || b.trackNo;
-        return timeA - timeB;
-      });
-  }, [tracks, filter, q]);
+      return matchesFilter && matchesSearch;
+    });
+
+    return sortTracksDeterministically(filtered, albums);
+  }, [tracks, filter, q, albums]);
 
   const totalSizeGB = useMemo(() => {
     return (tracks.reduce((a, t) => a + (t.sizeMB || 0), 0) / 1024).toFixed(1);
