@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArtworkCropModal } from "./ArtworkCropModal";
 import { LyricsSearchModal } from "./LyricsSearchModal";
 import { albums, updateTrack, createAlbum, type Track } from "../data/library";
+import { fetchTrackArtworkUrl } from "../lib/s3";
 import { compressAndResizeImageFile, cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import { modalOverlayVariants, modalPanelVariants, springSnappy, tapScale } from "../lib/motion";
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
@@ -40,7 +41,15 @@ export function EditTrackModal({
   );
   const [lyricsSource, setLyricsSource] = useState<string | null>(track.lyricsSource ?? null);
   const [artworkFile, setArtworkFile] = useState<File | null>(null);
-  const [artworkPreview, setArtworkPreview] = useState<string | null>(track.cover || null);
+
+  const isCoverUrlValid =
+    track.cover &&
+    (track.cover.startsWith("http://") ||
+      track.cover.startsWith("https://") ||
+      track.cover.startsWith("data:") ||
+      track.cover.startsWith("blob:"));
+
+  const [artworkPreview, setArtworkPreview] = useState<string | null>(isCoverUrlValid ? track.cover! : null);
   const [showCropModal, setShowCropModal] = useState(false);
   const [showLyricsSearchModal, setShowLyricsSearchModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -49,6 +58,20 @@ export function EditTrackModal({
   const [noticeMsg, setNoticeMsg] = useState("");
 
   const availableAlbums = useMemo(() => albums.filter((a) => a.id !== "singles" && a.id !== "single-collection"), []);
+
+  useEffect(() => {
+    if (!artworkPreview && track.id) {
+      let isMounted = true;
+      fetchTrackArtworkUrl(track.id).then((url) => {
+        if (isMounted && url && (url.startsWith("http://") || url.startsWith("https://"))) {
+          setArtworkPreview(url);
+        }
+      });
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [track.id, artworkPreview]);
 
   // Close modal if user is confirmed not logged in (deferred to avoid setState-during-render)
   useEffect(() => {

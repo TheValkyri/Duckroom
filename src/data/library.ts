@@ -376,12 +376,21 @@ export async function updateAlbum(
     },
   });
   const idx = albums.findIndex((a) => a.id === albumId);
+  const cleanCover =
+    data.cover &&
+    (data.cover.startsWith("http://") ||
+      data.cover.startsWith("https://") ||
+      data.cover.startsWith("blob:") ||
+      data.cover.startsWith("data:"))
+      ? data.cover
+      : current?.cover || "";
+
   const mappedAlbum: Album = {
     id: updated.id,
     title: updated.title,
     artist: updated.artist,
     year: updated.year,
-    cover: updated.cover_storage_key || "",
+    cover: cleanCover,
     accent: updated.accent,
     note: updated.note || "",
     version: updated.version,
@@ -394,6 +403,7 @@ export async function updateAlbum(
     albums.push(mappedAlbum);
   }
   notifyLibrarySubscribers();
+  void syncLibraryWithS3(true);
   return mappedAlbum;
 }
 
@@ -425,6 +435,20 @@ export async function createTrack(data: {
   lyrics?: LyricLine[] | undefined;
 }): Promise<Track> {
   const created = await createTrackDomainServer({ data });
+  const cleanCover =
+    data.cover &&
+    (data.cover.startsWith("http://") ||
+      data.cover.startsWith("https://") ||
+      data.cover.startsWith("blob:") ||
+      data.cover.startsWith("data:"))
+      ? data.cover
+      : undefined;
+
+  const cleanSrc =
+    data.src && (data.src.startsWith("http://") || data.src.startsWith("https://") || data.src.startsWith("blob:"))
+      ? data.src
+      : created.storage_key;
+
   const newTrack: Track = {
     id: created.id,
     title: created.title,
@@ -436,8 +460,8 @@ export async function createTrack(data: {
     bitDepth: created.bit_depth,
     sampleRate: created.sample_rate,
     sizeMB: Number(created.size_mb) || 0,
-    src: created.storage_key,
-    cover: created.cover_storage_key || undefined,
+    src: cleanSrc,
+    cover: cleanCover,
     year: created.year ?? undefined,
     lyrics: (created.lyrics as LyricLine[]) || [],
     version: created.version,
@@ -446,6 +470,7 @@ export async function createTrack(data: {
   };
   tracks.push(newTrack);
   notifyLibrarySubscribers();
+  void syncLibraryWithS3(true);
   return newTrack;
 }
 
@@ -480,6 +505,20 @@ export async function updateTrack(
     },
   });
   const idx = tracks.findIndex((t) => t.id === trackId);
+  const cleanCover =
+    data.cover &&
+    (data.cover.startsWith("http://") ||
+      data.cover.startsWith("https://") ||
+      data.cover.startsWith("blob:") ||
+      data.cover.startsWith("data:"))
+      ? data.cover
+      : current?.cover || undefined;
+
+  const cleanSrc =
+    data.src && (data.src.startsWith("http://") || data.src.startsWith("https://") || data.src.startsWith("blob:"))
+      ? data.src
+      : current?.src || "";
+
   const mappedTrack: Track = {
     id: updated.id,
     title: updated.title,
@@ -491,8 +530,8 @@ export async function updateTrack(
     bitDepth: updated.bit_depth,
     sampleRate: updated.sample_rate,
     sizeMB: Number(updated.size_mb) || 0,
-    src: updated.storage_key,
-    cover: updated.cover_storage_key || undefined,
+    src: cleanSrc,
+    cover: cleanCover,
     year: updated.year ?? undefined,
     lyrics: (updated.lyrics as LyricLine[]) || [],
     lyricsSource: (updated.lyrics_source as string | null) ?? null,
@@ -506,6 +545,7 @@ export async function updateTrack(
     tracks.push(mappedTrack);
   }
   notifyLibrarySubscribers();
+  void syncLibraryWithS3(true);
   return mappedTrack;
 }
 

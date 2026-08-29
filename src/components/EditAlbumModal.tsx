@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { updateAlbum, type Album } from "../data/library";
+import { fetchAlbumArtworkUrl } from "../lib/s3";
 import { ArtworkCropModal } from "./ArtworkCropModal";
 import { compressAndResizeImageFile, cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import { modalOverlayVariants, modalPanelVariants, springSnappy, tapScale } from "../lib/motion";
@@ -24,12 +25,34 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
   const [note, setNote] = useState(album.note || "");
   const [coverUrl, setCoverUrl] = useState("");
   const [artworkFile, setArtworkFile] = useState<File | null>(null);
-  const [artworkPreview, setArtworkPreview] = useState<string | null>(null);
+
+  const isAlbumCoverValid =
+    album.cover &&
+    (album.cover.startsWith("http://") ||
+      album.cover.startsWith("https://") ||
+      album.cover.startsWith("data:") ||
+      album.cover.startsWith("blob:"));
+
+  const [artworkPreview, setArtworkPreview] = useState<string | null>(isAlbumCoverValid ? album.cover : null);
   const [showCropModal, setShowCropModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [coverPreviewError, setCoverPreviewError] = useState(false);
+
+  useEffect(() => {
+    if (!artworkPreview && album.id && !isAlbumCoverValid) {
+      let isMounted = true;
+      fetchAlbumArtworkUrl(album.id).then((url) => {
+        if (isMounted && url && (url.startsWith("http://") || url.startsWith("https://"))) {
+          setArtworkPreview(url);
+        }
+      });
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [album.id, artworkPreview, isAlbumCoverValid]);
 
   useEffect(() => {
     if (!isLoading && !isLoggedIn) {
@@ -43,8 +66,8 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
 
   const previewSrc =
     artworkPreview ||
-    coverUrl.trim() ||
-    album.cover ||
+    (coverUrl.trim().startsWith("http") ? coverUrl.trim() : null) ||
+    (isAlbumCoverValid ? album.cover : null) ||
     "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&auto=format&fit=crop&q=80";
 
   const handleSave = async (e: React.FormEvent) => {
