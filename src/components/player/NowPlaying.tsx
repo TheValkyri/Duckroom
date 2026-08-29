@@ -197,36 +197,40 @@ export function NowPlaying() {
             onClick={(e) => {
               if (e.target === e.currentTarget) handleMinimize();
             }}
-            className="relative z-20 flex items-center justify-between px-6 py-4 shrink-0"
+            className="relative z-20 grid grid-cols-3 items-center px-6 py-4 shrink-0 w-full"
           >
-            <motion.button
-              onClick={handleMinimize}
-              whileTap={tapScale}
-              transition={springSnappy}
-              className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm transition-colors cursor-pointer"
-            >
-              <ChevronDown className="size-5" /> Thu nhỏ
-            </motion.button>
-
-            {/* Next Track Indicator Pill */}
-            {nextTrack && queue.length > 1 && (
+            <div className="flex items-center justify-start">
               <motion.button
-                onClick={() => next(true)}
+                onClick={handleMinimize}
                 whileTap={tapScale}
-                whileHover={{ y: -1 }}
                 transition={springSnappy}
-                className="hidden md:flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground bg-card/60 hover:bg-card/90 border border-white/10 px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-sm group"
+                className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm transition-colors cursor-pointer"
               >
-                <SkipForward className="size-3.5 text-primary group-hover:translate-x-0.5 transition-transform" />
-                <span>
-                  Tiếp theo: <strong className="text-foreground font-medium">{nextTrack.title}</strong> —{" "}
-                  {nextTrack.artist}
-                </span>
+                <ChevronDown className="size-5" /> Thu nhỏ
               </motion.button>
-            )}
+            </div>
 
-            {/* Nút Lời: chỉ hiện khi bài HAT có lyrics — tránh pill trống lơ lửng */}
-            {current?.lyrics && current.lyrics.length > 0 && (
+            {/* Next Track Indicator Pill (Always centered) */}
+            <div className="flex items-center justify-center">
+              {nextTrack && queue.length > 1 && (
+                <motion.button
+                  onClick={() => next(true)}
+                  whileTap={tapScale}
+                  whileHover={{ y: -1 }}
+                  transition={springSnappy}
+                  className="hidden md:flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground bg-card/60 hover:bg-card/90 border border-white/10 px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-sm group truncate max-w-sm"
+                >
+                  <SkipForward className="size-3.5 text-primary group-hover:translate-x-0.5 transition-transform shrink-0" />
+                  <span className="truncate">
+                    Tiếp theo: <strong className="text-foreground font-medium">{nextTrack.title}</strong> —{" "}
+                    {nextTrack.artist}
+                  </span>
+                </motion.button>
+              )}
+            </div>
+
+            {/* Nút Lời: Luôn hiển thị ở góc phải trên cùng */}
+            <div className="flex items-center justify-end">
               <motion.button
                 onClick={() => setLyricsOpen(!lyricsOpen)}
                 whileTap={tapScale}
@@ -238,7 +242,7 @@ export function NowPlaying() {
               >
                 <Mic2 className="size-4" /> Lời
               </motion.button>
-            )}
+            </div>
           </div>
 
           {/* Main Content Stage */}
