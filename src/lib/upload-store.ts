@@ -605,9 +605,7 @@ async function processApprovedIngestionItem(itemId: string) {
       },
     });
 
-    // 7. Complete and Hydrate Cache
-    await syncLibraryWithS3(true);
-
+    // 7. Complete immediately and Hydrate Cache in background
     updateIngestionItem(itemId, {
       stage: "complete",
       progressPercent: 100,
@@ -616,6 +614,8 @@ async function processApprovedIngestionItem(itemId: string) {
         : "✨ Đã nhập kho lưu trữ chính thức thành công!",
       committedEntity: commitRes.entity,
     });
+
+    void syncLibraryWithS3(true);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("Ingestion item processing failed:", err);

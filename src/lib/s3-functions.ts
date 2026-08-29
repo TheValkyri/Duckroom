@@ -5,6 +5,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { NodeHttpHandler } from "@smithy/node-http-handler";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -34,7 +35,11 @@ export function getS3ServerClient() {
       secretAccessKey,
     },
     forcePathStyle: true,
-    maxAttempts: 2,
+    maxAttempts: 1,
+    requestHandler: new NodeHttpHandler({
+      connectionTimeout: 1500,
+      requestTimeout: 2500,
+    }),
     // Fix 2026-08-25 (403 playback + ERR_HTTP2_PROTOCOL_ERROR khi upload):
     // SDK v3.729+ mặc định "WHEN_SUPPORTED" — gắn x-amz-checksum-mode=ENABLED
     // vào presigned GET và yêu cầu checksum header cho presigned PUT. S3
