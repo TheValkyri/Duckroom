@@ -400,6 +400,7 @@ async function processApprovedIngestionItem(itemId: string) {
       data: {
         sessionId: item.sessionId,
         hasArtwork: Boolean(artBlob),
+        clientAnalysis: item.localAnalysis,
       },
     });
 
