@@ -34,6 +34,7 @@ export function getS3ServerClient() {
       secretAccessKey,
     },
     forcePathStyle: true,
+    maxAttempts: 2,
     // Fix 2026-08-25 (403 playback + ERR_HTTP2_PROTOCOL_ERROR khi upload):
     // SDK v3.729+ mặc định "WHEN_SUPPORTED" — gắn x-amz-checksum-mode=ENABLED
     // vào presigned GET và yêu cầu checksum header cho presigned PUT. S3

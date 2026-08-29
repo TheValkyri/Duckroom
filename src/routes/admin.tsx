@@ -359,6 +359,19 @@ function AdminPage() {
                     <Metric label="Artwork Covers" value={health.storage?.artworkObjects ?? 0} />
                     <Metric label="Backup Manifest" value={health.storage?.manifestPresent ? "Sẵn sàng" : "Chưa có"} />
                   </div>
+                  {health.storage?.s3Available === false && (
+                    <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs flex items-start gap-2">
+                      <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold">S3 Storage Listing Timeout</p>
+                        <p className="text-muted-foreground mt-0.5 text-[11px]">
+                          Máy chủ S3 phản hồi chậm hoặc không thể kết nối trực tiếp từ Serverless IP (
+                          {health.storage.s3Error || "ETIMEDOUT"}). Dữ liệu Database và phát nhạc client vẫn hoạt động
+                          bình thường.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Orphan Scanner Results panel */}

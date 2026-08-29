@@ -19,7 +19,9 @@ export const getOwnerHealthServer = createServerFn({ method: "GET" })
   .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
   .handler(async () => {
     const db = getSupabaseAdmin();
-    const [tracks, albums, videos, profiles, playlists, favorites, history, keys] = await Promise.all([
+    let s3Error: string | null = null;
+
+    const [tracks, albums, videos, profiles, playlists, favorites, history, s3Keys] = await Promise.all([
       db.from("tracks").select("id", { count: "exact", head: true }),
       db.from("albums").select("id", { count: "exact", head: true }),
       db.from("videos").select("id", { count: "exact", head: true }),
@@ -27,10 +29,15 @@ export const getOwnerHealthServer = createServerFn({ method: "GET" })
       db.from("playlists").select("id", { count: "exact", head: true }),
       db.from("user_favorites").select("track_id", { count: "exact", head: true }),
       db.from("playback_history").select("id", { count: "exact", head: true }),
-      listS3ObjectsInternal(),
+      listS3ObjectsInternal().catch((err) => {
+        s3Error = err instanceof Error ? err.message : "S3 storage listing unavailable";
+        console.warn("[Duckroom S3 Health] S3 listing unavailable:", s3Error);
+        return [] as string[];
+      }),
     ]);
     const errors = [tracks, albums, videos, profiles, playlists, favorites, history].filter((result) => result.error);
     if (errors.length) throw new Error(errors[0]?.error?.message || "Không thể đọc trạng thái Owner.");
+    const keys = s3Keys || [];
     return {
       counts: {
         tracks: tracks.count ?? 0,
@@ -47,6 +54,8 @@ export const getOwnerHealthServer = createServerFn({ method: "GET" })
         videoObjects: keys.filter((key) => /\.(mp4|mkv|webm|mov)$/i.test(key)).length,
         artworkObjects: keys.filter((key) => key.startsWith("artwork/") || key.startsWith("artworks/")).length,
         manifestPresent: keys.includes("library_manifest.json"),
+        s3Available: s3Error === null,
+        s3Error,
       },
       generatedAt: new Date().toISOString(),
     };
