@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Music2, RefreshCw, Search, Trash2, UploadCloud, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { TrackRow } from "../components/TrackRow";
 import {
   clearAllTracks,
   deleteTrack,
