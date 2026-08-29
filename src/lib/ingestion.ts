@@ -49,7 +49,7 @@ const LEGAL_TRANSITIONS: Record<string, string[]> = {
   created: ["analyzing", "waiting_review", "approved", "failed", "cancelled"],
   analyzing: ["waiting_review", "failed", "cancelled"],
   waiting_review: ["approved", "resolved_to_existing", "failed", "cancelled"],
-  approved: ["uploading", "resolved_to_existing", "failed", "cancelled"],
+  approved: ["uploading", "verifying", "resolved_to_existing", "failed", "cancelled"],
   uploading: ["uploaded", "verifying", "failed", "cancelled"],
   uploaded: ["verifying", "analyzing_server", "failed", "cancelled"],
   verifying: ["analyzing_server", "waiting_review", "committing", "verification_failed", "failed", "cancelled"],
@@ -478,7 +478,7 @@ export async function verifyAndAnalyzeServerUploadInternal(
     throw new ForbiddenSessionAccessError();
   }
 
-  const validVerifyingStates = ["uploading", "uploaded", "verifying", "analyzing_server"];
+  const validVerifyingStates = ["approved", "uploading", "uploaded", "verifying", "analyzing_server"];
   assertLegalTransition(session.status, "verifying");
 
   await db
