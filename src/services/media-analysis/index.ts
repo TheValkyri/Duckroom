@@ -31,3 +31,19 @@ export async function analyzeMediaBuffer(
   // Check audio
   return analyzeAudioBuffer(bytes, totalFileSizeBytes);
 }
+
+/**
+ * Sanitizes analysis results for safe RPC transport (Seroval/JSON), removing raw binary buffers.
+ */
+export function sanitizeAnalysisResult<T extends Record<string, any> | null | undefined>(analysis: T): T {
+  if (!analysis || typeof analysis !== "object") return analysis;
+
+  const clone: any = { ...analysis };
+
+  if (clone.embeddedArtwork && typeof clone.embeddedArtwork === "object") {
+    const { buffer, ...artRest } = clone.embeddedArtwork;
+    clone.embeddedArtwork = artRest;
+  }
+
+  return clone;
+}

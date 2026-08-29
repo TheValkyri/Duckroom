@@ -11,7 +11,7 @@ import { getS3ServerClient } from "./s3-functions";
 import { BUCKET_NAME } from "./s3-constants";
 import { getSupabaseAdmin } from "./supabase";
 import { requireOwnerMiddleware, serverSecurityMiddleware } from "./auth-guard";
-import { analyzeMediaBuffer } from "../services/media-analysis";
+import { analyzeMediaBuffer, sanitizeAnalysisResult } from "../services/media-analysis";
 import { analyzeImageBuffer } from "../services/media-analysis/image-analyzer";
 import { streamSha256 } from "../services/media-analysis/common";
 import { sanitizeStorageKeySegment } from "./s3-key";
@@ -792,6 +792,8 @@ export async function verifyAndAnalyzeServerUploadInternal(
     matchedEntityId = (matched as any).id;
   }
 
+  const safeAnalysis = sanitizeAnalysisResult(analysisResult);
+
   await db
     .from("upload_sessions")
     .update({
@@ -800,7 +802,7 @@ export async function verifyAndAnalyzeServerUploadInternal(
       progress_percent: 100,
       server_sha256: serverSha256,
       actual_size_bytes: actualSizeBytes,
-      analysis_result: analysisResult,
+      analysis_result: safeAnalysis,
       duplicate_status: duplicateStatus,
       matched_entity_id: matchedEntityId,
       artwork_status: artworkStatus,
@@ -817,7 +819,7 @@ export async function verifyAndAnalyzeServerUploadInternal(
       status: "waiting_review",
       server_sha256: serverSha256,
       actual_size_bytes: actualSizeBytes,
-      analysis_result: analysisResult,
+      analysis_result: safeAnalysis,
       duplicate_status: duplicateStatus,
       matched_entity_id: matchedEntityId,
       artwork_status: artworkStatus,
@@ -825,7 +827,7 @@ export async function verifyAndAnalyzeServerUploadInternal(
       artwork_width: artworkWidth,
       artwork_height: artworkHeight,
     },
-    analysis: analysisResult,
+    analysis: safeAnalysis,
     serverSha256,
     actualSizeBytes,
     duplicateStatus,

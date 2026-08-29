@@ -7,7 +7,12 @@ import {
   cancelUploadSessionServer,
   recoverUploadSessionForRetryServer,
 } from "./ingestion";
-import { analyzeMediaBuffer, type AudioAnalysisResult, type VideoAnalysisResult } from "../services/media-analysis";
+import {
+  analyzeMediaBuffer,
+  sanitizeAnalysisResult,
+  type AudioAnalysisResult,
+  type VideoAnalysisResult,
+} from "../services/media-analysis";
 import { calculateFileSha256, extractAudioMetadata, extractVideoThumbnail } from "./metadata";
 import { parseLrc } from "./lyrics-formatter";
 import { syncLibraryWithS3, createAlbum, albums } from "../data/library";
@@ -400,7 +405,7 @@ async function processApprovedIngestionItem(itemId: string) {
       data: {
         sessionId: item.sessionId,
         hasArtwork: Boolean(artBlob),
-        clientAnalysis: item.localAnalysis,
+        clientAnalysis: item.localAnalysis ? sanitizeAnalysisResult(item.localAnalysis) : undefined,
       },
     });
 
