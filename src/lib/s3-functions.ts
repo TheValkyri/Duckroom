@@ -104,8 +104,8 @@ export async function getTrackPlaybackUrlInternal(
     Key: track.storage_key,
     ResponseContentDisposition: "inline",
   });
-  const playbackUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
-  return { playbackUrl, expiresIn: 900 };
+  const playbackUrl = await getSignedUrl(s3, command, { expiresIn: 86400 });
+  return { playbackUrl, expiresIn: 86400 };
 }
 
 /**
@@ -157,13 +157,13 @@ export async function getVideoPlaybackUrlInternal(
     Key: video.storage_key,
     ResponseContentDisposition: "inline",
   });
-  const playbackUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
-  return { playbackUrl, expiresIn: 900 };
+  const playbackUrl = await getSignedUrl(s3, command, { expiresIn: 86400 });
+  return { playbackUrl, expiresIn: 86400 };
 }
 
 /**
  * Domain-driven Playback URL Resolver for Videos Server RPC:
- * Resolves videoId -> Supabase DB row -> checks visibility -> signs storage_key for <= 900s.
+ * Resolves videoId -> Supabase DB row -> checks visibility -> signs storage_key for <= 86400s.
  */
 export const getVideoPlaybackUrlServer = createServerFn({ method: "POST" })
   .middleware([serverSecurityMiddleware, optionalAuthMiddleware])
@@ -200,7 +200,7 @@ export async function getTrackArtworkUrlInternal(
   }
 
   if (!track.cover_storage_key) {
-    return { assetUrl: "", expiresIn: 900 };
+    return { assetUrl: "", expiresIn: 86400 };
   }
 
   validateVisualAssetKey(track.cover_storage_key);
@@ -210,13 +210,13 @@ export async function getTrackArtworkUrlInternal(
     Key: track.cover_storage_key,
     ResponseContentDisposition: "inline",
   });
-  const assetUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
-  return { assetUrl, expiresIn: 900 };
+  const assetUrl = await getSignedUrl(s3, command, { expiresIn: 86400 });
+  return { assetUrl, expiresIn: 86400 };
 }
 
 /**
  * Domain-driven Artwork URL Resolver for Tracks Server RPC:
- * Resolves trackId -> Supabase DB row -> checks visibility against user role -> signs cover_storage_key for <= 900s.
+ * Resolves trackId -> Supabase DB row -> checks visibility against user role -> signs cover_storage_key for <= 86400s.
  */
 export const getTrackArtworkUrlServer = createServerFn({ method: "POST" })
   .middleware([serverSecurityMiddleware, optionalAuthMiddleware])
@@ -253,7 +253,7 @@ export async function getAlbumArtworkUrlInternal(
   }
 
   if (!album.cover_storage_key) {
-    return { assetUrl: "", expiresIn: 900 };
+    return { assetUrl: "", expiresIn: 86400 };
   }
 
   validateVisualAssetKey(album.cover_storage_key);
@@ -263,13 +263,13 @@ export async function getAlbumArtworkUrlInternal(
     Key: album.cover_storage_key,
     ResponseContentDisposition: "inline",
   });
-  const assetUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
-  return { assetUrl, expiresIn: 900 };
+  const assetUrl = await getSignedUrl(s3, command, { expiresIn: 86400 });
+  return { assetUrl, expiresIn: 86400 };
 }
 
 /**
  * Domain-driven Artwork URL Resolver for Albums Server RPC:
- * Resolves albumId -> Supabase DB row -> checks visibility against user role -> signs cover_storage_key for <= 900s.
+ * Resolves albumId -> Supabase DB row -> checks visibility against user role -> signs cover_storage_key for <= 86400s.
  */
 export const getAlbumArtworkUrlServer = createServerFn({ method: "POST" })
   .middleware([serverSecurityMiddleware, optionalAuthMiddleware])
@@ -306,7 +306,7 @@ export async function getVideoThumbnailUrlInternal(
   }
 
   if (!video.thumb_storage_key) {
-    return { assetUrl: "", expiresIn: 900 };
+    return { assetUrl: "", expiresIn: 86400 };
   }
 
   validateVisualAssetKey(video.thumb_storage_key);
@@ -316,8 +316,8 @@ export async function getVideoThumbnailUrlInternal(
     Key: video.thumb_storage_key,
     ResponseContentDisposition: "inline",
   });
-  const assetUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
-  return { assetUrl, expiresIn: 900 };
+  const assetUrl = await getSignedUrl(s3, command, { expiresIn: 86400 });
+  return { assetUrl, expiresIn: 86400 };
 }
 
 /**

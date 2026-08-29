@@ -2,6 +2,7 @@ import { ChevronDown, Mic2, SkipForward } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { albumById, formatTime } from "../../data/library";
+import { fetchTrackArtworkUrl } from "../../lib/s3";
 import { cropBlackLetterbox } from "../../lib/image-crop";
 import { springGentle, springSmooth, springSnappy, tapScale, tweenBase } from "../../lib/motion";
 import { usePlayer, usePlayerTime } from "../../lib/player";
@@ -338,8 +339,20 @@ export function NowPlaying() {
                           alt={`Bìa ${current.title}`}
                           decoding="async"
                           onLoad={handleImageLoad}
-                          onError={(e) => {
+                          onError={async (e) => {
                             const target = e.currentTarget;
+                            if (current?.id) {
+                              try {
+                                const freshCover = await fetchTrackArtworkUrl(current.id);
+                                if (freshCover && freshCover !== target.src) {
+                                  target.src = freshCover;
+                                  setCleanCoverUrl(freshCover);
+                                  return;
+                                }
+                              } catch {
+                                // fallback below
+                              }
+                            }
                             if (target.src !== fallbackCover) {
                               target.src = fallbackCover;
                             }

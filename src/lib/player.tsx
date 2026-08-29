@@ -911,21 +911,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           retriedTracksRef.current.delete(trackId);
           const savedPosition = timeRef.current;
           el.src = freshSignedUrl;
-          el.addEventListener(
-            "loadedmetadata",
-            () => {
-              try {
+          const onLoaded = () => {
+            try {
+              if (savedPosition > 0 && Number.isFinite(savedPosition)) {
                 el.currentTime = savedPosition;
-              } catch {
-                // ignore
               }
-            },
-            { once: true },
-          );
+            } catch {
+              // ignore
+            }
+            if (engineState.isPlaying) {
+              void el
+                .play()
+                .catch((err) => console.warn("[Duckroom Audio] Playback auto-resume after healing failed:", err));
+            }
+          };
+          el.addEventListener("loadedmetadata", onLoaded, { once: true });
           el.load();
-          if (engineState.isPlaying) {
-            void el.play().catch((err) => console.warn("Failed to resume self-healed track:", err));
-          }
         }
       } catch (err) {
         console.error("Self-healing playback URL refresh error:", err);

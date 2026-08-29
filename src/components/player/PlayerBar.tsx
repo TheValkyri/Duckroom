@@ -2,6 +2,7 @@ import { ChevronUp, ListMusic, Mic2, Sparkles, Volume2, VolumeX } from "lucide-r
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { albumById, formatTime } from "../../data/library";
+import { fetchTrackArtworkUrl } from "../../lib/s3";
 import { springGentle, springSnappy, tapScale } from "../../lib/motion";
 import { usePlayer, usePlayerTime } from "../../lib/player";
 import { cn } from "../../lib/utils";
@@ -98,8 +99,20 @@ export function PlayerBar() {
                 alt={`Bìa album ${album?.title || current.title}`}
                 decoding="async"
                 onLoad={() => setCoverLoaded(true)}
-                onError={(e) => {
+                onError={async (e) => {
                   const target = e.currentTarget;
+                  if (current?.id) {
+                    try {
+                      const fresh = await fetchTrackArtworkUrl(current.id);
+                      if (fresh && fresh !== target.src) {
+                        target.src = fresh;
+                        setCoverLoaded(true);
+                        return;
+                      }
+                    } catch {
+                      // fallback below
+                    }
+                  }
                   if (target.src !== fallbackCover) {
                     target.src = fallbackCover;
                   }

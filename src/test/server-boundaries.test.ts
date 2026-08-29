@@ -101,7 +101,7 @@ describe("Server Security Boundaries & Failure Safety", () => {
       const res = await s3Functions.getTrackArtworkUrlInternal("public-track", "guest");
 
       expect(res.assetUrl).toBeDefined();
-      expect(res.expiresIn).toBe(900);
+      expect(res.expiresIn).toBe(86400);
     });
 
     it("rejects playback URL for owner-only track requested by regular member", async () => {

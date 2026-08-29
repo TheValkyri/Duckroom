@@ -184,7 +184,7 @@ function setCachedSignedUrl(key: string, inline: boolean, url: string) {
   if (signedUrlCache.size > 500) {
     signedUrlCache.clear();
   }
-  signedUrlCache.set(cacheKey, { url, expiresAt: Date.now() + 720_000 });
+  signedUrlCache.set(cacheKey, { url, expiresAt: Date.now() + 72_000_000 });
 }
 
 export async function getPublicMasterLibraryInternal() {
@@ -238,7 +238,7 @@ export async function getPublicMasterLibraryInternal() {
           Key: cleanKey,
           ...(inline ? { ResponseContentDisposition: "inline" } : {}),
         }),
-        { expiresIn: 900 },
+        { expiresIn: 86400 },
       );
       if (signed) setCachedSignedUrl(cleanKey, inline, signed);
       return signed;

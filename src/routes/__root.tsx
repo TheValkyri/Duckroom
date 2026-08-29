@@ -144,6 +144,24 @@ function RootComponent() {
 
   useEffect(() => {
     void syncLibraryWithS3(true).catch(() => {});
+
+    let lastActiveTime = Date.now();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        const elapsed = Date.now() - lastActiveTime;
+        // If tab was inactive for > 15 minutes, quietly re-sync library in background
+        if (elapsed > 15 * 60 * 1000) {
+          void syncLibraryWithS3(true).catch(() => {});
+        }
+        lastActiveTime = Date.now();
+      } else {
+        lastActiveTime = Date.now();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   return (
