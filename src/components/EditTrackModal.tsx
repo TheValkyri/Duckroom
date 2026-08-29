@@ -34,6 +34,7 @@ export function EditTrackModal({
   const currentAlbum = albums.find((a) => a.id === track.albumId);
   const [title, setTitle] = useState(track.title);
   const [artist, setArtist] = useState(track.artist);
+  const [year, setYear] = useState(track.year ? track.year.toString() : "");
   const [albumName, setAlbumName] = useState(currentAlbum?.title || "");
   const [trackNo, setTrackNo] = useState(track.trackNo ? track.trackNo.toString() : "1");
   const [lyricsText, setLyricsText] = useState(
@@ -153,6 +154,8 @@ export function EditTrackModal({
         title: title.trim(),
         artist: artist.trim() || "Nghệ sĩ",
         albumId: targetAlbumId === "singles" ? null : targetAlbumId,
+        trackNo: parseInt(trackNo, 10) || 1,
+        year: year.trim() ? parseInt(year.trim(), 10) : (track.year ?? null),
         cover: finalCover,
         lyrics: parseLrc(lyricsText),
         lyricsSource: lyricsSource ?? null,
@@ -340,18 +343,32 @@ export function EditTrackModal({
                 </div>
               )}
             </div>
-            <div>
-              <label className="text-muted-foreground text-xs font-medium uppercase tracking-wider block mb-1">
-                Thứ tự trong Album
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={trackNo}
-                onChange={(e) => setTrackNo(e.target.value)}
-                placeholder="Ví dụ: 1, 2, 3..."
-                className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-              />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-muted-foreground text-xs font-medium uppercase tracking-wider block mb-1">
+                  Thứ tự trong Album
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={trackNo}
+                  onChange={(e) => setTrackNo(e.target.value)}
+                  placeholder="Ví dụ: 1, 2..."
+                  className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-muted-foreground text-xs font-medium uppercase tracking-wider block mb-1">
+                  Năm phát hành
+                </label>
+                <input
+                  type="number"
+                  value={year}
+                  onChange={(e) => setYear(e.target.value)}
+                  placeholder="Ví dụ: 2013, 2024..."
+                  className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
             </div>
           </div>
 

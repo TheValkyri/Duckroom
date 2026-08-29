@@ -398,7 +398,8 @@ export function NowPlaying() {
                       >
                         <h1 className="font-display text-2xl md:text-4xl truncate text-foreground">{current.title}</h1>
                         <p className="text-muted-foreground mt-1 text-xs md:text-sm truncate">
-                          {current.artist} — {album?.title || "Single Collection"} ({album?.year || 2026})
+                          {current.artist} — {album?.title || "Single Collection"}
+                          {(current.year ?? album?.year) ? ` (${current.year ?? album?.year})` : ""}
                         </p>
                       </motion.div>
                     </AnimatePresence>
