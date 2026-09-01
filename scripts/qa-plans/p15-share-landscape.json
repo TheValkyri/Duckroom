@@ -1,0 +1,28 @@
+[
+  { "viewport": [844, 390, 3] },
+  { "navigate": "/library", "settle": 3500 },
+  { "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; rows[5].querySelector('button').click(); return 'play'; })()" },
+  { "wait": 1200 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); if (d) { d.querySelector('[role=button]').click(); return 'expanded'; } const bar = [...document.querySelectorAll('footer')].find(f => f.offsetHeight > 0); const lyr = [...bar.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Lời bài hát'); if (lyr) { lyr.click(); return 'landscape-desktop-bar-lyrics'; } return 'neither'; })()", "name": "landscape-route" },
+  { "wait": 1200 },
+  {
+    "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); if (!fs) return 'no-fs'; const pane = [...fs.querySelectorAll('div')].find(c => String(c.className).includes('lg:w-1/2')); return pane ? 'desktop-lyrics-pane@landscape:OK' : 'pane:MISSING (w=844 → desktop layout expected)'; })()",
+    "name": "landscape-lyrics-pane"
+  },
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/s/invalidtoken123", "settle": 2000 },
+  {
+    "eval": "(() => { const txt = document.body.textContent; return JSON.stringify({ invalidShare: txt.includes('Liên kết không còn hiệu lực'), hasHomeCTA: [...document.querySelectorAll('a')].some(a => a.textContent.includes('Mở Duckroom')), scrollable: document.documentElement.scrollWidth <= document.documentElement.clientWidth }); })()",
+    "name": "share-invalid"
+  },
+  { "navigate": "/videos", "settle": 3000 },
+  {
+    "eval": "(() => { const cards = [...document.querySelectorAll('a[href*=\"/videos/\"]')].filter(a => a.offsetHeight > 0); return JSON.stringify({ videoCards: cards.length, first: cards[0]?.textContent?.slice(0, 40) }); })()",
+    "name": "videos-page"
+  },
+  { "navigate": "/upload", "settle": 3000 },
+  {
+    "eval": "(() => { const txt = document.body.textContent.slice(0, 200); return JSON.stringify({ redirected: !txt.includes('Tiếp nhận'), sample: txt.slice(0, 80) }); })()",
+    "name": "upload-guest-redirect"
+  }
+]

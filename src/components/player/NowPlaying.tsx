@@ -1,6 +1,6 @@
-import { ChevronDown, Mic2, SkipForward } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { ChevronDown, ListMusic, Mic2, SkipForward, X } from "lucide-react";
+import { AnimatePresence, motion, useDragControls, type PanInfo } from "motion/react";
+import { useEffect, useRef, useState } from "react";
 import { albumById, formatTime } from "../../data/library";
 import { fetchTrackArtworkUrl } from "../../lib/s3";
 import { cropBlackLetterbox } from "../../lib/image-crop";
@@ -10,6 +10,7 @@ import { cn } from "../../lib/utils";
 import { Visualizer } from "../Visualizer";
 import { SeekBar, TransportControls } from "./Controls";
 import { LyricsPane } from "./Lyrics";
+import { useIsPhoneLayout } from "../../hooks/use-media-query";
 
 // Tách nhãn thời gian ra component riêng: chỉ phần này re-render mỗi tick
 // (~4-15 lần/giây), toàn bộ đĩa than/ảnh bìa/gradient không cần tính lại.
@@ -114,9 +115,23 @@ function AmbientCrossfadeBackground({ cover, accent }: { cover: string; accent?:
 }
 
 export function NowPlaying() {
-  const { current, queue, index, expanded, setExpanded, isPlaying, lyricsOpen, setLyricsOpen, next, direction } =
-    usePlayer();
+  const {
+    current,
+    queue,
+    index,
+    expanded,
+    setExpanded,
+    isPlaying,
+    lyricsOpen,
+    setLyricsOpen,
+    queueOpen,
+    setQueueOpen,
+    next,
+    direction,
+  } = usePlayer();
   const open = expanded;
+  const isPhone = useIsPhoneLayout();
+  const phoneDragControls = useDragControls();
   const album = current ? albumById(current.albumId) : undefined;
   // Fallback NỘI BỘ (gradient) — không tải ảnh mạng nữa: trước đây dùng
   // unsplash → mỗi lần chuyển bài lỗi cover là 1 request mạng + flash trắng.
@@ -174,6 +189,22 @@ export function NowPlaying() {
     setLyricsOpen(false);
   };
 
+  // MOBILE GESTURE (§3.2): swipe-down trên vùng header/artwork thu nhỏ
+  // player. Chỉ vùng đánh dấu [data-drag-dismiss] khởi tạo kéo (pointer
+  // down → dragControls.start), transport/seek không bị ảnh hưởng.
+  // Threshold dọc 72px; ý định ngang (|dx|>|dy|) hủy. Mọi hành động vẫn có
+  // nút bấm tương đương ("Thu nhỏ").
+  const startDragDismiss = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPhone) return;
+    if (e.pointerType === "mouse") return; // desktop dùng nút Thu缩小
+    phoneDragControls.start(e);
+  };
+  const handleDragDismissEnd = (_: unknown, info: PanInfo) => {
+    const { offset, velocity } = info;
+    if (Math.abs(offset.x) > Math.abs(offset.y)) return; // horizontal intent
+    if (offset.y > 72 || (velocity.y > 700 && offset.y > 24)) handleMinimize();
+  };
+
   return (
     <AnimatePresence>
       {open && current && (
@@ -187,7 +218,7 @@ export function NowPlaying() {
               handleMinimize();
             }
           }}
-          className="bg-background grain fixed inset-0 z-50 flex flex-col justify-between overflow-hidden select-none"
+          className="bg-background grain fixed inset-0 z-50 flex flex-col justify-between overflow-hidden select-none pb-safe"
         >
           {/* Ambient Dual-Buffer Crossfading Background */}
           <AmbientCrossfadeBackground cover={rawCoverUrl} accent={album?.accent} />
@@ -197,16 +228,26 @@ export function NowPlaying() {
             onClick={(e) => {
               if (e.target === e.currentTarget) handleMinimize();
             }}
-            className="relative z-20 grid grid-cols-3 items-center px-6 py-4 shrink-0 w-full"
+            data-drag-dismiss
+            onPointerDown={startDragDismiss}
+            className={cn(
+              "relative z-20 grid items-center shrink-0 w-full pt-safe",
+              isPhone ? "grid-cols-[auto_1fr_auto] gap-1 px-3 py-2" : "grid-cols-3 px-6 py-4",
+            )}
           >
             <div className="flex items-center justify-start">
               <motion.button
                 onClick={handleMinimize}
                 whileTap={tapScale}
                 transition={springSnappy}
-                className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm transition-colors cursor-pointer"
+                aria-label="Thu nhỏ trình phát"
+                className={cn(
+                  "text-muted-foreground hover:text-foreground flex items-center transition-colors cursor-pointer",
+                  isPhone ? "gap-0 rounded-full p-2.5" : "gap-2 text-sm",
+                )}
               >
-                <ChevronDown className="size-5" /> Thu nhỏ
+                <ChevronDown className={isPhone ? "size-6" : "size-5"} />
+                {!isPhone && <span>Thu nhỏ</span>}
               </motion.button>
             </div>
 
@@ -229,18 +270,36 @@ export function NowPlaying() {
               )}
             </div>
 
-            {/* Nút Lời: Luôn hiển thị ở góc phải trên cùng */}
+            {/* Phải: Lời + Hàng đợi (mobile cần nút hàng đợi vì PlayerBar
+                mini không có chỗ; desktop giữ nguyên chỉ "Lời") */}
             <div className="flex items-center justify-end">
+              {isPhone && (
+                <motion.button
+                  onClick={() => setQueueOpen(!queueOpen)}
+                  whileTap={tapScale}
+                  transition={springSnappy}
+                  aria-label="Hàng đợi"
+                  className={cn(
+                    "text-muted-foreground hover:text-foreground grid place-items-center rounded-full p-2.5 transition-colors cursor-pointer",
+                    queueOpen && "text-primary",
+                  )}
+                >
+                  <ListMusic className="size-6" />
+                </motion.button>
+              )}
               <motion.button
                 onClick={() => setLyricsOpen(!lyricsOpen)}
                 whileTap={tapScale}
                 transition={springSnappy}
+                aria-label={lyricsOpen ? "Ẩn lời bài hát" : "Xem lời bài hát"}
                 className={cn(
-                  "text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm transition-colors cursor-pointer px-3.5 py-1.5 rounded-full border border-transparent",
+                  "text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors cursor-pointer rounded-full border border-transparent",
+                  isPhone ? "p-2.5" : "px-3.5 py-1.5 text-sm",
                   lyricsOpen && "text-primary border-primary/30 bg-primary/10 font-medium",
                 )}
               >
-                <Mic2 className="size-4" /> Lời
+                <Mic2 className={isPhone ? "size-6" : "size-4"} />
+                {!isPhone && <span>Lời</span>}
               </motion.button>
             </div>
           </div>
@@ -250,20 +309,42 @@ export function NowPlaying() {
             onClick={(e) => {
               if (e.target === e.currentTarget) handleMinimize();
             }}
-            className="relative z-10 flex-1 w-full max-w-6xl mx-auto px-6 py-2 overflow-hidden flex items-center justify-center"
+            className={cn(
+              "relative z-10 flex-1 w-full max-w-6xl mx-auto overflow-hidden flex items-center justify-center",
+              isPhone ? "px-4 py-1" : "px-6 py-2",
+            )}
           >
             <div className="w-full h-full flex items-center justify-center relative">
-              {/* Left Column: Cover + Vinyl Disc + Title + Controls */}
+              {/* Left Column: Cover + Vinyl Disc + Title + Controls.
+                  Phone: cột này là vùng kéo-thả xuống để thu nhỏ player —
+                  nhưng chỉ khởi tạo drag khi chạm vào header/artwork (vùng
+                  [data-drag-dismiss]); vùng tương tác (seek/transport) không
+                  kéo được. Ref-based block thay vì dataset để tránh reflow. */}
               <motion.div
                 layout
                 transition={springSmooth}
+                drag={isPhone ? "y" : false}
+                dragConstraints={{ top: 0, bottom: 0 }}
+                dragElastic={{ top: 0, bottom: 0.35 }}
+                dragDirectionLock
+                dragListener={false}
+                dragControls={phoneDragControls}
+                onDragEnd={handleDragDismissEnd}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-5 w-full max-w-md shrink-0 z-10",
+                  "flex flex-col items-center justify-center w-full max-w-md shrink-0 z-10",
+                  isPhone ? "gap-3" : "gap-5",
                   lyricsOpen ? "lg:mr-auto lg:ml-0" : "mx-auto",
                 )}
               >
                 {/* Vinyl Record & Sleeve Container: Directional Glide & Tactile Disc */}
-                <div className="relative flex items-center justify-center my-2 w-full min-h-[min(36vh,290px)]">
+                <div
+                  data-drag-dismiss
+                  onPointerDown={startDragDismiss}
+                  className={cn(
+                    "relative flex items-center justify-center w-full",
+                    isPhone ? "my-1 min-h-[min(38vh,300px)]" : "my-2 min-h-[min(36vh,290px)]",
+                  )}
+                >
                   <AnimatePresence mode="popLayout" initial={false}>
                     <motion.div
                       key={current.id}
@@ -335,7 +416,9 @@ export function NowPlaying() {
                           "relative z-10 rounded-2xl overflow-hidden shadow-[0_25px_80px_-15px_oklch(0_0_0/0.95)] border border-white/10 transition-all duration-500 bg-neutral-900",
                           isLandscape
                             ? "w-full max-w-[min(48vh,400px)] aspect-video"
-                            : "aspect-square w-full max-w-[min(34vh,270px)] md:max-w-[min(36vh,290px)]",
+                            : isPhone
+                              ? "aspect-square w-full max-w-[min(42vh,300px)]"
+                              : "aspect-square w-full max-w-[min(34vh,270px)] md:max-w-[min(36vh,290px)]",
                         )}
                       >
                         <motion.img
@@ -396,8 +479,10 @@ export function NowPlaying() {
                         }}
                         className="w-full"
                       >
-                        <h1 className="font-display text-2xl md:text-4xl truncate text-foreground">{current.title}</h1>
-                        <p className="text-muted-foreground mt-1 text-xs md:text-sm truncate">
+                        <h1 className="font-display truncate text-foreground text-xl sm:text-2xl md:text-4xl">
+                          {current.title}
+                        </h1>
+                        <p className="text-muted-foreground mt-1 truncate text-xs md:text-sm">
                           {current.artist} — {album?.title || "Single Collection"}
                           {(current.year ?? album?.year) ? ` (${current.year ?? album?.year})` : ""}
                         </p>
@@ -413,30 +498,54 @@ export function NowPlaying() {
                     <NowPlayingTimeLabel duration={current.duration} />
                   </div>
 
-                  <div className="mt-4 flex justify-center">
+                  <div className="mt-4 flex justify-center pb-safe">
                     <TransportControls size="lg" />
                   </div>
                 </div>
               </motion.div>
 
-              {/* Right Column: Lyrics Pane (Absolute overlay on desktop to eliminate layout reflow jump) */}
+              {/* Lyrics Pane: desktop = right-half overlay (unchanged);
+                  phone = phủ toàn bộ stage (absolute inset-0) để không đè
+                  lên transport controls — lời là "mode" toàn màn hình với
+                  nút đóng riêng nằm dưới (trong LyricsPane container). */}
               <AnimatePresence>
                 {lyricsOpen && (
                   <motion.div
-                    initial={{ opacity: 0, x: 60 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 60 }}
+                    initial={isPhone ? { opacity: 0 } : { opacity: 0, x: 60 }}
+                    animate={isPhone ? { opacity: 1 } : { opacity: 1, x: 0 }}
+                    exit={isPhone ? { opacity: 0 } : { opacity: 0, x: 60 }}
                     transition={springSmooth}
-                    className="w-full lg:w-1/2 h-[60vh] lg:h-[72vh] lg:absolute lg:right-0 flex flex-col justify-center overflow-hidden z-20"
+                    className={cn(
+                      "flex flex-col justify-center overflow-hidden z-20",
+                      isPhone
+                        ? "absolute inset-0 w-full h-full bg-background/92 backdrop-blur-md px-1 pb-2"
+                        : "w-full lg:w-1/2 h-[60vh] lg:h-[72vh] lg:absolute lg:right-0",
+                    )}
                   >
-                    <LyricsPane />
+                    {isPhone && (
+                      <div className="flex items-center justify-between px-4 pt-2 pb-1 shrink-0">
+                        <span className="text-primary text-[11px] font-semibold uppercase tracking-[0.22em]">
+                          {current.title}
+                        </span>
+                        <button
+                          onClick={() => setLyricsOpen(false)}
+                          aria-label="Đóng lời bài hát"
+                          className="text-muted-foreground hover:text-foreground hover:bg-accent/50 grid size-11 place-items-center rounded-full transition-colors cursor-pointer"
+                        >
+                          <X className="size-5" />
+                        </button>
+                      </div>
+                    )}
+                    <div className="min-h-0 flex-1">
+                      <LyricsPane compact={isPhone} />
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
           </div>
 
-          {/* Bottom Padding Bar */}
+          {/* Bottom Padding Bar (desktop); phone đã được pb-safe ở stage */}
           <div
             onClick={(e) => {
               if (e.target === e.currentTarget) handleMinimize();

@@ -1,4 +1,4 @@
-import { Heart, Pencil, Play, Share2, Trash2, Volume2 } from "lucide-react";
+import { Ellipsis, Heart, Pencil, Play, Share2, Trash2, Volume2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { memo, useCallback, useState } from "react";
 import { Link } from "@tanstack/react-router";
@@ -6,11 +6,13 @@ import { albumById, formatTime, type Track } from "../data/library";
 import { usePlayer } from "../lib/player";
 import { cn } from "../lib/utils";
 import { EditTrackModal } from "./EditTrackModal";
+import { TrackActionsSheet } from "./TrackActionsSheet";
 import { useAuth } from "../lib/useAuth";
 import { useMemberLibraryContext } from "../lib/member-library-context";
 import { useDuckroomRole } from "../lib/useRole";
 import { createAndShareLink } from "../lib/share-client";
 import { springSnappy, tapScale } from "../lib/motion";
+import { useIsPhoneLayout } from "../hooks/use-media-query";
 
 function LiveAudioWaves() {
   return (
@@ -61,11 +63,13 @@ export const TrackRow = memo(function TrackRow({
   const { isLoggedIn } = useAuth();
   const { favorites, toggleFavorite } = useMemberLibraryContext();
   const { isOwner } = useDuckroomRole();
+  const isPhone = useIsPhoneLayout();
   const isFavorite = favorites?.has ? favorites.has(track.id) : false;
   const active = current?.id === track.id;
   const album = albumById(track.albumId);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);
 
   const handlePlayClick = useCallback(() => {
@@ -117,7 +121,7 @@ export const TrackRow = memo(function TrackRow({
           CSS transform/transition được GPU composite, chi phí ~0 và vẫn mượt. */}
       <div
         className={cn(
-          "group hover:bg-accent/40 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-[background-color,border-color,transform] duration-200 relative border border-transparent hover:border-white/5 hover:translate-x-[2px]",
+          "group hover:bg-accent/40 flex w-full items-center gap-2 sm:gap-3 rounded-lg px-2.5 sm:px-3 py-2.5 text-left transition-[background-color,border-color,transform] duration-200 relative border border-transparent hover:border-white/5 hover:translate-x-[2px]",
           active && "bg-accent/50 border-primary/20",
         )}
       >
@@ -152,7 +156,7 @@ export const TrackRow = memo(function TrackRow({
           <span className="text-muted-foreground text-xs tabular-nums shrink-0">{formatTime(track.duration)}</span>
         </button>
 
-        {/* Favorite Button */}
+        {/* Favorite Button (luôn hiển thị — target 40px+) */}
         <motion.button
           type="button"
           title={isLoggedIn ? (isFavorite ? "Bỏ yêu thích" : "Thêm vào yêu thích") : "Đăng nhập để lưu yêu thích"}
@@ -168,62 +172,88 @@ export const TrackRow = memo(function TrackRow({
           whileTap={tapScale}
           transition={springSnappy}
           className={cn(
-            "p-1.5 rounded-lg transition-colors cursor-pointer shrink-0",
+            "grid place-items-center rounded-lg transition-colors cursor-pointer shrink-0 size-11",
             isFavorite ? "text-primary" : "text-muted-foreground/40 hover:text-primary",
           )}
         >
           <Heart className="size-4" fill={isFavorite ? "currentColor" : "none"} />
         </motion.button>
 
-        {/* Share Button */}
-        <motion.button
-          type="button"
-          title="Chia sẻ bài hát"
-          onClick={(e) => {
-            e.stopPropagation();
-            void handleShareClick();
-          }}
-          whileTap={tapScale}
-          transition={springSnappy}
-          className="text-muted-foreground/40 hover:text-primary p-1.5 rounded-lg transition-colors opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
-        >
-          <Share2 className="size-4" />
-        </motion.button>
-
-        {/* Edit Track & Artwork Button - Only for Owner */}
-        {isOwner && (
+        {/* ============ PHONE (<md): nút ⋯ mở TrackActionsSheet ============
+            Trên cảm ứng không có hover → các nút share/edit/delete vốn
+            opacity-0 group-hover:opacity-100 là KHÔNG THỂ chạm tới. Sheet
+            cung cấp toàn bộ hành động với target 44px+. */}
+        {isPhone && (
           <motion.button
             type="button"
-            title="Chỉnh sửa thông tin bài hát & Artwork"
+            title="Thao tác khác"
+            aria-label={`Thao tác với bài ${track.title}`}
             onClick={(e) => {
               e.stopPropagation();
-              setShowEditModal(true);
+              setShowActionsSheet(true);
             }}
             whileTap={tapScale}
             transition={springSnappy}
-            className="text-muted-foreground/40 hover:text-primary p-1.5 rounded-lg transition-colors opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
+            className="text-muted-foreground/60 hover:text-foreground grid size-11 place-items-center rounded-lg transition-colors cursor-pointer shrink-0"
           >
-            <Pencil className="size-4" />
+            <Ellipsis className="size-5" />
           </motion.button>
         )}
 
-        {isLoggedIn && extraActions}
+        {/* ============ DESKTOP (>=md): hover-reveal actions (giữ nguyên) ============ */}
+        {!isPhone && (
+          <>
+            {/* Share Button */}
+            <motion.button
+              type="button"
+              title="Chia sẻ bài hát"
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleShareClick();
+              }}
+              whileTap={tapScale}
+              transition={springSnappy}
+              className="text-muted-foreground/40 hover:text-primary p-1.5 rounded-lg transition-colors opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
+            >
+              <Share2 className="size-4" />
+            </motion.button>
 
-        {/* Delete Button - Only for Owner */}
-        {isOwner && hasDelete && (
-          <motion.button
-            type="button"
-            title="Xóa bài hát khỏi thư viện"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDeleteClick();
-            }}
-            whileTap={tapScale}
-            transition={springSnappy}
-            className="text-muted-foreground/40 hover:text-destructive p-1.5 rounded-lg transition-colors opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
-          >
-            <Trash2 className="size-4" />
-          </motion.button>
+            {/* Edit Track & Artwork Button - Only for Owner */}
+            {isOwner && (
+              <motion.button
+                type="button"
+                title="Chỉnh sửa thông tin bài hát & Artwork"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowEditModal(true);
+                }}
+                whileTap={tapScale}
+                transition={springSnappy}
+                className="text-muted-foreground/40 hover:text-primary p-1.5 rounded-lg transition-colors opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
+              >
+                <Pencil className="size-4" />
+              </motion.button>
+            )}
+
+            {isLoggedIn && extraActions}
+
+            {/* Delete Button - Only for Owner */}
+            {isOwner && hasDelete && (
+              <motion.button
+                type="button"
+                title="Xóa bài hát khỏi thư viện"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteClick();
+                }}
+                whileTap={tapScale}
+                transition={springSnappy}
+                className="text-muted-foreground/40 hover:text-destructive p-1.5 rounded-lg transition-colors opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
+              >
+                <Trash2 className="size-4" />
+              </motion.button>
+            )}
+          </>
         )}
       </div>
 
@@ -267,6 +297,17 @@ export const TrackRow = memo(function TrackRow({
               </div>
             </motion.div>
           </motion.div>
+        )}
+
+        {showActionsSheet && (
+          <TrackActionsSheet
+            open={showActionsSheet}
+            onClose={() => setShowActionsSheet(false)}
+            track={track}
+            onPlay={handlePlayClick}
+            onEdit={() => setShowEditModal(true)}
+            onDelete={handleDeleteClick}
+          />
         )}
 
         {showEditModal && (

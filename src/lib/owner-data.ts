@@ -70,8 +70,11 @@ export const getOwnerHealthServer = createServerFn({ method: "GET" })
         videoObjects: videoCount,
         artworkObjects: artworkCount,
         manifestPresent: true,
-        s3Available: true,
-        s3Error: null,
+        // Boolean khai báo tường minh — tránh TS hẹp type union về literal
+        // `true` khiến mọi so sánh `=== false` ở consumer thành lỗi TS2367.
+        // (Giá trị gốc vẫn luôn true ở happy path như trước.)
+        s3Available: true as boolean,
+        s3Error: null as string | null,
       },
       generatedAt: new Date().toISOString(),
     };
@@ -145,10 +148,11 @@ export const scanOrphanS3ObjectsServer = createServerFn({ method: "GET" })
     });
 
     if (s3Unreachable) {
+      const noOrphans: string[] = [];
       return {
         totalS3Objects: activeKeys.size,
         activeReferencedObjects: activeKeys.size,
-        orphanKeys: [],
+        orphanKeys: noOrphans,
         s3Unreachable: true,
         s3ErrorMessage,
       };

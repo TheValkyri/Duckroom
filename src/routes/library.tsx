@@ -132,10 +132,12 @@ function LibraryPage() {
   );
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-12">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border/60">
+    <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-12">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 pb-6 border-b border-border/60">
         <div>
-          <h1 className="font-display text-4xl sm:text-5xl font-bold tracking-tight text-foreground">Thư viện</h1>
+          <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground">
+            Thư viện
+          </h1>
           <p className="text-muted-foreground mt-2 text-sm">
             {tracks.length} bản thu · tổng {totalSizeGB} GB · chất lượng gốc không nén lại
           </p>
@@ -171,22 +173,30 @@ function LibraryPage() {
       </div>
 
       {tracks.length > 0 && (
-        <div className="mt-8 flex flex-col md:flex-row md:items-center gap-4">
+        <div className="mt-6 flex flex-col gap-4 sm:mt-8 md:flex-row md:items-center">
           <div className="relative w-full md:w-72 shrink-0">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
+              type="search"
+              inputMode="search"
+              enterKeyHint="search"
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
               placeholder="Tìm bài hát, nghệ sĩ…"
-              className="w-full bg-card/70 border border-border focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl pl-9.5 pr-8 py-2 text-sm outline-none transition-all"
+              aria-label="Tìm bài hát, nghệ sĩ"
+              className="w-full bg-card/70 border border-border focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl pl-9.5 pr-10 py-2.5 text-sm outline-none transition-all"
             />
             {q && (
               <button
                 type="button"
                 onClick={() => setQ("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 cursor-pointer"
+                aria-label="Xóa từ khóa tìm kiếm"
+                className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground grid size-9 place-items-center cursor-pointer"
               >
-                <X className="size-3.5" />
+                <X className="size-4" />
               </button>
             )}
           </div>
@@ -239,7 +249,7 @@ function LibraryPage() {
           ))}
         </AnimatePresence>
         {tracks.length === 0 ? (
-          <div className="border-border bg-card/30 mt-10 flex flex-col items-center gap-4 rounded-xl border p-16 text-center">
+          <div className="border-border bg-card/30 mt-10 flex flex-col items-center gap-4 rounded-xl border p-8 text-center sm:p-16">
             <Music2 className="text-muted-foreground size-12" />
             <h3 className="font-display text-2xl">Thư viện trống</h3>
             <p className="text-muted-foreground max-w-md text-sm">
@@ -253,7 +263,18 @@ function LibraryPage() {
             </Link>
           </div>
         ) : !list.length ? (
-          <p className="text-muted-foreground py-16 text-center text-sm">Không tìm thấy bài nào.</p>
+          <div className="flex flex-col items-center gap-2 py-16 text-center">
+            <p className="text-muted-foreground text-sm">Không tìm thấy bài nào.</p>
+            {q && (
+              <button
+                type="button"
+                onClick={() => setQ("")}
+                className="text-primary text-xs font-medium hover:underline cursor-pointer"
+              >
+                Xóa bộ lọc "{q}"
+              </button>
+            )}
+          </div>
         ) : null}
       </div>
     </div>

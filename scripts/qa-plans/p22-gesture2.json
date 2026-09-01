@@ -1,0 +1,8 @@
+[
+  { "viewport": [390, 844, 3], "navigate": "/library", "settle": 4500 },
+  { "tapSelector": "main .group button", "settle": 3500 },
+  {
+    "eval": "(() => { const dock = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); const strip = dock.querySelector('.h-0\\\\.5 div'); const pause = [...dock.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Tạm dừng'); return JSON.stringify({ progress: strip ? strip.style.width : 'none', isPlaying: !!pause, title: dock.textContent.slice(0, 24) }); })()",
+    "name": "tabA-state"
+  }
+]

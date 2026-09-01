@@ -14,14 +14,14 @@ export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
     "grid place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground cursor-pointer";
 
   return (
-    <div className={cn("flex items-center", big ? "gap-6" : "gap-4")}>
+    <div className={cn("flex items-center", big ? "gap-4 sm:gap-6" : "gap-4")}>
       <motion.button
         aria-label="Trộn bài"
         title={shuffle ? "Trộn bài: Đang Bật (nhấn phím 'S')" : "Trộn bài: Đang Tắt (nhấn phím 'S')"}
         onClick={toggleShuffle}
         whileTap={tapScale}
         transition={springSnappy}
-        className={cn(iconBtn, big ? "size-10" : "size-8", shuffle && "text-primary relative font-bold")}
+        className={cn(iconBtn, big ? "size-12 sm:size-10" : "size-8", shuffle && "text-primary relative font-bold")}
       >
         <Shuffle className={big ? "size-5" : "size-4"} />
         {shuffle && <span className="absolute -bottom-1 size-1 rounded-full bg-primary" />}
@@ -32,7 +32,7 @@ export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
         onClick={prev}
         whileTap={tapScale}
         transition={springSnappy}
-        className={cn(iconBtn, "size-9")}
+        className={cn(iconBtn, big ? "size-12 sm:size-11" : "size-9")}
       >
         <SkipBack className={big ? "size-6" : "size-5"} fill="currentColor" />
       </motion.button>
@@ -45,7 +45,7 @@ export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
         transition={{ type: "spring", stiffness: 520, damping: 24 }}
         className={cn(
           "grid place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_30px_-8px_oklch(0.76_0.14_66/0.7)] cursor-pointer overflow-hidden",
-          big ? "size-16" : "size-11",
+          big ? "size-[4.5rem] sm:size-16" : "size-11",
         )}
       >
         <AnimatePresence mode="popLayout" initial={false}>
@@ -58,9 +58,9 @@ export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
             className="grid place-items-center"
           >
             {isPlaying ? (
-              <Pause className={big ? "size-7" : "size-5"} fill="currentColor" />
+              <Pause className={big ? "size-8 sm:size-7" : "size-5"} fill="currentColor" />
             ) : (
-              <Play className={cn(big ? "size-7" : "size-5", "translate-x-[1px]")} fill="currentColor" />
+              <Play className={cn(big ? "size-8 sm:size-7" : "size-5", "translate-x-[1px]")} fill="currentColor" />
             )}
           </motion.span>
         </AnimatePresence>
@@ -71,7 +71,7 @@ export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
         onClick={() => next(true)}
         whileTap={tapScale}
         transition={springSnappy}
-        className={cn(iconBtn, "size-9")}
+        className={cn(iconBtn, big ? "size-12 sm:size-11" : "size-9")}
       >
         <SkipForward className={big ? "size-6" : "size-5"} fill="currentColor" />
       </motion.button>
@@ -87,7 +87,11 @@ export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
         onClick={cycleRepeat}
         whileTap={tapScale}
         transition={springSnappy}
-        className={cn(iconBtn, big ? "size-10" : "size-8", repeat !== "off" && "text-primary relative font-bold")}
+        className={cn(
+          iconBtn,
+          big ? "size-12 sm:size-10" : "size-8",
+          repeat !== "off" && "text-primary relative font-bold",
+        )}
       >
         {repeat === "one" ? (
           <Repeat1 className={big ? "size-5" : "size-4"} />
@@ -122,7 +126,7 @@ export function SeekBar({ compact = false }: { compact?: boolean }) {
     <div
       className={cn(
         "group relative flex w-full items-center select-none cursor-pointer",
-        compact ? "h-6 py-1" : "h-8 py-2",
+        compact ? "h-8 py-2" : "h-11 py-3",
       )}
       onPointerDown={() => setIsDragging(true)}
       onPointerUp={() => {

@@ -52,6 +52,8 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
         isMounted = false;
       };
     }
+    // Cleanup rỗng cho path còn lại — mọi code path return (fix TS7030).
+    return undefined;
   }, [album.id, artworkPreview, isAlbumCoverValid]);
 
   useEffect(() => {

@@ -131,6 +131,10 @@ function LoginPage() {
                 placeholder="name@example.com"
                 required
                 disabled={isSubmitting}
+                autoComplete="email"
+                inputMode="email"
+                enterKeyHint="next"
+                aria-label="Email"
                 className="w-full bg-background/80 border border-border rounded-xl pl-10 pr-3.5 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 transition-shadow"
               />
             </div>
@@ -149,6 +153,9 @@ function LoginPage() {
                 placeholder="••••••••"
                 required
                 disabled={isSubmitting}
+                autoComplete="current-password"
+                enterKeyHint="go"
+                aria-label="Mật khẩu"
                 className="w-full bg-background/80 border border-border rounded-xl pl-10 pr-3.5 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 transition-shadow"
               />
             </div>

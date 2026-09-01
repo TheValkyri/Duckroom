@@ -1,0 +1,19 @@
+[
+  { "navigate": "/library", "settle": 3500 },
+  { "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; rows[0].querySelector('button').click(); return 'play'; })()" },
+  { "wait": 1800 },
+  {
+    "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); const nav = document.querySelector(\"nav[aria-label='Điều hướng chính']\"); const dr = d.getBoundingClientRect(); const nr = nav.getBoundingClientRect(); return JSON.stringify({ dock: { y: dr.y, h: dr.height, bottom: dr.bottom }, nav: { y: nr.y, h: nr.height }, gap: Math.round(nr.y - dr.bottom), strictOverlap: dr.bottom > nr.y + 1 }); })()",
+    "name": "overlap-precise"
+  },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.click(); return 'expand'; })()" },
+  { "wait": 1600 },
+  {
+    "eval": "(() => { const all = [...document.querySelectorAll('div')].filter(e => e.className.includes && String(e.className).includes('fixed inset-0') && String(e.className).includes('grain')); return JSON.stringify({ candidates: all.length, firstHasH1: !!all[0]?.querySelector('h1'), firstText: all[0]?.querySelector('h1')?.textContent?.slice(0,40) }); })()",
+    "name": "find-fullscreen"
+  },
+  {
+    "eval": "(() => { const cands = [...document.querySelectorAll('div')].filter(e => { const c = String(e.className); return c.includes('fixed') && c.includes('z-50'); }); return cands.map(c => ({ cls: String(c.className).slice(0,60), h1: c.querySelector('h1')?.textContent?.slice(0,30) })).slice(0,5); })()",
+    "name": "z50-candidates"
+  }
+]

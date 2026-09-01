@@ -1,0 +1,28 @@
+[
+  { "navigate": "/", "settle": 3500, "name": "home-load" },
+  {
+    "eval": "document.querySelector(\"nav[aria-label='Điều hướng chính']\") ? 'bottom-nav:OK' : 'bottom-nav:MISSING'",
+    "name": "bottomnav"
+  },
+  {
+    "eval": "[...document.querySelectorAll(\"nav[aria-label='Điều hướng chính'] a\")].map(a=>a.getAttribute('href')+':'+(a.getAttribute('aria-current')||'-')).join(', ')",
+    "name": "navtabs"
+  },
+  {
+    "eval": "getComputedStyle(document.documentElement).getPropertyValue('--safe-bottom').trim() || '(empty)'",
+    "name": "safevar"
+  },
+  {
+    "eval": "document.querySelector(\"nav[aria-label='Thanh trên']\") ? 'top-header:OK' : 'top-header:MISSING'",
+    "name": "topheader"
+  },
+  { "eval": "document.documentElement.clientWidth + 'x' + document.documentElement.clientHeight", "name": "vp" },
+  {
+    "eval": "(() => { const nav = document.querySelector(\"nav[aria-label='Điều hướng chính'] a\"); const r = nav.getBoundingClientRect(); return 'first-tab: ' + Math.round(r.width) + 'x' + Math.round(r.height) + 'px'; })()",
+    "name": "tab-size"
+  },
+  {
+    "eval": "(() => { const nav = document.querySelector(\"nav[aria-label='Điều hướng chính']\"); const cs = getComputedStyle(nav); return 'nav-bottom: ' + cs.bottom + ', position: ' + cs.position; })()",
+    "name": "nav-pos"
+  }
+]

@@ -63,6 +63,13 @@
 
 :root {
   --radius: 0.5rem;
+  /* Mobile safe areas (notch / Dynamic Island / Android gesture bar).
+     viewport-fit=cover is set in __root.tsx so these resolve to real
+     insets in standalone + notched browsers, and to 0px on desktop. */
+  --safe-top: max(env(safe-area-inset-top), 0px);
+  --safe-bottom: max(env(safe-area-inset-bottom), 0px);
+  --safe-left: max(env(safe-area-inset-left), 0px);
+  --safe-right: max(env(safe-area-inset-right), 0px);
   --background: oklch(0.16 0.022 258);
   --foreground: oklch(0.96 0.008 85);
   --card: oklch(0.2 0.024 258);
@@ -200,4 +207,27 @@
 
 .animate-shimmer {
   animation: shimmer 1.8s infinite ease-in-out;
+}
+
+/* ---------------------------------------------------------------------------
+ * Mobile shell utilities (MOBILE_UI_ARCHITECTURE §1).
+ * Pad/dock surfaces by the OS safe-area insets without magic numbers.
+ * ------------------------------------------------------------------------ */
+@utility pt-safe {
+  padding-top: var(--safe-top);
+}
+@utility pb-safe {
+  padding-bottom: var(--safe-bottom);
+}
+@utility px-safe {
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+}
+/* Full-height surface that stops above the gesture bar (bottom nav, sheets). */
+@utility h-safe-bottom {
+  padding-bottom: var(--safe-bottom);
+}
+/* Docked elements that must not be overlapped by browser/OS bottom chrome. */
+@utility bottom-safe {
+  bottom: var(--safe-bottom);
 }

@@ -72,6 +72,9 @@ export function EditTrackModal({
         isMounted = false;
       };
     }
+    // Không cần cleanup khi đã có preview — trả về cleanup rỗng để mọi
+    // code path đều return (fix TS7030 từ working copy, không có ở zip).
+    return undefined;
   }, [track.id, artworkPreview]);
 
   // Close modal if user is confirmed not logged in (deferred to avoid setState-during-render)

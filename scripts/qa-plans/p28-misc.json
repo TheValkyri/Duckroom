@@ -1,0 +1,29 @@
+[
+  { "viewport": [390, 844, 3], "navigate": "/login", "settle": 2500 },
+  {
+    "eval": "(() => { const inputs = [...document.querySelectorAll('input')]; return JSON.stringify(inputs.map(i => ({ type: i.type, auto: i.getAttribute('autocomplete'), ekh: i.getAttribute('enterkeyhint'), h: Math.round(i.getBoundingClientRect().height) }))); })()",
+    "name": "login-inputs"
+  },
+  {
+    "eval": "(() => { const btns = [...document.querySelectorAll('button')].filter(b => b.offsetHeight > 0); return JSON.stringify(btns.map(b => ({ label: (b.getAttribute('aria-label') || b.textContent).trim().slice(0, 20), h: Math.round(b.getBoundingClientRect().height) }))); })()",
+    "name": "login-targets"
+  },
+  {
+    "eval": "(() => { const email = document.querySelector(\"input[type='email']\"); const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; setter.call(email, 'test@duckroom.local'); email.dispatchEvent(new Event('input', { bubbles: true })); const pw = document.querySelector(\"input[type='password']\"); setter.call(pw, 'wrongpass'); pw.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); return 'submitted-fake-creds'; })()",
+    "name": "bad-login"
+  },
+  { "wait": 2500 },
+  {
+    "eval": "(() => { const err = document.body.textContent.includes('Email hoặc mật khẩu không chính xác'); const stillOnLogin = location.pathname === '/login'; return JSON.stringify({ errorShown: err, stillOnLogin }); })()",
+    "name": "bad-login-result"
+  },
+  {
+    "eval": "(() => { const mql = matchMedia('(prefers-reduced-motion: reduce)'); return 'reduced-motion supported by CSS: ' + (getComputedStyle(document.documentElement).scrollBehavior !== undefined); })()",
+    "name": "reduced-motion"
+  },
+  { "navigate": "/singles", "settle": 3000 },
+  { "eval": "document.documentElement.scrollWidth + ' vs ' + document.documentElement.clientWidth + ' overflow:' + (document.documentElement.scrollWidth > document.documentElement.clientWidth)", "name": "overflow-singles" },
+  { "eval": "(() => { const search = document.querySelector(\"input[type='search'], input[placeholder*='Tìm kiếm']\"); return search ? 'singles-search:OK enterkey=' + search.getAttribute('enterkeyhint') : 'singles-search:MISSING'; })()", "name": "singles-search" },
+  { "navigate": "/albums", "settle": 2500 },
+  { "eval": "(() => { const cards = [...document.querySelectorAll('a[href*=\"/albums/\"]')].filter(a => a.offsetHeight > 0); const first = cards[0]; const r = first.getBoundingClientRect(); return JSON.stringify({ albumCards: cards.length, cardW: Math.round(r.width), tapToOpen: !!first.getAttribute('href') }); })()", "name": "albums-grid" }
+]

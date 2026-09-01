@@ -52,7 +52,7 @@ function SharedResourcePage() {
 
   if (data.__sharedError) {
     return (
-      <main className="bg-background flex min-h-screen flex-col items-center justify-center px-6 text-center">
+      <main className="bg-background flex min-h-svh flex-col items-center justify-center px-4 py-10 text-center sm:px-6">
         <Share2 className="text-muted-foreground mb-6 size-12" />
         <h1 className="font-display text-3xl md:text-4xl">Liên kết không còn hiệu lực</h1>
         <p className="text-muted-foreground mt-4 max-w-md text-sm">
@@ -80,7 +80,7 @@ function SharedResourcePage() {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={tweenBase}
-      className="min-h-screen bg-background px-6 py-10"
+      className="min-h-svh bg-background px-4 py-10 sm:px-6"
     >
       <div className="mx-auto flex min-h-[80vh] max-w-5xl items-center justify-center">
         <div className="grid w-full overflow-hidden rounded-[28px] border border-border bg-card/60 shadow-2xl lg:grid-cols-[minmax(300px,0.9fr)_1.1fr] backdrop-blur-xl">
@@ -93,9 +93,9 @@ function SharedResourcePage() {
               </div>
             )}
           </div>
-          <div className="flex flex-col justify-center p-8 md:p-12">
+          <div className="flex flex-col justify-center p-6 sm:p-8 md:p-12">
             <p className="text-primary text-xs font-semibold uppercase tracking-[0.2em]">Shared from Duckroom</p>
-            <h1 className="font-display mt-4 text-4xl md:text-5xl leading-tight">{title}</h1>
+            <h1 className="font-display mt-4 text-3xl leading-tight sm:text-4xl md:text-5xl">{title}</h1>
             <p className="text-muted-foreground mt-3 text-lg">{artist}</p>
             {duration > 0 && <p className="text-muted-foreground mt-2 text-xs">{formatTime(duration)}</p>}
             {isTrack && data.mediaUrl && (

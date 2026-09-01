@@ -3,6 +3,10 @@ import { AnimatePresence, motion } from "motion/react";
 import { usePlayer, usePlayerTime } from "../../lib/player";
 import { applyLyricsOffset } from "../../lib/lyrics-formatter";
 import { cn } from "../../lib/utils";
+import type { LyricLine } from "../../data/library";
+
+/** Dùng nội bộ cho memo dependency ổn định của LyricsPane. */
+type LyricLineView = LyricLine;
 
 /**
  * Runtime lyrics offset storage (Master Plan §10.4).
@@ -60,7 +64,6 @@ function animateScrollTo(el: HTMLElement, target: number, duration = 520) {
 export function LyricsPane({ compact = false }: { compact?: boolean }) {
   const { current, seek } = usePlayer();
   const time = usePlayerTime();
-  const originalLines = current?.lyrics ?? [];
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const isUserScrollingRef = useRef(false);
@@ -73,11 +76,15 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   // yêu cầu — không còn bất kỳ control nào trên pane lời. Offset đã lưu trong
   // localStorage (nếu có) vẫn được áp dụng khi hiển thị.
   const [offsetMs, setOffsetMs] = useState(0);
+  const trackId = current?.id;
   useEffect(() => {
-    setOffsetMs(readStoredOffset(current?.id));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.id]);
+    setOffsetMs(readStoredOffset(trackId));
+  }, [trackId]);
 
+  // Stabilize mảng lines cho useMemo: `current?.lyrics ?? []` tạo array mới
+  // mỗi render khi không có lời → useMemo bên dưới chạy lại vô nghĩa.
+  const emptyLines = useMemo<LyricLineView[]>(() => [], []);
+  const originalLines = current?.lyrics ?? emptyLines;
   const lines = useMemo(
     () => (offsetMs === 0 ? originalLines : applyLyricsOffset(originalLines, offsetMs)),
     [originalLines, offsetMs],
@@ -144,8 +151,13 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
 
   if (!lines.length) {
     return (
-      <div className="flex h-full min-h-[320px] flex-col items-center justify-center text-center p-8">
-        <h4 className="font-display text-2xl md:text-3xl text-foreground/90">Bài hát này không có lời</h4>
+      <div
+        className={cn(
+          "flex flex-col items-center justify-center text-center p-8",
+          compact ? "h-full min-h-[240px]" : "h-full min-h-[320px]",
+        )}
+      >
+        <h4 className="font-display text-xl md:text-3xl text-foreground/90 sm:text-2xl">Bài hát này không có lời</h4>
         <p className="text-muted-foreground text-sm mt-2 max-w-sm">
           Bản thu này không có lời hát hoặc chưa gắn tệp lời đồng bộ (.LRC).
         </p>
@@ -153,9 +165,11 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
     );
   }
 
+  // `compact` = chế độ phone: phủ toàn bộ container (NowPlaying stage), font
+  // nhỏ hơn chút cho mật độ dòng hợp lý trên màn hẹp. Desktop giữ cỡ lớn.
   return (
     <div
-      className={cn("relative h-full w-full overflow-hidden select-none", compact ? "h-64" : "h-full")}
+      className={cn("relative h-full w-full overflow-hidden select-none")}
       style={{
         WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)",
         maskImage: "linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)",
@@ -172,7 +186,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
           ref={containerRef}
           onWheel={handleUserScroll}
           onTouchMove={handleUserScroll}
-          className="flex h-full flex-col gap-6 md:gap-7 overflow-y-auto pt-16 pb-48 px-4 md:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          className="flex h-full flex-col gap-5 sm:gap-6 md:gap-7 overflow-y-auto pt-10 sm:pt-16 pb-32 px-4 md:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         >
           {lines.map((line, i) => {
             const isActive = i === activeIndex;
@@ -192,7 +206,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
                   // Identical font-bold geometry across ALL states to permanently prevent layout reflow/expansion
                   "text-left font-sans font-bold tracking-tight leading-snug md:leading-normal transition-all duration-300 transform-gpu cursor-pointer group block w-full outline-none antialiased",
                   "[text-wrap:balance] [text-wrap:pretty] break-words [word-break:keep-all]",
-                  compact ? "text-base md:text-lg" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
+                  compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
                   isActive
                     ? "text-white opacity-100 scale-[1.02] origin-left"
                     : isPassed

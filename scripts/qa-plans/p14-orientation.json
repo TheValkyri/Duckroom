@@ -1,0 +1,42 @@
+[
+  { "viewport": [360, 800, 3] },
+  { "navigate": "/library", "settle": 4000 },
+  {
+    "eval": "(() => { const rows = [...document.querySelectorAll('main .group')].filter(r => r.offsetHeight > 0); const more = [...rows[0].querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('Thao tác với bài')); if (!more) return 'missing'; const r = more.getBoundingClientRect(); return 'more@360: ' + Math.round(r.width) + 'x' + Math.round(r.height); })()",
+    "name": "more-360"
+  },
+  {
+    "eval": "(() => { const rows = [...document.querySelectorAll('main .group')].filter(r => r.offsetHeight > 0); const fav = [...rows[0].querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('yêu thích')); const r = fav.getBoundingClientRect(); return 'fav@360: ' + Math.round(r.width) + 'x' + Math.round(r.height); })()",
+    "name": "fav-360"
+  },
+  { "viewport": [844, 390, 3] },
+  { "navigate": "/", "settle": 2500 },
+  { "eval": "document.documentElement.scrollWidth + ' vs ' + document.documentElement.clientWidth + ' landscape-overflow:' + (document.documentElement.scrollWidth > document.documentElement.clientWidth)", "name": "landscape-overflow" },
+  {
+    "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; if (rows.length) { rows[0].querySelector('button').click(); return 'played-in-landscape'; } return 'no-rows'; })()",
+    "name": "landscape-play"
+  },
+  { "wait": 1500 },
+  {
+    "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); if (!d) return 'dock:MISSING-in-landscape'; const r = d.getBoundingClientRect(); return JSON.stringify({ dockY: Math.round(r.y), dockH: Math.round(r.height), inViewport: r.bottom <= window.innerHeight && r.top >= 0 }); })()",
+    "name": "landscape-dock"
+  },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.querySelector('[role=button]').click(); return 'expanded'; })()", "name": "landscape-expand" },
+  { "wait": 1200 },
+  {
+    "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); if (!fs) return 'fs:MISSING'; const art = fs.querySelector('.aspect-square'); const r = art.getBoundingClientRect(); const overflowY = r.bottom > window.innerHeight; return JSON.stringify({ artworkW: Math.round(r.width), artworkBottom: Math.round(r.bottom), viewportH: window.innerHeight, clipped: overflowY }); })()",
+    "name": "landscape-artwork"
+  },
+  {
+    "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const lyr = [...fs.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('lời bài hát')); if (lyr) { lyr.click(); return 'lyrics-landscape'; } return 'no-lyr'; })()",
+    "name": "landscape-lyrics"
+  },
+  { "wait": 900 },
+  {
+    "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const overlay = [...fs.querySelectorAll('div')].find(c => String(c.className).includes('absolute inset-0 w-full h-full')); if (!overlay) return 'no-overlay'; const r = overlay.getBoundingClientRect(); const lines = overlay.querySelectorAll('button').length; return JSON.stringify({ h: Math.round(r.height), lines }); })()",
+    "name": "landscape-lyrics-overlay"
+  },
+  { "viewport": [390, 844, 3] },
+  { "wait": 800 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); if (!fs) return 'portrait-fs-gone'; const r = fs.querySelector('.aspect-square')?.getBoundingClientRect(); return 'portrait-restored, artwork ' + (r ? Math.round(r.width) + 'px' : 'n/a'); })()", "name": "portrait-restore" }
+]

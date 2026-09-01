@@ -1,0 +1,9 @@
+[
+  { "viewport": [390, 844, 3], "navigate": "/albums", "settle": 3000 },
+  { "eval": "document.documentElement.scrollWidth + ' overflow:' + (document.documentElement.scrollWidth > document.documentElement.clientWidth)", "name": "albums-overflow" },
+  { "viewport": [360, 800, 3], "navigate": "/singles", "settle": 3000 },
+  { "eval": "document.documentElement.scrollWidth + ' overflow:' + (document.documentElement.scrollWidth > document.documentElement.clientWidth)", "name": "singles-overflow-360" },
+  { "eval": "(() => { const s = document.querySelector(\"input[enterkeyhint='search']\"); return s ? 'singles enterkeyhint: ' + s.getAttribute('enterkeyhint') : 'singles search: not-found'; })()", "name": "singles-search-ekh" },
+  { "navigate": "/videos", "settle": 2500 },
+  { "eval": "document.documentElement.scrollWidth + ' overflow:' + (document.documentElement.scrollWidth > document.documentElement.clientWidth)", "name": "videos-overflow-360" }
+]

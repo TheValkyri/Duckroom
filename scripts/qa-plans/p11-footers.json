@@ -1,0 +1,16 @@
+﻿[
+  { "viewport": [1440, 900, 1] },
+  { "navigate": "/library", "settle": 3000 },
+  {
+    "eval": "(() => { const fs = [...document.querySelectorAll('footer')]; return JSON.stringify(fs.map(f => ({ visible: f.offsetHeight > 0, ariaLabel: f.getAttribute('aria-label'), display: getComputedStyle(f).display }))); })()",
+    "name": "footers-detail"
+  },
+  {
+    "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; rows[0].querySelector('button').click(); return 'play'; })()"
+  },
+  { "wait": 1500 },
+  {
+    "eval": "(() => { const fs = [...document.querySelectorAll('footer')]; return JSON.stringify(fs.map(f => ({ visible: f.offsetHeight > 0, ariaLabel: f.getAttribute('aria-label') }))); })()",
+    "name": "footers-after-play"
+  }
+]

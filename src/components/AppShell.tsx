@@ -45,6 +45,20 @@ const nav = [
   { to: "/upload", label: "Tải lên", icon: UploadCloud },
 ] as const;
 
+/**
+ * Bottom navigation (mobile <lg only — MOBILE_UI_ARCHITECTURE §2).
+ * 4 destinations duy nhất; các nơi đến phụ (Albums/Đĩa đơn/Tải lên/
+ * Owner Console) vào header + liên kết ngữ cảnh. Tab nào cũng đạt chuẩn
+ * touch target 44px+ và aria-current. Active state là CSS thuần (không
+ * layoutId) theo quy ước perf 2026-08-25.
+ */
+const bottomNav = [
+  { to: "/", label: "Trang chủ", icon: Home, match: "exact" },
+  { to: "/library", label: "Thư viện", icon: ListMusic, match: "prefix" },
+  { to: "/my-library", label: "Kho của tôi", icon: Heart, match: "prefix" },
+  { to: "/videos", label: "MV", icon: Film, match: "prefix" },
+] as const;
+
 export function ModernDuckLogo({ className = "size-8" }: { className?: string }) {
   return (
     <svg viewBox="0 0 40 40" fill="none" className={className}>
@@ -98,7 +112,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            className="fixed top-4 right-4 z-50 flex items-center gap-3 bg-card/95 border border-primary/40 text-foreground px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-md max-w-sm"
+            className="fixed top-4 right-4 z-50 flex items-center gap-3 bg-card/95 border border-primary/40 text-foreground px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-md max-w-sm mt-[var(--safe-top)]"
           >
             <Loader2 className="size-5 animate-spin text-primary shrink-0" />
             <div className="flex-1 min-w-0">
@@ -272,57 +286,61 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile Top Navigation */}
-      <nav className="glass border-border fixed inset-x-0 top-0 z-30 flex items-center justify-between border-b px-4 py-2.5 lg:hidden">
-        <Link to="/" className="flex items-center gap-2">
+      {/* Mobile Top Header (compact — nav lives in the bottom dock) */}
+      <nav
+        aria-label="Thanh trên"
+        className="glass border-border pt-safe fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b px-4 lg:hidden"
+      >
+        <Link to="/" className="flex items-center gap-2" aria-label="Duckroom — Trang chủ">
           <ModernDuckLogo className="size-7" />
           <span className="font-display text-xl">
             <span className="text-primary">Duck</span>room
           </span>
         </Link>
-        <div className="flex items-center gap-1 overflow-x-auto">
-          {visibleNav.map(({ to, label }) => {
-            const isActive = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
-            return (
+        <div className="flex items-center gap-1">
+          {isOwner && (
+            <>
               <Link
-                key={to}
-                to={to}
-                preload="intent"
-                activeOptions={{ exact: to === "/" }}
+                to="/upload"
+                aria-label="Trung tâm Tiếp nhận"
+                title="Trung tâm Tiếp nhận"
                 className={cn(
-                  "relative rounded-full px-3 py-1 text-xs whitespace-nowrap transition-colors",
-                  isActive ? "text-foreground font-medium bg-accent" : "text-muted-foreground",
+                  "grid size-11 place-items-center rounded-full transition-colors",
+                  location.pathname === "/upload"
+                    ? "bg-accent text-primary"
+                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
                 )}
               >
-                {label}
+                <UploadCloud className="size-5" />
               </Link>
-            );
-          })}
-          {isOwner && (
-            <Link
-              to="/admin"
-              className={cn(
-                "relative rounded-full px-3 py-1 text-xs whitespace-nowrap transition-colors",
-                location.pathname === "/admin"
-                  ? "text-emerald-400 font-medium bg-emerald-500/10"
-                  : "text-muted-foreground",
-              )}
-            >
-              Admin
-            </Link>
+              <Link
+                to="/admin"
+                aria-label="Owner Console"
+                title="Owner Console"
+                className={cn(
+                  "grid size-11 place-items-center rounded-full transition-colors",
+                  location.pathname === "/admin"
+                    ? "bg-emerald-500/10 text-emerald-400"
+                    : "text-emerald-400/70 hover:bg-emerald-500/10 hover:text-emerald-400",
+                )}
+              >
+                <ShieldCheck className="size-5" />
+              </Link>
+            </>
           )}
           {isLoggedIn ? (
             <button
               onClick={() => signOut()}
+              aria-label={`Đăng xuất (${user?.email || "tài khoản"})`}
               title="Đăng xuất"
-              className="text-muted-foreground hover:text-destructive px-2 py-1 rounded-full text-xs cursor-pointer flex items-center gap-1"
+              className="text-muted-foreground hover:text-destructive grid size-11 place-items-center rounded-full transition-colors hover:bg-accent/50 cursor-pointer"
             >
-              <LogOut className="size-3.5" />
+              <LogOut className="size-5" />
             </button>
           ) : (
             <Link
               to="/login"
-              className="bg-primary/20 text-primary rounded-full px-3 py-1 text-xs whitespace-nowrap font-medium"
+              className="bg-primary/20 text-primary rounded-full px-4 text-xs whitespace-nowrap py-2.5 font-medium"
             >
               Đăng nhập
             </Link>
@@ -330,10 +348,52 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </nav>
 
-      {/* Main Content Area */}
+      {/* Mobile Bottom Navigation Dock — dính mép dưới màn hình, padding
+          trong nav chịu safe-area (pb-safe) để tránh gesture bar; bản thân
+          nav KHÔNG bị nâng lên (bottom:0), nếu không sẽ hở khe thấy content
+          chạy phía dưới. */}
+      <nav
+        aria-label="Điều hướng chính"
+        className="glass border-border fixed inset-x-0 bottom-0 z-30 border-t pb-safe lg:hidden"
+      >
+        <div className="grid grid-cols-4">
+          {bottomNav.map(({ to, label, icon: Icon, match }) => {
+            const isActive = match === "exact" ? location.pathname === "/" : location.pathname.startsWith(to);
+            return (
+              <Link
+                key={to}
+                to={to}
+                preload="intent"
+                activeOptions={{ exact: match === "exact" }}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "flex min-h-[56px] flex-col items-center justify-center gap-0.5 px-1 py-1.5 select-none transition-colors cursor-pointer",
+                  isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <span className="relative">
+                  <Icon className="size-5" strokeWidth={isActive ? 2.4 : 2} />
+                  {isActive && (
+                    <span className="bg-primary absolute -bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full" />
+                  )}
+                </span>
+                <span className={cn("text-[10px] leading-none", isActive ? "font-semibold" : "font-medium")}>
+                  {label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* Main Content Area
+          Mobile: pt-14 (top header) + đủ khoảng trống cho bottom dock
+          (bottom nav 56px + mini-player ~64px) + safe-area; Desktop giữ
+          nguyên padding-sidebar (chỉ đổi bên dưới lg). */}
       <main
         className={cn(
-          "pt-14 pb-32 lg:pt-0 overflow-x-hidden min-h-screen transition-[padding] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "overflow-x-hidden min-h-screen transition-[padding] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "pt-[calc(3.5rem+var(--safe-top))] pb-[calc(9.75rem+var(--safe-bottom))] lg:pt-0 lg:pb-32",
           collapsed ? "lg:pl-20" : "lg:pl-64",
         )}
       >

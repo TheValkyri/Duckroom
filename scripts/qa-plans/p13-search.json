@@ -1,0 +1,40 @@
+[
+  { "viewport": [360, 800, 3] },
+  { "navigate": "/library", "settle": 4000 },
+  {
+    "eval": "(() => { const input = document.querySelector(\"input[type='search']\"); if (!input) return 'search-input:MISSING'; const ih = input.getAttribute('enterkeyhint'); const r = input.getBoundingClientRect(); return JSON.stringify({ enterkeyhint: ih, h: Math.round(r.height), w: Math.round(r.width) }); })()",
+    "name": "search-input"
+  },
+  {
+    "eval": "(() => { const input = document.querySelector(\"input[type='search']\"); const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; setter.call(input, 'MCK'); input.dispatchEvent(new Event('input', { bubbles: true })); return 'typed-MCK'; })()",
+    "name": "type-query"
+  },
+  { "wait": 800 },
+  {
+    "eval": "(() => { const rows = [...document.querySelectorAll('main .group')].filter(r => r.offsetHeight > 0); const noResult = document.body.textContent.includes('Không tìm thấy'); return JSON.stringify({ visibleRows: rows.length, noResult, firstTitle: rows[0]?.textContent.slice(0, 30) }); })()",
+    "name": "search-results"
+  },
+  {
+    "eval": "(() => { const input = document.querySelector(\"input[type='search']\"); const clear = [...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.includes('Xóa từ khóa')); if (!clear) return 'clear:MISSING'; clear.click(); return 'cleared'; })()",
+    "name": "clear-search"
+  },
+  { "wait": 600 },
+  {
+    "eval": "(() => { const rows = [...document.querySelectorAll('main .group')].filter(r => r.offsetHeight > 0); return 'rows-restored: ' + rows.length; })()",
+    "name": "search-cleared"
+  },
+  {
+    "eval": "(() => { const input = document.querySelector(\"input[type='search']\"); const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; setter.call(input, 'zzzz nonexistent track xyz'); input.dispatchEvent(new Event('input', { bubbles: true })); return 'typed-nothing'; })()",
+    "name": "type-noresult"
+  },
+  { "wait": 700 },
+  {
+    "eval": "(() => { const txt = document.body.textContent; const hasNoResult = txt.includes('Không tìm thấy'); const hasClearFilter = [...document.querySelectorAll('button')].some(b => b.textContent.includes('Xóa bộ lọc')); return JSON.stringify({ noResultMsg: hasNoResult, clearFilterCTA: hasClearFilter }); })()",
+    "name": "noresult-state"
+  },
+  { "eval": "document.documentElement.scrollWidth + ' vs ' + document.documentElement.clientWidth + ' overflow:' + (document.documentElement.scrollWidth > document.documentElement.clientWidth)", "name": "overflow-360" },
+  {
+    "eval": "(() => { const rows = [...document.querySelectorAll('main .group')].filter(r => r.offsetHeight > 0); const more = [...rows[0].querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('Thao tác với bài')); const r = more.getBoundingClientRect(); return 'more-btn@360: ' + Math.round(r.width) + 'x' + Math.round(r.height); })()",
+    "name": "more-size-360"
+  }
+]

@@ -1,0 +1,17 @@
+[
+  { "viewport": [844, 390, 3] },
+  { "navigate": "/library", "settle": 3500 },
+  { "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; rows[5].querySelector('button').click(); return 'play'; })()" },
+  { "wait": 1200 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.querySelector('[role=button]').click(); return 'expanded'; })()" },
+  { "wait": 1200 },
+  {
+    "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); if (!fs) return 'no-fs'; const lyrBtn = [...fs.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('lời bài hát')); if (lyrBtn) { lyrBtn.click(); return 'lyrics-clicked'; } return 'no-lyrics-btn'; })()",
+    "name": "click-lyrics"
+  },
+  { "wait": 1000 },
+  {
+    "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const panes = [...fs.querySelectorAll('div')].filter(c => { const cc = String(c.className); return cc.includes('overflow-hidden') && cc.includes('z-20') && c.querySelector('button'); }); return JSON.stringify({ lyricPanes: panes.length, sample: panes[0]?.querySelector('button')?.textContent?.slice(0, 40) }); })()",
+    "name": "find-pane"
+  }
+]

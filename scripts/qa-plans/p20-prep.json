@@ -1,0 +1,7 @@
+[
+  { "viewport": [390, 844, 3], "navigate": "/library", "settle": 4000 },
+  {
+    "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; const btn = rows[0].querySelector('button'); const r = btn.getBoundingClientRect(); window.__tap = { x: r.x + 20, y: r.y + 10 }; return 'prepared tap at ' + JSON.stringify(window.__tap); })()",
+    "name": "prep"
+  }
+]

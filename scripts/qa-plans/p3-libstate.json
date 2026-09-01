@@ -1,0 +1,11 @@
+[
+  { "navigate": "/library", "settle": 4000, "name": "library" },
+  {
+    "eval": "(() => { const empty = [...document.querySelectorAll('h3')].find(h => h.textContent.includes('Thư viện trống')); const rows = document.querySelectorAll('.group').length; const t = document.body.innerText.slice(0, 300); return JSON.stringify({ emptyState: !!empty, rows, sample: t }); })()",
+    "name": "library-state"
+  },
+  {
+    "eval": "window.__dr_diag = true; fetch('/api/health').then(r => r.status).catch(e => 'no-health-endpoint')",
+    "name": "health"
+  }
+]

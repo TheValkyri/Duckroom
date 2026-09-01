@@ -386,7 +386,7 @@ function AlbumsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-12">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border/60">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-primary mb-2">
@@ -415,7 +415,7 @@ function AlbumsPage() {
           variants={listContainerVariants}
           initial="hidden"
           animate="show"
-          className="mt-10 grid grid-cols-2 gap-8 md:grid-cols-3"
+          className="mt-6 grid grid-cols-2 gap-4 sm:mt-10 sm:gap-8 md:grid-cols-3"
         >
           {albums.map((a) => (
             <motion.div key={a.id} variants={listItemVariants}>

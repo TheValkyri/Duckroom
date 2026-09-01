@@ -1,4 +1,4 @@
-import { ChevronUp, ListMusic, Mic2, Sparkles, Volume2, VolumeX } from "lucide-react";
+import { ChevronUp, ListMusic, Mic2, SkipForward, Sparkles, Volume2, VolumeX } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { albumById, formatTime } from "../../data/library";
@@ -9,6 +9,8 @@ import { cn } from "../../lib/utils";
 import { Visualizer } from "../Visualizer";
 import { SeekBar, TransportControls } from "./Controls";
 import { QueuePanel } from "./QueuePanel";
+import { QueueSheet } from "./QueueSheet";
+import { useIsPhoneLayout } from "../../hooks/use-media-query";
 
 export function PlayerBar() {
   const {
@@ -30,9 +32,11 @@ export function PlayerBar() {
     clearResumeHint,
     seek,
     toggle: togglePlayback,
+    next,
   } = usePlayer();
 
   const [coverLoaded, setCoverLoaded] = useState(false);
+  const isPhone = useIsPhoneLayout();
 
   if (!current) return null;
   const album = albumById(current.albumId);
@@ -43,7 +47,10 @@ export function PlayerBar() {
 
   return (
     <>
-      <AnimatePresence>{queueOpen && <QueuePanel />}</AnimatePresence>
+      {/* Queue surface: bottom sheet trên phone (touch-first), drawer giữ
+          nguyên cho >=md. Cùng một usePlayer API — không nhân bản logic. */}
+      <AnimatePresence>{queueOpen && isPhone && <QueueSheet />}</AnimatePresence>
+      <AnimatePresence>{queueOpen && !isPhone && <QueuePanel />}</AnimatePresence>
       {/* Continue-Listening pill (Phase 5.2): restored track loaded paused. */}
       <AnimatePresence>
         {resumeHint && !isPlaying && (
@@ -52,7 +59,7 @@ export function PlayerBar() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 24, opacity: 0 }}
             transition={springSnappy}
-            className="glass border-border fixed bottom-24 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border px-4 py-2 shadow-xl"
+            className="glass border-border fixed z-50 flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-full border px-4 py-2 shadow-xl left-1/2 -translate-x-1/2 bottom-[calc(10.5rem+var(--safe-bottom))] lg:bottom-24"
           >
             <span className="text-muted-foreground text-xs">
               Tiếp tục nghe <strong className="text-foreground">{current.title}</strong>?
@@ -77,11 +84,114 @@ export function PlayerBar() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ============ MINI PLAYER (phone <md) — stacked dock, safe-area ============
+          Dock nằm TRÊN bottom nav: bottom = nav (3.5rem) + gesture bar
+          (safe-area). Không dùng bottom-safe ở đây vì utility đó ghi đè
+          thuộc tính `bottom` (bắt được bằng QA overlap-check thực tế). */}
       <motion.footer
         initial={{ y: 90 }}
         animate={{ y: 0 }}
         transition={springGentle}
-        className="glass border-border fixed inset-x-0 bottom-0 z-40 border-t"
+        className="glass border-border fixed inset-x-0 bottom-[calc(3.5rem+var(--safe-bottom))] z-40 border-t lg:hidden"
+        aria-label="Trình phát thu nhỏ"
+      >
+        {/* Read-only progress strip — seek đầy đủ ở player mở rộng, tránh
+            seek nhầm trên dải 2px. Isolated subscriber: chỉ strip này re-render. */}
+        <MiniProgressStrip />
+        <div
+          className="flex h-16 items-center gap-2 px-2"
+          role="button"
+          tabIndex={0}
+          aria-label={`Mở trình phát toàn màn hình: ${current.title}`}
+          onClick={() => setExpanded(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setExpanded(true);
+            }
+          }}
+        >
+          <span className="group relative size-12 shrink-0 overflow-hidden rounded-lg bg-card/60 border border-white/5">
+            {!coverLoaded && (
+              <div className="absolute inset-0 bg-muted/40 animate-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+            )}
+            {/* alt="" — ảnh chỉ trang trí; tên bài hiển thị ngay cạnh đó */}
+            <img
+              src={coverUrl}
+              alt=""
+              decoding="async"
+              onLoad={() => setCoverLoaded(true)}
+              onError={async (e) => {
+                const target = e.currentTarget;
+                if (current?.id) {
+                  try {
+                    const fresh = await fetchTrackArtworkUrl(current.id);
+                    if (fresh && fresh !== target.src) {
+                      target.src = fresh;
+                      setCoverLoaded(true);
+                      return;
+                    }
+                  } catch {
+                    // fallback below
+                  }
+                }
+                if (target.src !== fallbackCover) {
+                  target.src = fallbackCover;
+                }
+                setCoverLoaded(true);
+              }}
+              className={cn(
+                "size-full object-cover transition-all duration-500",
+                coverLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]",
+              )}
+              width={48}
+              height={48}
+            />
+            <span className="bg-background/60 absolute inset-0 grid place-items-center opacity-60">
+              <ChevronUp className="size-5" />
+            </span>
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium text-foreground">{current.title}</span>
+            <span className="text-muted-foreground block truncate text-xs">{current.artist}</span>
+          </span>
+          {/* Transport — 44px touch targets; stopPropagation để không expand */}
+          <motion.button
+            aria-label={isPlaying ? "Tạm dừng" : "Phát"}
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePlayback();
+            }}
+            whileTap={tapScale}
+            transition={springSnappy}
+            className="grid size-11 shrink-0 place-items-center rounded-full cursor-pointer"
+          >
+            <span className="bg-primary text-primary-foreground grid size-11 place-items-center rounded-full shadow-[0_8px_30px_-8px_oklch(0.76_0.14_66/0.7)]">
+              {isPlaying ? <PauseIcon className="size-5" /> : <PlayIcon className="size-5 translate-x-px" />}
+            </span>
+          </motion.button>
+          <motion.button
+            aria-label="Bài sau"
+            onClick={(e) => {
+              e.stopPropagation();
+              next(true);
+            }}
+            whileTap={tapScale}
+            transition={springSnappy}
+            className="text-muted-foreground hover:text-foreground grid size-11 shrink-0 place-items-center rounded-full transition-colors cursor-pointer"
+          >
+            <SkipForward className="size-5" fill="currentColor" />
+          </motion.button>
+        </div>
+      </motion.footer>
+
+      {/* ============ DESKTOP PLAYER BAR (>=lg) — giữ nguyên cấu trúc ============ */}
+      <motion.footer
+        initial={{ y: 90 }}
+        animate={{ y: 0 }}
+        transition={springGentle}
+        className="glass border-border fixed inset-x-0 bottom-0 z-40 hidden border-t lg:block"
       >
         <div className="w-full grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 sm:px-8 py-3">
           {/* Left: Track Info & Cover (Stretched to far left) */}
@@ -222,6 +332,39 @@ export function PlayerBar() {
         </div>
       </motion.footer>
     </>
+  );
+}
+
+/** Play/Pause glyphs cho mini-player (giữ icon vuông vức như TransportControls). */
+function PlayIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M8 5.14v13.72c0 .8.87 1.3 1.56.88l10.54-6.86a1.05 1.05 0 0 0 0-1.76L9.56 4.26A1.04 1.04 0 0 0 8 5.14Z" />
+    </svg>
+  );
+}
+function PauseIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <rect x="6" y="4.5" width="4" height="15" rx="1.2" />
+      <rect x="14" y="4.5" width="4" height="15" rx="1.2" />
+    </svg>
+  );
+}
+
+/**
+ * Dải tiến trình 2px của mini-player — subscriber riêng để toàn bộ dock
+ * không re-render theo timeupdate (cùng pattern PlayerBarElapsedLabel).
+ */
+function MiniProgressStrip() {
+  const { current } = usePlayer();
+  const time = usePlayerTime();
+  const duration = current?.duration || 1;
+  const pct = Math.min(100, Math.max(0, (time / duration) * 100));
+  return (
+    <div className="h-0.5 w-full bg-muted/60" aria-hidden>
+      <div className="bg-primary h-full rounded-r-full" style={{ width: `${pct}%` }} />
+    </div>
   );
 }
 

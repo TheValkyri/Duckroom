@@ -1,0 +1,13 @@
+[
+  { "navigate": "/library", "settle": 4000 },
+  {
+    "eval": "(() => { const fs = window.__dr_findLyrics = () => null; return 'probe'; })()" },
+  {
+    "eval": "fetch('/api/trpc/x').catch(()=>null); 'skip'",
+    "name": "noop"
+  },
+  {
+    "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; const titles = rows.map((r, i) => r.textContent.split('\\n').slice(0,3).join(' | ').slice(0, 60)); return JSON.stringify(titles.slice(0, 10)); })()",
+    "name": "first-rows"
+  }
+]

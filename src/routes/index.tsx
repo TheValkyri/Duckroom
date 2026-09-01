@@ -177,14 +177,16 @@ function Index() {
 
   if (!hero || albums.length === 0) {
     return (
-      <div className="mx-auto max-w-5xl px-6 py-20">
-        <section className="grain border-border relative overflow-hidden rounded-2xl border bg-card/60 p-10 md:p-16">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 py-10 sm:py-20">
+        <section className="grain border-border relative overflow-hidden rounded-2xl border bg-card/60 p-6 sm:p-10 md:p-16">
           <div className="max-w-2xl">
             <span className="text-xs tracking-[0.35em] uppercase font-semibold">
               <span className="text-primary">Duck</span>
               <span className="text-foreground">room</span>
             </span>
-            <h1 className="font-display mt-4 text-5xl md:text-6xl leading-[1.05]">Kho nhạc của bạn đã sẵn sàng</h1>
+            <h1 className="font-display mt-4 text-3xl leading-[1.05] sm:text-5xl md:text-6xl">
+              Kho nhạc của bạn đã sẵn sàng
+            </h1>
             <p className="text-muted-foreground mt-4 text-sm md:text-base leading-relaxed">
               Duckroom đã được dọn sạch tất cả dữ liệu mẫu. Hãy đưa các bản thu FLAC 24-bit, WAV hoặc MV bản gốc của bạn
               vào kho lưu trữ cá nhân ngay bây giờ.
@@ -257,8 +259,8 @@ function Index() {
           }}
           className="absolute inset-0 size-full scale-110 object-cover opacity-25 blur-3xl transition-opacity duration-700 ease-in-out animate-fade-in"
         />
-        <div className="from-background absolute inset-0 bg-gradient-to-t via-transparent to-transparent" />
-        <div className="relative mx-auto flex max-w-6xl flex-col gap-10 px-6 py-24 md:flex-row md:items-end">
+        <div className="from-background relative inset-0 bg-gradient-to-t via-transparent to-transparent" />
+        <div className="relative mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:px-6 sm:py-16 md:flex-row md:items-end md:gap-10 md:py-24">
           <img
             src={
               hero.cover ||
@@ -276,7 +278,7 @@ function Index() {
             }}
             width={512}
             height={512}
-            className="aspect-square w-60 rounded-xl object-cover shadow-[0_40px_100px_-30px_oklch(0_0_0/0.9)] md:w-80"
+            className="aspect-square w-40 rounded-xl object-cover shadow-[0_40px_100px_-30px_oklch(0_0_0/0.9)] sm:w-52 md:w-80"
           />
           <div className="flex-1">
             <div className="flex items-center gap-3">
@@ -293,12 +295,12 @@ function Index() {
                 </motion.button>
               )}
             </div>
-            <h1 className="font-display mt-3 text-5xl leading-[0.95] md:text-7xl">{hero.title}</h1>
-            <p className="text-muted-foreground mt-4 max-w-md text-sm">
+            <h1 className="font-display mt-3 text-4xl leading-[0.95] sm:text-5xl md:text-7xl">{hero.title}</h1>
+            <p className="text-muted-foreground mt-3 max-w-md text-sm sm:mt-4">
               {hero.note || `${hero.artist} · ${hero.year}`}
             </p>
-            <Visualizer playing={isPlaying} bars={36} height={40} className="mt-6 max-w-sm" />
-            <div className="mt-6 flex flex-wrap gap-3">
+            <Visualizer playing={isPlaying} bars={36} height={40} className="mt-4 hidden max-w-sm sm:block sm:mt-6" />
+            <div className="mt-5 flex flex-wrap gap-3 sm:mt-6">
               <button
                 onClick={() => playQueue(heroTracks, 0, false)}
                 className="bg-primary text-primary-foreground flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-transform hover:scale-[1.03] cursor-pointer shadow-md"
@@ -317,13 +319,13 @@ function Index() {
       </section>
 
       {/* Albums Section */}
-      <section className="mx-auto max-w-6xl px-6 py-14">
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 py-10 sm:py-14">
         <SectionHead title="Albums" to="/albums" />
         <motion.div
           variants={listContainerVariants}
           initial="hidden"
           animate="show"
-          className="mt-8 grid grid-cols-2 gap-8 md:grid-cols-3"
+          className="mt-6 grid grid-cols-2 gap-4 sm:gap-8 md:grid-cols-3 sm:mt-8"
         >
           {albums.map((a) => (
             <motion.div key={a.id} variants={listItemVariants}>
@@ -335,13 +337,13 @@ function Index() {
 
       {/* Singles Section (If available) */}
       {featuredSingles.length > 0 && (
-        <section className="mx-auto max-w-6xl px-6 pb-14">
+        <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-10 sm:pb-14">
           <SectionHead title="Đĩa đơn & Single" to="/singles" badge={`${singles.length} bài`} />
           <motion.div
             variants={listContainerVariants}
             initial="hidden"
             animate="show"
-            className="mt-8 grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+            className="mt-6 grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:mt-8"
           >
             {featuredSingles.map((track) => (
               <SingleMiniCard
@@ -358,9 +360,9 @@ function Index() {
       )}
 
       {/* Recent Tracks Section */}
-      <section className="mx-auto max-w-6xl px-6 pb-14">
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-10 sm:pb-14">
         <SectionHead title="Nghe gần đây" to="/library" />
-        <motion.div variants={listContainerVariants} initial="hidden" animate="show" className="mt-6">
+        <motion.div variants={listContainerVariants} initial="hidden" animate="show" className="mt-6 sm:mt-6">
           {recent.map((t, i) => (
             <motion.div key={t.id} variants={listItemVariants}>
               <TrackRow track={t} n={i + 1} index={i} onPlayTrack={handlePlayRecentTrack} />
@@ -371,13 +373,13 @@ function Index() {
 
       {/* Videos Section */}
       {videos.length > 0 && (
-        <section className="mx-auto max-w-6xl px-6 pb-24">
+        <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-16 sm:pb-24">
           <SectionHead title="MV Bản Gốc" to="/videos" />
           <motion.div
             variants={listContainerVariants}
             initial="hidden"
             animate="show"
-            className="mt-8 grid gap-8 md:grid-cols-2"
+            className="mt-6 grid gap-4 sm:gap-8 md:grid-cols-2 sm:mt-8"
           >
             {videos.map((v) => (
               <motion.div key={v.id} variants={listItemVariants}>
@@ -424,16 +426,16 @@ function SectionHead({
   badge?: string;
 }) {
   return (
-    <div className="border-border flex items-baseline justify-between border-b pb-3">
+    <div className="border-border flex items-baseline justify-between gap-2 border-b pb-3">
       <div className="flex items-center gap-3">
-        <h2 className="font-display text-3xl font-bold">{title}</h2>
+        <h2 className="font-display text-2xl font-bold sm:text-3xl">{title}</h2>
         {badge && (
           <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
             {badge}
           </span>
         )}
       </div>
-      <Link to={to} className="text-muted-foreground hover:text-primary text-xs font-medium transition-colors">
+      <Link to={to} className="text-muted-foreground hover:text-primary shrink-0 text-xs font-medium transition-colors">
         Xem tất cả →
       </Link>
     </div>

@@ -237,7 +237,7 @@ function AlbumPage() {
         className="pointer-events-none absolute inset-x-0 top-0 h-[460px] opacity-40 transition-all duration-1000 ease-out"
         style={{ background: `linear-gradient(180deg, ${album.accent} 0%, transparent 100%)` }}
       />
-      <div className="relative mx-auto max-w-6xl px-6 py-14">
+      <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-14">
         {/* Top nav */}
         <div className="flex items-center justify-between mb-8">
           <Link
@@ -271,8 +271,8 @@ function AlbumPage() {
         </div>
 
         {/* Album Hero */}
-        <div className="flex flex-col gap-8 md:flex-row md:items-end">
-          <div className="w-56 md:w-72 aspect-square rounded-2xl overflow-hidden shadow-[0_30px_80px_-30px_oklch(0_0_0/0.9)] flex-shrink-0 bg-card/60 relative border border-white/5">
+        <div className="flex flex-col items-center gap-5 md:flex-row md:items-end md:gap-8">
+          <div className="w-44 sm:w-56 md:w-72 aspect-square rounded-2xl overflow-hidden shadow-[0_30px_80px_-30px_oklch(0_0_0/0.9)] flex-shrink-0 bg-card/60 relative border border-white/5">
             {!imgLoaded && !imgError && (
               <div className="absolute inset-0 bg-muted/40 animate-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
             )}
@@ -301,10 +301,10 @@ function AlbumPage() {
               </div>
             )}
           </div>
-          <div>
+          <div className="w-full text-center md:text-left">
             <p className="text-muted-foreground text-xs tracking-[0.3em] uppercase">Album</p>
-            <div className="flex items-center gap-3 mt-2">
-              <h1 className="font-display text-5xl md:text-6xl leading-none">{album.title}</h1>
+            <div className="flex items-center justify-center gap-3 mt-2 md:justify-start">
+              <h1 className="font-display text-3xl sm:text-5xl md:text-6xl leading-none">{album.title}</h1>
               {isLoggedIn && (
                 <motion.button
                   onClick={() => setShowEditModal(true)}
@@ -321,7 +321,7 @@ function AlbumPage() {
               {album.artist} · {album.year} · {list.length} bài · {formatTime(total)}
             </p>
             <p className="text-muted-foreground mt-1 text-xs">{album.note}</p>
-            <div className="mt-6 flex gap-3 flex-wrap">
+            <div className="mt-5 flex w-full justify-center gap-3 flex-wrap md:mt-6 md:justify-start md:flex-nowrap">
               <motion.button
                 onClick={() => list.length > 0 && playQueue(list, 0, false)}
                 disabled={list.length === 0}

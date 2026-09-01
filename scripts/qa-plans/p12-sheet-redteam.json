@@ -1,0 +1,63 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/library", "settle": 4000 },
+  {
+    "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; const more = [...rows[3].querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('Thao tác với bài')); if (!more) return 'more-btn:MISSING'; const r = more.getBoundingClientRect(); more.click(); return JSON.stringify({ size: Math.round(r.width) + 'x' + Math.round(r.height), clicked: true }); })()",
+    "name": "open-actions-sheet"
+  },
+  { "wait": 900 },
+  {
+    "eval": "(() => { const sheet = document.querySelector('[role=dialog]'); if (!sheet) return 'sheet:MISSING'; const btns = [...sheet.querySelectorAll('button')].map(b => b.getAttribute('aria-label') || b.textContent.trim().slice(0, 26)).filter(t => t); return JSON.stringify({ label: sheet.getAttribute('aria-label'), actions: btns }); })()",
+    "name": "sheet-actions"
+  },
+  {
+    "eval": "(() => { const sheet = document.querySelector('[role=dialog]'); const fav = [...sheet.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('yêu thích') || (b.textContent||'').includes('yêu thích')); return fav ? 'fav-target: ' + Math.round(fav.getBoundingClientRect().height) + 'px' : 'no-fav (guest → login CTA)'; })()",
+    "name": "sheet-fav-guest"
+  },
+  {
+    "eval": "(() => { const sheet = document.querySelector('[role=dialog]'); const close = [...sheet.querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.includes('Đóng Thao tác')); close.click(); return 'closed'; })()",
+    "name": "close-sheet"
+  },
+  { "wait": 500 },
+  {
+    "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; const fav = [...rows[3].querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('yêu thích')); if (!fav) return 'no-fav'; fav.click(); return 'guest-fav-click'; })()",
+    "name": "guest-fav-tap"
+  },
+  { "wait": 800 },
+  {
+    "eval": "(() => { const modal = [...document.querySelectorAll('.fixed.inset-0')].find(e => e.textContent.includes('Lưu bài hát này')); return modal ? 'auth-gate:OK' : 'auth-gate:MISSING'; })()",
+    "name": "auth-gate"
+  },
+  {
+    "eval": "(() => { const modal = [...document.querySelectorAll('.fixed.inset-0')].find(e => e.textContent.includes('Lưu bài hát này')); const later = [...modal.querySelectorAll('button')].find(b => b.textContent.includes('Để sau')); later.click(); return 'dismissed'; })()",
+    "name": "auth-gate-dismiss"
+  },
+  { "wait": 400 },
+  {
+    "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; const playBtn = rows[5].querySelector('button'); const t0 = performance.now(); for (let i = 0; i < 8; i++) playBtn.click(); return 'redteam-spam-play: 8 clicks in ' + Math.round(performance.now() - t0) + 'ms (no crash = OK)'; })()",
+    "name": "spam-play"
+  },
+  { "wait": 1500 },
+  {
+    "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); if (!d) return 'dock-still-there:FAIL'; const t = d.textContent.slice(0, 60); return 'dock-alive: ' + t; })()",
+    "name": "after-spam"
+  },
+  {
+    "eval": "(() => { const nexts = [...document.querySelectorAll('footer button')].filter(b => b.getAttribute('aria-label') === 'Bài sau'); const visible = nexts.find(b => b.offsetHeight > 0); if (!visible) return 'no-next'; const t0 = performance.now(); for (let i = 0; i < 6; i++) visible.click(); return 'spam-next: 6 rapid nexts (survived ' + Math.round(performance.now() - t0) + 'ms)'; })()",
+    "name": "spam-next"
+  },
+  { "wait": 2000 },
+  {
+    "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); const title = d.textContent.split('\\n')[0]; return 'after-6-nexts now playing: ' + title.slice(0, 40); })()",
+    "name": "after-nexts"
+  },
+  {
+    "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); const toggles = [...d.querySelectorAll('button')].filter(b => ['Phát','Tạm dừng'].includes(b.getAttribute('aria-label'))); const visible = toggles.find(b => b.offsetHeight > 0); const t0 = performance.now(); for (let i = 0; i < 10; i++) visible.click(); return 'spam-toggle: 10 clicks (survived)'; })()",
+    "name": "spam-toggle"
+  },
+  { "wait": 1200 },
+  {
+    "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); return d ? 'dock-final:OK' : 'dock-final:GONE'; })()",
+    "name": "final-alive"
+  }
+]

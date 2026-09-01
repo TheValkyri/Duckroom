@@ -1,0 +1,11 @@
+[
+  { "navigate": "/library", "settle": 4000 },
+  {
+    "eval": "(() => { const audios = [...document.querySelectorAll('audio')]; return JSON.stringify(audios.map(a => ({ src: (a.src||'').slice(0, 60), paused: a.paused, readyState: a.readyState, error: a.error ? a.error.code : null, muted: a.muted, vol: a.volume }))); })()",
+    "name": "audio-state"
+  },
+  {
+    "eval": "fetch('http://localhost:5173/src/lib/s3.ts').then(r => r.text()).then(t => t.slice(0, 100)).catch(e => 'err')",
+    "name": "probe"
+  }
+]

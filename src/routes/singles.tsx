@@ -299,7 +299,7 @@ function SinglesPage() {
   );
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-12">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-12">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border/60">
         <div>
@@ -365,22 +365,30 @@ function SinglesPage() {
 
       {/* Filter and View Mode Switcher */}
       {singles.length > 0 && (
-        <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+        <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 sm:mt-8">
           <div className="relative w-full sm:w-80">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              type="search"
+              inputMode="search"
+              enterKeyHint="search"
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
               placeholder="Tìm kiếm đĩa đơn, nghệ sĩ..."
-              className="w-full bg-card/70 border border-border focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl pl-9.5 pr-8 py-2 text-sm outline-none transition-all"
+              aria-label="Tìm kiếm đĩa đơn, nghệ sĩ"
+              className="w-full bg-card/70 border border-border focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl pl-9.5 pr-10 py-2.5 text-sm outline-none transition-all"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 cursor-pointer"
+                aria-label="Xóa từ khóa tìm kiếm"
+                className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground grid size-9 place-items-center cursor-pointer"
               >
-                <X className="size-3.5" />
+                <X className="size-4" />
               </button>
             )}
           </div>
@@ -437,7 +445,7 @@ function SinglesPage() {
                 initial="hidden"
                 animate="show"
                 exit="hidden"
-                className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+                className="grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
               >
                 <AnimatePresence initial={false}>
                   {filteredSingles.map((track, i) => (

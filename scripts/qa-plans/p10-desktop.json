@@ -1,0 +1,31 @@
+[
+  { "viewport": [1440, 900, 1], "name": "desktop-viewport" },
+  { "navigate": "/library", "settle": 3500 },
+  {
+    "eval": "(() => { const sidebar = document.querySelector('aside'); const bottomNav = document.querySelector(\"nav[aria-label='Điều hướng chính']\"); const topBar = document.querySelector(\"nav[aria-label='Thanh trên']\"); const playerBar = [...document.querySelectorAll('footer')].filter(f => f.querySelector('.grid')).pop(); return JSON.stringify({ sidebarVisible: sidebar && getComputedStyle(sidebar).display !== 'none', sidebarW: sidebar ? Math.round(sidebar.getBoundingClientRect().width) : 0, bottomNavHidden: !bottomNav || getComputedStyle(bottomNav).display === 'none', topBarHidden: !topBar || getComputedStyle(topBar).display === 'none', desktopPlayerVisible: !!playerBar }); })()",
+    "name": "desktop-shell"
+  },
+  {
+    "eval": "(() => { const bar = [...document.querySelectorAll('footer')].filter(f => f.querySelector('.grid'))[0]; if (!bar) return 'no-desktop-bar'; const btns = [...bar.querySelectorAll('button')].map(b => b.getAttribute('aria-label')).filter(Boolean); return JSON.stringify(btns); })()",
+    "name": "desktop-bar-buttons"
+  },
+  {
+    "eval": "(() => { const bar = [...document.querySelectorAll('footer')].find(f => String(f.className).includes('hidden') === false && f.querySelector('.grid-cols-\\\\31 fr_auto_1fr\\\\]') === null); const any = [...document.querySelectorAll('footer')]; return any.length + ' footers'; })()",
+    "name": "footer-count"
+  },
+  {
+    "eval": "(() => { const row = document.querySelector('main .group'); const more = [...row.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('Thao tác với bài')); return more ? 'phone-more-BTN-LEAKED-ON-DESKTOP' : 'no-phone-actions-on-desktop:OK'; })()",
+    "name": "row-actions-desktop"
+  },
+  { "eval": "document.documentElement.scrollWidth + ' vs ' + document.documentElement.clientWidth + ' overflow:' + (document.documentElement.scrollWidth > document.documentElement.clientWidth)", "name": "overflow-check" },
+  { "viewport": [1280, 800, 1] },
+  { "navigate": "/", "settle": 2500 },
+  { "eval": "document.documentElement.scrollWidth + ' vs ' + document.documentElement.clientWidth + ' overflow:' + (document.documentElement.scrollWidth > document.documentElement.clientWidth)", "name": "overflow-1280" },
+  { "eval": "(() => { const hero = document.querySelector('section img'); return hero ? 'hero-ok ' + Math.round(hero.getBoundingClientRect().width) + 'px' : 'no-hero'; })()", "name": "hero" },
+  { "viewport": [1920, 1080, 1] },
+  { "navigate": "/albums", "settle": 2500 },
+  { "eval": "document.documentElement.scrollWidth + ' vs ' + document.documentElement.clientWidth + ' overflow:' + (document.documentElement.scrollWidth > document.documentElement.clientWidth)", "name": "overflow-1920" },
+  { "viewport": [1280, 800, 1] },
+  { "navigate": "/my-library", "settle": 3000 },
+  { "eval": "(() => { const t = document.body.innerText.slice(0, 150); return JSON.stringify({ loginGate: t.includes('Đăng nhập ngay') || t.includes('kho riêng'), sample: t.slice(0, 80) }); })()", "name": "mylib-guest" }
+]

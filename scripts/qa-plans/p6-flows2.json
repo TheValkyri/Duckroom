@@ -1,0 +1,59 @@
+[
+  { "navigate": "/library", "settle": 3500 },
+  { "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; rows[0].querySelector('button').click(); return 'play'; })()" },
+  { "wait": 1800 },
+  {
+    "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); const row = d.querySelector('[role=button]'); if (!row) return 'no role=button row'; const r = row.getBoundingClientRect(); row.click(); return JSON.stringify({ rowW: Math.round(r.width), rowH: Math.round(r.height), hasTitle: !!row.textContent.trim() }); })()",
+    "name": "expand-row-click"
+  },
+  { "wait": 1600 },
+  {
+    "eval": "(() => { const cands = [...document.querySelectorAll('div')].filter(e => { const c = String(e.className); return c.includes('fixed') && c.includes('inset-0') && c.includes('z-50'); }); return JSON.stringify({ count: cands.length, firstH1: cands[0]?.querySelector('h1')?.textContent?.slice(0, 50) }); })()",
+    "name": "fullscreen-open"
+  },
+  {
+    "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); if (!fs) return 'still-missing'; const btns = [...fs.querySelectorAll('button')].map(b => b.getAttribute('aria-label')).filter(Boolean); return JSON.stringify(btns.slice(0, 12)); })()",
+    "name": "fs-buttons"
+  },
+  {
+    "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const q = [...fs.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Hàng đợi'); if (!q) return 'no-queue'; q.click(); return 'queue-click'; })()",
+    "name": "queue-click"
+  },
+  { "wait": 900 },
+  {
+    "eval": "(() => { const sheet = document.querySelector('[role=dialog]'); if (!sheet) return 'sheet:MISSING'; const label = sheet.getAttribute('aria-label'); const rows = sheet.querySelectorAll('li').length; return JSON.stringify({ label, rows }); })()",
+    "name": "sheet-state"
+  },
+  {
+    "eval": "(() => { const sheet = document.querySelector('[role=dialog]'); const move = [...sheet.querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.includes('xuống dưới')); if (!move) return 'no-move'; const r = move.getBoundingClientRect(); const firstTitle = sheet.querySelector('li .block.truncate').textContent; move.click(); return JSON.stringify({ size: Math.round(r.width) + 'x' + Math.round(r.height), firstBefore: firstTitle }); })()",
+    "name": "reorder-click"
+  },
+  { "wait": 600 },
+  {
+    "eval": "(() => { const sheet = document.querySelector('[role=dialog]'); if (!sheet) return 'sheet-closed-early'; const t = [...sheet.querySelectorAll('li .block.truncate')].map(s => s.textContent.slice(0, 24)); return JSON.stringify(t.slice(0, 3)); })()",
+    "name": "reorder-result"
+  },
+  {
+    "eval": "(() => { const sheet = document.querySelector('[role=dialog]'); const close = [...sheet.querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.includes('Đóng Hàng đợi')); if (!close) return 'no-close'; close.click(); return 'closed'; })()",
+    "name": "close-queue"
+  },
+  { "wait": 500 },
+  {
+    "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const lyr = [...fs.querySelectorAll('button')].find(b => (b.getAttribute('aria-label') || '').includes('lời bài hát')); if (!lyr) return 'no-lyrics'; lyr.click(); return 'lyrics-click'; })()",
+    "name": "lyrics-click"
+  },
+  { "wait": 1000 },
+  {
+    "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const overlay = [...fs.children].find(c => String(c.className).includes('absolute inset-0')) || [...fs.querySelectorAll('div')].find(c => String(c.className).includes('absolute inset-0 w-full h-full')); if (!overlay) return 'lyrics-overlay:MISSING'; const closeBtn = [...overlay.querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.includes('Đóng lời')); const lines = overlay.querySelectorAll('button').length; const r = overlay.getBoundingClientRect(); return JSON.stringify({ overlay: true, closeBtn: !!closeBtn, lines, w: Math.round(r.width), h: Math.round(r.height) }); })()",
+    "name": "lyrics-overlay-state"
+  },
+  {
+    "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const min = [...fs.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Thu nhỏ trình phát'); if (!min) return 'no-collapse'; min.click(); return 'collapsed'; })()",
+    "name": "collapse"
+  },
+  { "wait": 900 },
+  {
+    "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); return JSON.stringify({ fullscreenGone: !fs || !fs.querySelector('h1'), miniVisible: !!d }); })()",
+    "name": "after-collapse"
+  }
+]

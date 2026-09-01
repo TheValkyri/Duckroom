@@ -243,7 +243,7 @@ function AdminPage() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={tweenBase}
-      className="mx-auto max-w-7xl px-6 py-12"
+      className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-12"
     >
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>

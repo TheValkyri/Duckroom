@@ -1,0 +1,18 @@
+[
+  { "navigate": "/library", "settle": 4000 },
+  { "tapSelector": "main .group button", "settle": 2500 },
+  {
+    "eval": "(() => { const b = [...document.querySelectorAll('main .group button')][0]; const reactProps = Object.keys(b).find(k => k.startsWith('__reactProps')); const handler = reactProps ? b[reactProps].onClick : null; return JSON.stringify({ hasReactOnClick: !!handler, wasTapReceived: window.__dr_lastActiveEl === b }); })()",
+    "name": "tap-received"
+  },
+  {
+    "eval": "(() => { document.addEventListener('click', e => { window.__dr_lastClick = e.target.tagName + ':' + (e.target.className||'').toString().slice(0,30); }, true); return 'listener-set'; })()",
+    "name": "set-listener"
+  },
+  { "tapSelector": "main .group button", "settle": 1000 },
+  { "eval": "window.__dr_lastClick || 'no-click-captured'", "name": "last-click" },
+  {
+    "eval": "(() => { const dock = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); const toggle = [...dock.querySelectorAll('button')].find(b => ['Phát','Tạm dừng'].includes(b.getAttribute('aria-label'))); return 'toggle-label-now: ' + (toggle ? toggle.getAttribute('aria-label') : 'none'); })()",
+    "name": "toggle-after-2nd-tap"
+  }
+]

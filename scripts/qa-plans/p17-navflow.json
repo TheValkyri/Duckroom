@@ -1,0 +1,34 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/", "settle": 3000 },
+  {
+    "eval": "(() => { const main = document.querySelector('main'); const cs = getComputedStyle(main); return 'main padding: top=' + cs.paddingTop + ' bottom=' + cs.paddingBottom; })()",
+    "name": "main-padding"
+  },
+  {
+    "eval": "(() => { const sections = [...document.querySelectorAll('main section h2')].map(h => h.textContent.trim()); return JSON.stringify(sections); })()",
+    "name": "home-sections"
+  },
+  {
+    "eval": "(() => { const nav = [...document.querySelectorAll(\"nav[aria-label='Điều hướng chính'] a\")]; const lib = nav.find(a => a.getAttribute('href') === '/library'); lib.click(); return 'nav-to-library'; })()",
+    "name": "tab-nav"
+  },
+  { "wait": 2000 },
+  {
+    "eval": "(() => { const active = document.querySelector(\"nav[aria-label='Điều hướng chính'] a[aria-current='page']\"); return 'active-tab: ' + (active ? active.textContent.trim() : 'NONE'); })()",
+    "name": "active-tab-after-nav"
+  },
+  {
+    "eval": "history.back(); return 'back'",
+    "name": "browser-back"
+  },
+  { "wait": 1500 },
+  {
+    "eval": "(() => { const active = document.querySelector(\"nav[aria-label='Điều hướng chính'] a[aria-current='page']\"); return 'after-back active: ' + (active ? active.textContent.trim() : 'NONE') + ' | path: ' + location.pathname; })()",
+    "name": "after-back"
+  },
+  {
+    "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); return d ? 'mini-persisted-after-nav: OK' : 'mini:GONE'; })()",
+    "name": "mini-after-nav"
+  }
+]

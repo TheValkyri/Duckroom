@@ -1,0 +1,8 @@
+[
+  { "navigate": "/library", "settle": 4000 },
+  { "tapSelector": "main .group button", "settle": 2500 },
+  {
+    "eval": "(() => { const dock = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); if (!dock) return 'no-dock-yet'; const toggle = [...dock.querySelectorAll('button')].find(b => ['Phát','Tạm dừng'].includes(b.getAttribute('aria-label'))); const strip = dock.querySelector('.h-0\\\\.5 div'); return JSON.stringify({ toggle: toggle?.getAttribute('aria-label'), progress: strip?.style.width }); })()",
+    "name": "after-tap"
+  }
+]

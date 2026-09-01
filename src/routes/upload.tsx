@@ -136,11 +136,13 @@ function UploadPage() {
   const completedCount = items.filter((i) => i.stage === "complete").length;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 pb-32">
+    <div className="mx-auto max-w-6xl space-y-6 px-4 pb-40 pt-6 sm:space-y-8 sm:px-6 sm:pt-8 lg:pb-32">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-foreground sm:text-4xl">Trung tâm Tiếp nhận Media</h1>
+          <h1 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl md:text-4xl">
+            Trung tâm Tiếp nhận Media
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Phân tích tệp nhị phân, kiểm tra SHA-256, duyệt thông tin & cam kết trực tiếp vào PostgreSQL.
           </p>
@@ -226,7 +228,10 @@ function UploadPage() {
             </div>
 
             <div className="space-y-3">
-              {/* Bulk edit toolbar — §8.4: applies to SELECTED review items */}
+              {/* Bulk edit toolbar — §8.4: applies to SELECTED review items.
+                  Mobile (MOBILE_UI_ARCHITECTURE §8): các nút hành động nằm
+                  trong sticky bar dưới màn hình khi có chọn mục; destructive
+                  (Loại bỏ) được tách phải + viền đỏ, không cạnh nút Apply. */}
               {reviewItems.length > 0 && (
                 <div className="rounded-2xl border border-border bg-card/80 p-3 space-y-2">
                   <div className="flex flex-wrap gap-2">
@@ -234,20 +239,23 @@ function UploadPage() {
                       value={bulkArtist}
                       onChange={(e) => setBulkArtist(e.target.value)}
                       placeholder="Nghệ sĩ..."
-                      className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background px-2.5 text-xs"
+                      aria-label="Đặt nghệ sĩ cho các mục đã chọn"
+                      className="h-11 min-w-0 flex-1 rounded-lg border border-input bg-background px-2.5 text-xs sm:h-8"
                     />
                     <input
                       value={bulkAlbum}
                       onChange={(e) => setBulkAlbum(e.target.value)}
                       placeholder="Album..."
-                      className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background px-2.5 text-xs"
+                      aria-label="Đặt album cho các mục đã chọn"
+                      className="h-11 min-w-0 flex-1 rounded-lg border border-input bg-background px-2.5 text-xs sm:h-8"
                     />
                     <input
                       value={bulkYear}
                       onChange={(e) => setBulkYear(e.target.value)}
                       placeholder="Năm"
                       inputMode="numeric"
-                      className="h-8 w-20 rounded-lg border border-input bg-background px-2.5 text-xs"
+                      aria-label="Đặt năm cho các mục đã chọn"
+                      className="h-11 w-24 rounded-lg border border-input bg-background px-2.5 text-xs sm:h-8"
                     />
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -255,7 +263,7 @@ function UploadPage() {
                       disabled={selectedIds.size === 0}
                       onClick={handleApplyBulk}
                       className={cn(
-                        "rounded-lg px-3 py-1.5 text-xs font-semibold",
+                        "min-h-11 rounded-lg px-3 text-xs font-semibold sm:min-h-0 sm:py-1.5",
                         selectedIds.size > 0
                           ? "bg-primary text-primary-foreground hover:bg-primary/90"
                           : "cursor-not-allowed bg-secondary text-muted-foreground",
@@ -265,17 +273,18 @@ function UploadPage() {
                     </button>
                     <button
                       disabled={selectedIds.size === 0}
-                      onClick={() => void handleRejectSelected()}
-                      className="rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-40"
+                      onClick={() => setSelectedIds(new Set(reviewItems.map((i) => i.id)))}
+                      className="text-xs text-muted-foreground underline-offset-2 hover:underline min-h-11 sm:min-h-0"
                     >
-                      Loại bỏ mục đã chọn
+                      Chọn tất cả ({reviewItems.length})
                     </button>
                     {reviewItems.length > 0 && (
                       <button
-                        onClick={() => setSelectedIds(new Set(reviewItems.map((i) => i.id)))}
-                        className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                        disabled={selectedIds.size === 0}
+                        onClick={() => void handleRejectSelected()}
+                        className="ml-auto min-h-11 rounded-lg border border-destructive/40 px-3 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-40 sm:min-h-0 sm:py-1.5"
                       >
-                        Chọn tất cả ({reviewItems.length})
+                        Loại bỏ mục đã chọn
                       </button>
                     )}
                   </div>
@@ -298,8 +307,9 @@ function UploadPage() {
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">
+                      {/* Checkbox: vùng chạm 44px qua label; input 22px hiển thị */}
                       <label
-                        className="flex shrink-0 cursor-pointer items-center pt-0.5 pr-1"
+                        className="flex min-h-11 w-11 shrink-0 cursor-pointer items-center justify-center"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <input
@@ -307,7 +317,8 @@ function UploadPage() {
                           checked={selectedIds.has(item.id)}
                           disabled={item.stage !== "waiting_review"}
                           onChange={() => toggleSelected(item.id)}
-                          className="size-4 accent-[var(--primary)]"
+                          aria-label={`Chọn ${item.metadata.title || item.file.name}`}
+                          className="size-5.5 accent-[var(--primary)]"
                         />
                       </label>
                       <div className="min-w-0 flex-1">
@@ -632,8 +643,9 @@ function UploadPage() {
                 </div>
               </div>
 
-              {/* Action Button */}
-              <div className="pt-4 border-t border-border flex items-center justify-between">
+              {/* Action Button — sticky bottom trên mobile để ngón cái với
+                  tới được nút chính; desktop giữ inline. */}
+              <div className="sticky bottom-0 -mx-6 flex items-center justify-between gap-3 border-t border-border bg-card/95 px-6 pt-4 pb-[calc(1rem+var(--safe-bottom))] backdrop-blur-sm max-lg:-mx-4 max-lg:px-4">
                 <span className="text-xs text-muted-foreground">
                   Trạng thái: <strong className="text-foreground">{activeItem.stage}</strong>
                 </span>
@@ -643,7 +655,7 @@ function UploadPage() {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => void approveIngestionItem(activeItem.id)}
-                    className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground shadow-sm hover:opacity-90"
+                    className="flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-sm hover:opacity-90 sm:px-6"
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     Phê duyệt & Tải lên

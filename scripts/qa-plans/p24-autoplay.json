@@ -1,0 +1,13 @@
+[
+  { "navigate": "/library", "settle": 4000 },
+  { "tapSelector": "main .group button", "settle": 2500 },
+  {
+    "eval": "(() => { const pauseVisible = [...document.querySelectorAll('footer button')].some(b => b.getAttribute('aria-label') === 'Tạm dừng' && b.offsetHeight > 0); const strip = document.querySelector('footer .h-0\\\\.5 div'); const w = strip ? strip.style.width : 'none'; return JSON.stringify({ uiSaysPlaying: pauseVisible, progressWidth: w }); })()",
+    "name": "ui-state"
+  },
+  { "wait": 5000 },
+  {
+    "eval": "(() => { const strip = document.querySelector('footer .h-0\\\\.5 div'); const w = strip ? strip.style.width : 'none'; const audio = [...document.querySelectorAll('audio')].find(a => a.src); return JSON.stringify({ progressAfter5s: w, audioPaused: audio.paused, currentTime: audio.currentTime }); })()",
+    "name": "after-5s"
+  }
+]
