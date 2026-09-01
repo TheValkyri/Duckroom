@@ -82,6 +82,35 @@ export function usePlayerTime(): number {
   return useSyncExternalStore(store.subscribe, store.getTime, () => 0);
 }
 
+/* ---------------------------------------------------------------------------
+ * SELECTOR HOOKS (perf 2026-09-01) — cho danh sách dài (TrackRow × 76+).
+ *
+ * Vấn đề: TrackRow dùng usePlayer() (Context). Context value đổi KHI NÀO
+ * transport đổi (play/pause/seek/shuffle...) → 76 row re-render dù chỉ 1-2
+ * row cần đổi highlight. Trong lúc gõ search, mỗi keystroke remount các
+ * row khớp filter → mọi row đều subscribe context = amplified re-render.
+ *
+ * Giải pháp: đọc THẲNG từ engine store qua useSyncExternalStore với
+ * selector trả về GIÁ TRỊ ỔN ĐỊNH (boolean). React so sánh snapshot:
+ * row chỉ re-render khi kết quả selector CỦA ROW ĐÓ đổi (active bật/tắt).
+ * Không đụng Context → không phá engine/cung cấp thêm API hành vi nào.
+ * ------------------------------------------------------------------------ */
+export function usePlayerIsCurrent(trackId: string): boolean {
+  const selector = useCallback(() => {
+    const s = playerEngine.getState();
+    return s.queue[s.index]?.id === trackId;
+  }, [trackId]);
+  return useSyncExternalStore(playerEngine.subscribe, selector, () => false);
+}
+
+export function usePlayerIsPlaying(): boolean {
+  return useSyncExternalStore(
+    playerEngine.subscribe,
+    () => playerEngine.getState().isPlaying,
+    () => false,
+  );
+}
+
 const RG_MODE_STORAGE_KEY = "duckroom.player.rg.mode";
 
 function readStoredRgMode(): ReplayGainMode {

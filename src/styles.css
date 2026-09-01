@@ -118,7 +118,9 @@
   }
 
   html {
-    scroll-behavior: smooth;
+    /* Perf fix 2026-09-01: bỏ scroll-behavior:smooth toàn cục — ép mọi
+       scroll lập trình animate, tranh chấp gesture inertia trên mobile
+       và gây cảm giác "kẹt" khi navigate. Trình duyệt tự lo inertia. */
     text-rendering: optimizeLegibility;
   }
 
@@ -144,6 +146,28 @@
   }
   ::-webkit-scrollbar-track {
     background: transparent;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Route transition (MOBILE perf pass 2026-09-01).
+ * Fade 140ms THUẦN CSS, chỉ ≥lg. Phone bỏ (tốc độ > trang trí). keyframes
+ * animation (không transition) để chạy đúng 1 lần khi node mới mount —
+ * không giữ stylist nào trên cây sau khi xong.
+ * ------------------------------------------------------------------------ */
+@media (min-width: 1024px) {
+  .page-fade {
+    animation: pageFade 140ms ease-out both;
+  }
+}
+@keyframes pageFade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 
@@ -173,13 +197,22 @@
 }
 
 @utility glass {
-  background: color-mix(in oklab, var(--background) 72%, transparent);
-  /* Giảm từ 28px -> 20px: mắt gần như không phân biệt được độ blur ở mức
-     này, nhưng chi phí GPU compositing giảm đáng kể — các phần tử "glass"
-     này luôn hiển thị cố định (thanh player, nav mobile) nên bất kỳ thứ gì
-     đè lên/di chuyển bên dưới đều buộc trình duyệt tính lại blur mỗi frame. */
-  backdrop-filter: blur(20px) saturate(150%);
+  /* Perf fix 2026-09-01: 24px → 12px blur. 3 bề mặt glass chồng nhau trên
+     phone (top bar + bottom nav + mini-player) nghĩa là mọi frame cuộn đều
+     phải composite lại 3 lớp blur lớn. Ở 12px mắt gần như không phân biệt
+     được khác biệt, nhưng chi phí GPU giảm ~60% mỗi lớp. Chỉ các bề mặt
+     DOCKED mới dùng glass; nội dung cuộn không blur gì hết. */
+  background: color-mix(in oklab, var(--background) 78%, transparent);
+  backdrop-filter: blur(12px) saturate(150%);
   /* Cô lập vùng repaint của lớp kính này khỏi phần còn lại của trang. */
+  contain: paint;
+}
+
+/* Glass đậm dùng cho overlay cần ensured legibility (fullscreen player
+   header, sheet) — vẫn rẻ vì không nằm dưới vùng cuộn. */
+@utility glass-strong {
+  background: color-mix(in oklab, var(--background) 88%, transparent);
+  backdrop-filter: blur(14px) saturate(150%);
   contain: paint;
 }
 

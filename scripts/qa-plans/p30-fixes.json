@@ -1,0 +1,18 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/library", "settle": 9000 },
+  { "eval": "document.querySelectorAll('main .group').length + ' rows'", "name": "rows" },
+  { "tapSelector": "main .group button", "settle": 2000 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); return d ? 'playing ' + d.textContent.slice(0, 20) : 'no dock'; })()", "name": "mini" },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.querySelector('[role=button]').click(); return 'expanded'; })()", "name": "expand" },
+  { "wait": 1300 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); return fs ? 'fullscreen ok' : 'MISSING'; })()", "name": "fs" },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); [...fs.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('lời bài hát')).click(); return 'lyrics open'; })()", "name": "open-lyrics" },
+  { "wait": 900 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const overlay = [...fs.querySelectorAll('div')].find(c => String(c.className).includes('absolute inset-0 w-full h-full') || String(c.className).includes('absolute inset-0 h-full w-full')); if (!overlay) return 'overlay MISSING'; const cs = getComputedStyle(overlay); const bg = cs.backgroundColor; const backdrop = cs.backdropFilter; const grad = overlay.querySelector('div[style*=gradient]'); return JSON.stringify({ slabBg: bg, backdrop: backdrop, hasGradientLayer: !!grad, gradient: grad ? grad.style.background.slice(0, 60) : null }); })()", "name": "lyrics-slab-check" },
+  { "measureFPS": 3000, "name": "lyrics-idle-fps" },
+  { "eval": "(() => { const active = document.querySelector('.scale-\\\\31 02'); return 'active line visible: ' + (active ? active.textContent.slice(0, 30) : 'none-yet'); })()", "name": "active-line" },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); [...fs.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Thu nhỏ trình phát').click(); return 'collapsed'; })()", "name": "collapse" },
+  { "wait": 900 },
+  { "eval": "(() => { const chip = [...document.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('Phát tiếp từ vị trí')); return chip ? 'resume-chip: ' + Math.round(chip.getBoundingClientRect().width) + 'x' + Math.round(chip.getBoundingClientRect().height) + 'px | ' + chip.textContent.trim().slice(0, 40) : 'resume-chip: not-shown (no hint this session)'; })()", "name": "resume-chip-check" }
+]

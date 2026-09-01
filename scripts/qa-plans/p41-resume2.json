@@ -1,0 +1,6 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/library", "settle": 10000 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); const chip = [...document.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('Phát tiếp từ vị trí')); return JSON.stringify({ dock: d ? d.textContent.slice(0, 24) : 'none', chip: chip ? { text: chip.textContent.trim().slice(0, 50), w: Math.round(chip.getBoundingClientRect().width), h: Math.round(chip.getBoundingClientRect().height), y: Math.round(chip.getBoundingClientRect().y) } : 'NOT-SHOWN' }); })()", "name": "resume-state" },
+  { "eval": "(() => { const sess = localStorage.getItem('duckroom.player.session'); return sess ? 'session: ' + sess.slice(0, 90) : 'no session'; })()", "name": "session" }
+]

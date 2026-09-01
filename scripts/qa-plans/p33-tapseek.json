@@ -1,0 +1,13 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/library", "settle": 9000 },
+  { "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; rows[5].querySelector('button').click(); return 'play6'; })()", "name": "play" },
+  { "wait": 1500 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.querySelector('[role=button]').click(); return 'expand'; })()" },
+  { "wait": 1200 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); [...fs.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('lời bài hát')).click(); return 'open'; })()" },
+  { "wait": 1000 },
+  { "eval": "(() => { const line = [...document.querySelectorAll('button[data-base]')][10]; if (!line) return 'no line 10'; line.click(); return 'tapped line-10: ' + line.textContent.slice(0, 30); })()", "name": "tap-line10" },
+  { "wait": 1200 },
+  { "eval": "(() => { const active = document.querySelector('button.scale-\\\\31 02'); const strip = document.querySelector('footer .h-0\\\\.5 div'); return JSON.stringify({ activeNow: active ? active.textContent.slice(0, 30) : 'none', progressStrip: strip ? strip.style.width : 'none' }); })()", "name": "after-tap" }
+]

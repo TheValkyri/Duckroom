@@ -1,0 +1,8 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "(() => { localStorage.setItem('duckroom.player.session', JSON.stringify({ trackId: 'elegie-session-test', positionSeconds: 42.5, queueIds: [], savedAt: Date.now() - 30000 })); return 'guest session planted'; })()", "name": "plant" },
+  { "navigate": "/library", "settle": 9000 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); return d ? 'dock: ' + d.textContent.slice(0, 30) : 'no dock (restore pending hydration)'; })()", "name": "dock-state" },
+  { "eval": "(() => { const chip = [...document.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('Phát tiếp từ vị trí')); if (!chip) return 'chip: NOT SHOWN'; const r = chip.getBoundingClientRect(); const cs = getComputedStyle(chip); return JSON.stringify({ size: Math.round(r.width) + 'x' + Math.round(r.height), pos: Math.round(r.y), text: chip.textContent.trim().slice(0, 50), singleActionChip: !chip.textContent.includes('?') }); })()", "name": "resume-chip" },
+  { "screenshot": "C:/Users/Darne/AppData/Local/Temp/opencode/shots/resume-chip-new.png" }
+]

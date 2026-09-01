@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
-import { pageVariants, springSnappy, tapScale } from "../lib/motion";
+import { springSnappy, tapScale } from "../lib/motion";
 import { getIngestionStoreState, subscribeIngestionStore, type IngestionStoreState } from "../lib/upload-store";
 import { useAuth } from "../lib/useAuth";
 import { useDuckroomRole } from "../lib/useRole";
@@ -390,6 +390,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           Mobile: pt-14 (top header) + đủ khoảng trống cho bottom dock
           (bottom nav 56px + mini-player ~64px) + safe-area; Desktop giữ
           nguyên padding-sidebar (chỉ đổi bên dưới lg). */}
+      {/* PERF 2026-09-01: bỏ motion-wrapper pageVariants. Trước đây MỌI
+          route change remount TOÀN BỘ cây trang (key={pathname} trên node
+          motion) và replay animation nhập — stagger 76-row library, hero
+          images... — chính là cảm giác "lag" khi navigate: mỗi lần chuyển
+          tab trả lại chi phí mount + animate từ đầu, trong khi người dùng
+          chỉ muốn thấy nội dung ngay. Giờ:
+          - div key={pathname} KHÔNG remount con của route (router render
+            root của route mới vào main — chi phí như một tab switch bình
+            thường, không có hiệu ứng chạy lại toàn trang).
+          - Fade nhẹ 140ms bằng CSS THUẦN (.page-fade, chỉ ≥lg): phone cần
+            tốc độ → không animation chặn; desktop được 1 tín hiệu chuyển
+            trang tinh tế. transform/opacity = GPU, 0 JS mỗi frame. */}
       <main
         className={cn(
           "overflow-x-hidden min-h-screen transition-[padding] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
@@ -397,15 +409,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           collapsed ? "lg:pl-20" : "lg:pl-64",
         )}
       >
-        <motion.div
-          key={location.pathname}
-          variants={pageVariants}
-          initial="initial"
-          animate="animate"
-          className="w-full"
-        >
+        <div key={location.pathname} className="page-fade w-full">
           {children}
-        </motion.div>
+        </div>
       </main>
       <PlayerBar />
       <NowPlaying />

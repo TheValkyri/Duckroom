@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { memo, useCallback, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { albumById, formatTime, type Track } from "../data/library";
-import { usePlayer } from "../lib/player";
+import { usePlayerIsCurrent, usePlayerIsPlaying } from "../lib/player";
 import { cn } from "../lib/utils";
 import { EditTrackModal } from "./EditTrackModal";
 import { TrackActionsSheet } from "./TrackActionsSheet";
@@ -59,13 +59,14 @@ export const TrackRow = memo(function TrackRow({
   extraActions?: React.ReactNode;
   showAlbum?: boolean;
 }) {
-  const { current, isPlaying } = usePlayer();
+  const isCurrent = usePlayerIsCurrent(track.id);
+  const isPlaying = usePlayerIsPlaying();
   const { isLoggedIn } = useAuth();
   const { favorites, toggleFavorite } = useMemberLibraryContext();
   const { isOwner } = useDuckroomRole();
   const isPhone = useIsPhoneLayout();
   const isFavorite = favorites?.has ? favorites.has(track.id) : false;
-  const active = current?.id === track.id;
+  const active = isCurrent;
   const album = albumById(track.albumId);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);

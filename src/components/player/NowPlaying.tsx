@@ -97,13 +97,18 @@ function AmbientCrossfadeBackground({ cover, accent }: { cover: string; accent?:
                 background: `radial-gradient(120% 90% at 50% 30%, ${layer.accent} 0%, transparent 68%)`,
               }}
             />
-            {/* Soft blurred artwork aura */}
+            {/* Soft blurred artwork aura — PERF 2026-09-01: blur-3xl (64px)
+                full-screen trên phone là 1 trong những thứ đắt nhất GPU có
+                thể vẽ, MUST re-composite khi có bất kỳ layer nào đè lên.
+                Phone: chỉ radial accent (đã vẽ ở trên) + opacity artwork
+                mờ, không blur. Desktop ≥md giữ blur đậm (đẹp, và GPU
+                desktop chịu được). */}
             <img
               src={layer.cover}
               alt=""
               aria-hidden
               decoding="async"
-              className="absolute inset-0 size-full scale-125 object-cover opacity-15 blur-3xl transform-gpu"
+              className="absolute inset-0 size-full scale-125 object-cover opacity-15 transform-gpu blur-none md:blur-3xl"
             />
           </motion.div>
         ))}
@@ -491,7 +496,9 @@ export function NowPlaying() {
                   </div>
 
                   {/* Fixed Stable Visualizer, Seekbar & Controls (NEVER remounts or jumps) */}
-                  <Visualizer playing={isPlaying} bars={36} height={38} className="mt-3" />
+                  {/* Visualizer: 20 bars trên phone (đủ để đọc "waveform",
+                      ít work canvas+analyser hơn ~45%), 36 desktop. */}
+                  <Visualizer playing={isPlaying} bars={isPhone ? 20 : 36} height={38} className="mt-3" />
 
                   <div className="mt-2">
                     <SeekBar />
@@ -505,38 +512,57 @@ export function NowPlaying() {
               </motion.div>
 
               {/* Lyrics Pane: desktop = right-half overlay (unchanged);
-                  phone = phủ toàn bộ stage (absolute inset-0) để không đè
-                  lên transport controls — lời là "mode" toàn màn hình với
-                  nút đóng riêng nằm dưới (trong LyricsPane container). */}
+                  phone = phủ toàn bộ stage. Fix "viền đen" 2026-09-01: bỏ
+                  slab bg-background/92 + backdrop-blur (nó vẽ ra một KHỐI
+                  đen rõ rệt trên nền ambient — thứ bạn thấy trong ảnh).
+                  Thay bằng tấm gradient tinh tế mờ dần vào ambient + darken
+                  vừa đủ (50%) để chữ trắng vẫn đạt độ tương phản chuẩn,
+                  giữ cảm giác "lời nổi trên artwork" như Apple Music —
+                  không có biên, không có khối, chỉ có không gian. */}
               <AnimatePresence>
                 {lyricsOpen && (
                   <motion.div
                     initial={isPhone ? { opacity: 0 } : { opacity: 0, x: 60 }}
                     animate={isPhone ? { opacity: 1 } : { opacity: 1, x: 0 }}
                     exit={isPhone ? { opacity: 0 } : { opacity: 0, x: 60 }}
-                    transition={springSmooth}
+                    transition={isPhone ? tweenBase : springSmooth}
                     className={cn(
                       "flex flex-col justify-center overflow-hidden z-20",
                       isPhone
-                        ? "absolute inset-0 w-full h-full bg-background/92 backdrop-blur-md px-1 pb-2"
+                        ? "absolute inset-0 h-full w-full px-1 pb-2"
                         : "w-full lg:w-1/2 h-[60vh] lg:h-[72vh] lg:absolute lg:right-0",
                     )}
                   >
                     {isPhone && (
-                      <div className="flex items-center justify-between px-4 pt-2 pb-1 shrink-0">
-                        <span className="text-primary text-[11px] font-semibold uppercase tracking-[0.22em]">
-                          {current.title}
-                        </span>
-                        <button
-                          onClick={() => setLyricsOpen(false)}
-                          aria-label="Đóng lời bài hát"
-                          className="text-muted-foreground hover:text-foreground hover:bg-accent/50 grid size-11 place-items-center rounded-full transition-colors cursor-pointer"
-                        >
-                          <X className="size-5" />
-                        </button>
-                      </div>
+                      <>
+                        {/* Lớp legibility: gradient dọc từ nền (trên) xuống
+                            đen 55% (dưới-chứa-chữ). Nằm dưới chữ, trên
+                            ambient — không phải "slab" phủ đều nên không
+                            tạo viền. pointer-events-none để tap vẫn tới
+                            lyrics. */}
+                        <div
+                          aria-hidden
+                          className="pointer-events-none absolute inset-0 z-0"
+                          style={{
+                            background:
+                              "linear-gradient(180deg, oklch(0.16 0.022 258 / 0.55) 0%, oklch(0.13 0.02 258 / 0.62) 40%, oklch(0.11 0.02 258 / 0.72) 100%)",
+                          }}
+                        />
+                        <div className="relative z-10 flex items-center justify-between px-4 pt-2 pb-1 shrink-0">
+                          <span className="text-primary text-[11px] font-semibold uppercase tracking-[0.22em]">
+                            {current.title}
+                          </span>
+                          <button
+                            onClick={() => setLyricsOpen(false)}
+                            aria-label="Đóng lời bài hát"
+                            className="text-muted-foreground hover:text-foreground hover:bg-accent/50 grid size-11 place-items-center rounded-full transition-colors cursor-pointer"
+                          >
+                            <X className="size-5" />
+                          </button>
+                        </div>
+                      </>
                     )}
-                    <div className="min-h-0 flex-1">
+                    <div className="relative z-10 min-h-0 flex-1">
                       <LyricsPane compact={isPhone} />
                     </div>
                   </motion.div>

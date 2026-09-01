@@ -1,9 +1,9 @@
-import { ChevronUp, ListMusic, Mic2, SkipForward, Sparkles, Volume2, VolumeX } from "lucide-react";
+import { ChevronUp, ListMusic, Mic2, Play, SkipForward, Sparkles, Volume2, VolumeX } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { albumById, formatTime } from "../../data/library";
 import { fetchTrackArtworkUrl } from "../../lib/s3";
-import { springGentle, springSnappy, tapScale } from "../../lib/motion";
+import { springGentle, springSnappy, tapScale, tweenFast } from "../../lib/motion";
 import { usePlayer, usePlayerTime } from "../../lib/player";
 import { cn } from "../../lib/utils";
 import { Visualizer } from "../Visualizer";
@@ -51,35 +51,37 @@ export function PlayerBar() {
           nguyên cho >=md. Cùng một usePlayer API — không nhân bản logic. */}
       <AnimatePresence>{queueOpen && isPhone && <QueueSheet />}</AnimatePresence>
       <AnimatePresence>{queueOpen && !isPhone && <QueuePanel />}</AnimatePresence>
-      {/* Continue-Listening pill (Phase 5.2): restored track loaded paused. */}
+      {/* Continue-Listening chip (Phase 5.2, thu gọn 2026-09-01):
+          Trước đây là pill chữ-dài giữa màn hình (to + che nội dung + lệch
+          tâm với dock). Giờ là MỘT chip hành động duy nhất neo góc trên-
+          trái của mini-player / desktop bar — đúng ngữ cảnh "player đang
+          có bài dở", không che nội dung, một chạm là resume. Thời lượng
+          đợi được hiển thị (h:bâo lâu nữa) thay vì câu hỏi dài. */}
       <AnimatePresence>
         {resumeHint && !isPlaying && (
           <motion.div
-            initial={{ y: 24, opacity: 0 }}
+            initial={{ y: 8, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 24, opacity: 0 }}
-            transition={springSnappy}
-            className="glass border-border fixed z-50 flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-full border px-4 py-2 shadow-xl left-1/2 -translate-x-1/2 bottom-[calc(10.5rem+var(--safe-bottom))] lg:bottom-24"
+            exit={{ y: 8, opacity: 0 }}
+            transition={tweenFast}
+            className="fixed left-1/2 z-50 -translate-x-1/2 bottom-[calc(9.25rem+var(--safe-bottom))] lg:bottom-20"
           >
-            <span className="text-muted-foreground text-xs">
-              Tiếp tục nghe <strong className="text-foreground">{current.title}</strong>?
-            </span>
             <button
               onClick={() => {
                 seek(resumeHint.positionSeconds);
                 togglePlayback();
                 clearResumeHint();
               }}
-              className="bg-primary text-primary-foreground rounded-full px-3 py-1 text-xs font-semibold cursor-pointer"
+              className="glass-strong border-primary/30 text-foreground flex max-w-[calc(100vw-1.5rem)] items-center gap-2 rounded-full border px-3.5 py-1.5 shadow-lg cursor-pointer hover:border-primary/60 transition-colors"
+              aria-label={`Phát tiếp từ vị trí ${formatTime(resumeHint.positionSeconds)}: ${current.title}`}
             >
-              Phát tiếp
-            </button>
-            <button
-              onClick={clearResumeHint}
-              aria-label="Đóng gợi ý tiếp tục nghe"
-              className="text-muted-foreground hover:text-foreground cursor-pointer text-xs"
-            >
-              ✕
+              <span className="bg-primary grid size-4 shrink-0 place-items-center rounded-full">
+                <Play className="text-primary-foreground size-2.5" fill="currentColor" />
+              </span>
+              <span className="truncate text-xs font-medium">
+                Tiếp tục <strong className="text-primary">{current.title}</strong>
+                <span className="text-muted-foreground"> · {formatTime(resumeHint.positionSeconds)}</span>
+              </span>
             </button>
           </motion.div>
         )}

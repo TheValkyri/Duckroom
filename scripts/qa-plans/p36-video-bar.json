@@ -1,0 +1,10 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/videos", "settle": 8000 },
+  { "eval": "(() => { const card = [...document.querySelectorAll('a[href*=\"/videos/\"]')].filter(a => a.offsetHeight > 0)[0]; card.click(); return 'open'; })()" },
+  { "wait": 2500 },
+  { "eval": "(() => { const btns = [...document.querySelectorAll('button')].filter(b => b.getAttribute('aria-label')); const play = btns.find(b => b.getAttribute('aria-label') === 'Phát'); if (play) { play.click(); return 'clicked-bottom-play'; } return 'no play btn'; })()", "name": "bottom-play" },
+  { "wait": 1000 },
+  { "eval": "(() => { const bar = [...document.querySelectorAll('div')].find(d => { const c = String(d.className); return c.includes('absolute') && c.includes('bottom-0') && d.querySelector('button'); }); if (!bar) return 'control-bar: MISSING'; const r = bar.getBoundingClientRect(); const cs = getComputedStyle(bar); const btns = [...bar.querySelectorAll('button[aria-label]')].map(b => { const bb = b.getBoundingClientRect(); return b.getAttribute('aria-label') + ':' + Math.round(bb.width) + 'x' + Math.round(bb.height); }); return JSON.stringify({ opacity: cs.opacity, translateY: cs.transform, h: Math.round(r.height), btns }); })()", "name": "control-bar-real" },
+  { "eval": "(() => { const v = document.querySelector('video'); const pausedNow = v.paused; return JSON.stringify({ paused: pausedNow, playingState: !pausedNow }); })()", "name": "video-state" }
+]

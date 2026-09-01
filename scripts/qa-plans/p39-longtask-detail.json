@@ -1,0 +1,8 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/library", "settle": 9000 },
+  {
+    "eval": "(async () => { const input = document.querySelector(\"input[type='search']\"); const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; const obs = new PerformanceObserver((l) => { for (const e of l.getEntries()) { window.__dr_lt = (window.__dr_lt || []); window.__dr_lt.push({ dur: Math.round(e.duration), start: Math.round(e.startTime) }); } }); obs.observe({ entryTypes: ['longtask'] }); const t0 = performance.now(); for (const ch of ['m','c','k']) { setter.call(input, input.value + ch); input.dispatchEvent(new Event('input', { bubbles: true })); await new Promise((r) => setTimeout(r, 500)); } const total = performance.now() - t0; obs.disconnect(); return JSON.stringify({ totalMs: Math.round(total), longTasks: window.__dr_lt || [], totalLongTaskMs: (window.__dr_lt || []).reduce((a, b) => a + b.dur, 0) }); })()",
+    "name": "longtask-detail"
+  }
+]

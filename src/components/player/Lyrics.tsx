@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { usePlayer, usePlayerTime } from "../../lib/player";
 import { applyLyricsOffset } from "../../lib/lyrics-formatter";
 import { cn } from "../../lib/utils";
@@ -61,15 +61,36 @@ function animateScrollTo(el: HTMLElement, target: number, duration = 520) {
   return () => cancelAnimationFrame(raf);
 }
 
+/* ---------------------------------------------------------------------------
+ * PERF 2026-09-01 — lyric line class constants.
+ * Trước đây mỗi tick timeupdate re-render CẢ danh sách (54+ <button> qua
+ * React) chỉ để đổi màu 2 dòng. Giờ các class được tính 1 lần, component
+ * cha KHÔNG subscribe time; một <LyricsTicker> nhỏ duy nhất subscribe và
+ * cập nhật classList trực tiếp trên 2 node cũ/mới — không React re-render
+ * nào trong lúc bài chạy. 0 layout thrash, scroll vẫn auto-center.
+ * ------------------------------------------------------------------------ */
+const LINE_BASE =
+  "text-left font-sans font-bold tracking-tight leading-snug md:leading-normal transition-all duration-300 transform-gpu cursor-pointer group block w-full outline-none antialiased [text-wrap:balance] [text-wrap:pretty] break-words [word-break:keep-all]";
+const LINE_ACTIVE = "text-white opacity-100 scale-[1.02] origin-left";
+const LINE_PASSED = "text-white/45 opacity-45 hover:text-white/85 hover:opacity-85 hover:scale-[1.01] origin-left";
+const LINE_FUTURE = "text-white/20 opacity-25 hover:text-white/80 hover:opacity-80 hover:scale-[1.01] origin-left";
+
+function lineClass(i: number, activeIndex: number): string {
+  if (i === activeIndex) return LINE_ACTIVE;
+  if (i < activeIndex) return LINE_PASSED;
+  return LINE_FUTURE;
+}
+
 export function LyricsPane({ compact = false }: { compact?: boolean }) {
   const { current, seek } = usePlayer();
-  const time = usePlayerTime();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const isUserScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<any>(null);
   const cancelScrollRef = useRef<() => void>(() => {});
   const isInitialMountRef = useRef(true);
+  /** Vị trí active HIỆN TẠI trên DOM — để ticker chỉ đụng 2 node đổi trạng thái. */
+  const activeIndexRef = useRef(-1);
 
   // §10.4 — global offset: display-time shift only, per-track persistence.
   // Fix 2026-08-25: pill UI chỉnh offset (− / giá trị / +) đã bị XÓA SẠCH theo
@@ -90,13 +111,9 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
     [originalLines, offsetMs],
   );
 
-  const activeIndex = useMemo(() => {
-    let idx = -1;
-    lines.forEach((l, i) => {
-      if (time >= l.time) idx = i;
-    });
-    return idx;
-  }, [lines, time]);
+  // Active index KHÔNG nằm trong state của pane — ticker quản qua ref và
+  // class trực tiếp. Giá trị khởi tạo -1 (chưa có dòng nào active).
+  void 0;
 
   const handleUserScroll = () => {
     isUserScrollingRef.current = true;
@@ -107,45 +124,41 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
     }, 4500);
   };
 
-  // Reset scroll to top when track changes
+  // Reset scroll to top when track changes + khôi phục active đầu tiên
   useEffect(() => {
     isUserScrollingRef.current = false;
     isInitialMountRef.current = true;
+    const prev = activeIndexRef.current;
+    activeIndexRef.current = -1;
     cancelScrollRef.current();
     if (containerRef.current) {
       containerRef.current.scrollTop = 0;
     }
+    // Đổi bài: mọi dòng về FUTURE (trừ dòng active lúc t=0 nếu có — ticker
+    // sẽ tự bắt ở tick đầu, nên ở đây chỉ reset visual state).
+    const items = itemRefs.current;
+    for (let i = 0; i < items.length; i++) {
+      const el = items[i];
+      if (el && el.dataset["base"]) el.className = `${el.dataset["base"]} ${i < prev ? LINE_PASSED : LINE_FUTURE}`;
+    }
   }, [current?.id]);
 
-  // Smoothly scroll active lyrics into center of view (tự viết, interrupt-safe, không trượt lại từ đầu khi mở lời)
-  useEffect(() => {
-    if (isUserScrollingRef.current) return;
+  const scrollActiveIntoView = (idx: number) => {
     const container = containerRef.current;
     if (!container) return;
-
     cancelScrollRef.current();
-
-    if (activeIndex <= 0) {
+    const el = itemRefs.current[idx];
+    if (el) {
+      const elTop = el.offsetTop - container.offsetTop;
+      const targetScroll = Math.max(0, elTop - container.clientHeight / 2.8);
       if (isInitialMountRef.current) {
-        container.scrollTop = 0;
+        container.scrollTop = targetScroll;
         isInitialMountRef.current = false;
       } else {
-        cancelScrollRef.current = animateScrollTo(container, 0);
-      }
-    } else if (itemRefs.current[activeIndex]) {
-      const el = itemRefs.current[activeIndex];
-      if (el) {
-        const elTop = el.offsetTop - container.offsetTop;
-        const targetScroll = Math.max(0, elTop - container.clientHeight / 2.8);
-        if (isInitialMountRef.current) {
-          container.scrollTop = targetScroll;
-          isInitialMountRef.current = false;
-        } else {
-          cancelScrollRef.current = animateScrollTo(container, targetScroll);
-        }
+        cancelScrollRef.current = animateScrollTo(container, targetScroll);
       }
     }
-  }, [activeIndex]);
+  };
 
   useEffect(() => () => cancelScrollRef.current(), []);
 
@@ -188,38 +201,112 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
           onTouchMove={handleUserScroll}
           className="flex h-full flex-col gap-5 sm:gap-6 md:gap-7 overflow-y-auto pt-10 sm:pt-16 pb-32 px-4 md:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         >
-          {lines.map((line, i) => {
-            const isActive = i === activeIndex;
-            const isPassed = i < activeIndex;
-
-            return (
-              <button
-                key={`${line.time}-${i}`}
-                ref={(el) => {
-                  itemRefs.current[i] = el;
-                }}
-                onClick={() => {
-                  isUserScrollingRef.current = false;
-                  seek(line.time);
-                }}
-                className={cn(
-                  // Identical font-bold geometry across ALL states to permanently prevent layout reflow/expansion
-                  "text-left font-sans font-bold tracking-tight leading-snug md:leading-normal transition-all duration-300 transform-gpu cursor-pointer group block w-full outline-none antialiased",
-                  "[text-wrap:balance] [text-wrap:pretty] break-words [word-break:keep-all]",
-                  compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
-                  isActive
-                    ? "text-white opacity-100 scale-[1.02] origin-left"
-                    : isPassed
-                      ? "text-white/45 opacity-45 hover:text-white/85 hover:opacity-85 hover:scale-[1.01] origin-left"
-                      : "text-white/20 opacity-25 hover:text-white/80 hover:opacity-80 hover:scale-[1.01] origin-left",
-                )}
-              >
-                <span className="inline-block transition-all duration-300">{line.text}</span>
-              </button>
-            );
-          })}
+          {lines.map((line, i) => (
+            <button
+              key={`${line.time}-${i}`}
+              ref={(el) => {
+                itemRefs.current[i] = el;
+                if (el)
+                  el.dataset["base"] = cn(
+                    LINE_BASE,
+                    compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
+                  );
+              }}
+              onClick={() => {
+                isUserScrollingRef.current = false;
+                seek(line.time);
+              }}
+              className={cn(
+                LINE_BASE,
+                lineClass(i, activeIndexRef.current),
+                compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
+              )}
+            >
+              <span className="inline-block transition-all duration-300">{line.text}</span>
+            </button>
+          ))}
         </div>
       </motion.div>
+      {/* Ticker: subscriber DUY NHẤT của time trong pane. On active-line
+          change → cập nhật classList 2 node + auto-center. Không setState
+          ở cấp pane → danh sách không bao giờ re-render theo tick. */}
+      <LyricsTicker
+        lines={lines}
+        itemRefs={itemRefs}
+        activeIndexRef={activeIndexRef}
+        isUserScrollingRef={isUserScrollingRef}
+        onActiveChange={(idx) => {
+          if (isUserScrollingRef.current) return;
+          if (idx <= 0) {
+            const c = containerRef.current;
+            if (!c) return;
+            if (isInitialMountRef.current) {
+              c.scrollTop = 0;
+              isInitialMountRef.current = false;
+            } else {
+              cancelScrollRef.current = animateScrollTo(c, 0);
+            }
+          } else {
+            scrollActiveIntoView(idx);
+          }
+        }}
+      />
     </div>
   );
+}
+
+function activeFromTime(lines: LyricLineView[], time: number): number {
+  let idx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (l && time >= l.time) idx = i;
+  }
+  return idx;
+}
+
+/** Đổi class trực tiếp giữa node active cũ ↔ mới (không React re-render).
+ *  Mỗi node giữ phần class "base + cỡ chữ" trong data-base khi render;
+ *  ticker chỉ nối thêm state class — không bao giờ mất cỡ chữ compact. */
+function applyActiveClasses(items: (HTMLButtonElement | null)[], prev: number, next: number) {
+  const setCls = (i: number, cls: string) => {
+    const el = items[i];
+    if (!el || !el.dataset["base"]) return;
+    el.className = `${el.dataset["base"]} ${cls}`;
+  };
+  if (prev >= 0) setCls(prev, prev < next ? LINE_PASSED : LINE_FUTURE);
+  if (next >= 0) setCls(next, LINE_ACTIVE);
+}
+
+/**
+ * LyricsTicker — cách ly re-render theo tick (PERF 2026-09-01).
+ * Trước đây: LyricsPane subscribe usePlayerTime → mỗi timeupdate (4–15/s)
+ * re-render 54+ buttons chỉ để đổi màu 2 dòng (React diff toàn bộ list).
+ * Giờ: component RỖNG này subscribe time, và chỉ khi active INDEX đổi mới
+ * gọi classList updates trực tiếp. Render count khi phát = 0.
+ * Tự tắt khi không có lời hoặc tab ẩn (rAF không chạy — dùng timeupdate
+ * store, rẻ hơn nhiều so với rAF polling).
+ */
+function LyricsTicker({
+  lines,
+  itemRefs,
+  activeIndexRef,
+  isUserScrollingRef,
+  onActiveChange,
+}: {
+  lines: LyricLineView[];
+  itemRefs: React.RefObject<(HTMLButtonElement | null)[]>;
+  activeIndexRef: React.RefObject<number>;
+  isUserScrollingRef: React.RefObject<boolean>;
+  onActiveChange: (idx: number) => void;
+}) {
+  const time = usePlayerTime();
+  useEffect(() => {
+    const next = activeFromTime(lines, time);
+    const prev = activeIndexRef.current ?? -1;
+    if (next === prev) return;
+    applyActiveClasses(itemRefs.current ?? [], prev, next);
+    activeIndexRef.current = next;
+    onActiveChange(next);
+  }, [time, lines, itemRefs, activeIndexRef, isUserScrollingRef, onActiveChange]);
+  return null;
 }

@@ -1,0 +1,19 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "location.reload(); 'reloading'", "name": "reload" },
+  { "wait": 9000 },
+  { "eval": "(() => { const rows = document.querySelectorAll('main .group').length; return rows + ' rows after fresh load'; })()", "name": "rows" },
+  { "eval": "(() => { const row = document.querySelectorAll('main .group')[3]; const more = [...row.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('Thao tác')); return more ? 'row renders OK with actions btn' : 'row rendered, no actions (unexpected)'; })()", "name": "row-sanity" },
+  { "tapSelector": "main .group button", "settle": 2000 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); return d ? 'mini dock: ' + d.textContent.slice(0, 24) : 'no dock'; })()", "name": "mini-after-play" },
+  { "eval": "(() => { const activeRow = [...document.querySelectorAll('main .group')].find(r => r.className.includes('border-primary/20')); return activeRow ? 'ACTIVE ROW HIGHLIGHT OK: ' + activeRow.textContent.slice(0, 26) : 'no active highlight (seek/track state check next)'; })()", "name": "active-row-highlight" },
+  { "measureFPS": 2000, "name": "idle-with-track-loaded" },
+  {
+    "eval": "(async () => { const input = document.querySelector(\"input[type='search']\"); const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; let longTasks = 0; const obs = new PerformanceObserver((l) => { longTasks += l.getEntries().length; }); obs.observe({ entryTypes: ['longtask'] }); const t0 = performance.now(); for (const ch of ['m','c','k']) { setter.call(input, input.value + ch); input.dispatchEvent(new Event('input', { bubbles: true })); await new Promise((r) => setTimeout(r, 450)); } const dur = performance.now() - t0; obs.disconnect(); const rows = document.querySelectorAll('main .group').length; return JSON.stringify({ typingMs: Math.round(dur), longTasks, filteredRows: rows }); })()",
+    "name": "search-typing-after-fix"
+  },
+  {
+    "eval": "(async () => { const tab = [...document.querySelectorAll(\"nav[aria-label='Điều hướng chính'] a\")].find(a => a.getAttribute('href') === '/my-library'); const t0 = performance.now(); let longTasks = 0; const obs = new PerformanceObserver((l) => { longTasks += l.getEntries().length; }); obs.observe({ entryTypes: ['longtask'] }); tab.click(); await new Promise((r) => setTimeout(r, 2200)); obs.disconnect(); return JSON.stringify({ navMs: Math.round(performance.now() - t0), longTasks }); })()",
+    "name": "nav-latency-after-fix"
+  }
+]

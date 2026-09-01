@@ -1,0 +1,18 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/videos", "settle": 8000 },
+  { "eval": "(() => { const card = [...document.querySelectorAll('a[href*=\"/videos/\"]')].filter(a => a.offsetHeight > 0)[0]; if (!card) return 'no video card'; card.click(); return 'opened video page'; })()", "name": "open-video" },
+  { "wait": 3000 },
+  { "eval": "(() => { const v = document.querySelector('video'); if (!v) return 'no video el'; const btns = [...document.querySelectorAll('button')].map(b => b.getAttribute('aria-label')).filter(Boolean); return JSON.stringify({ hasVideo: true, srcSet: !!v.src, ariaButtons: btns }); })()", "name": "video-page" },
+  { "eval": "(() => { const play = [...document.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('Phát video')); return play ? 'center-play-button: OK ' + Math.round(play.getBoundingClientRect().width) + 'px wide' : 'center-play: MISSING'; })()", "name": "play-btn" },
+  { "eval": "(() => { const bar = document.querySelector('.pb-safe.transition-\\\\[opacity,transform\\\\]'); if (!bar) return 'control-bar: MISSING'; const cs = getComputedStyle(bar); return JSON.stringify({ visible: cs.opacity, btns: [...bar.querySelectorAll('button')].map(b => b.getAttribute('aria-label')) }); })()", "name": "control-bar" },
+  { "eval": "(() => { const bar = document.querySelector('.pb-safe.transition-\\\\[opacity,transform\\\\]'); const btns = [...bar.querySelectorAll('button')]; const sizes = btns.filter(b => b.getAttribute('aria-label')).map(b => { const r = b.getBoundingClientRect(); return b.getAttribute('aria-label') + '=' + Math.round(r.width) + 'x' + Math.round(r.height); }); return JSON.stringify(sizes); })()", "name": "btn-sizes" },
+  { "eval": "(() => { const seek = [...document.querySelectorAll('div')].find(d => String(d.className).includes('h-11') && d.querySelector('.bg-primary')); return seek ? 'seek-zone 44px: OK (' + Math.round(seek.getBoundingClientRect().height) + 'px)' : 'seek: MISSING'; })()", "name": "seek-zone" },
+  { "eval": "(() => { const v = document.querySelector('video'); v.play().then(() => 'manual-play').catch(e => 'autoplay-blocked: ' + e.name); return 'play-attempted'; })()", "name": "try-play" },
+  { "wait": 1200 },
+  { "eval": "(() => { const v = document.querySelector('video'); return JSON.stringify({ playing: !v.paused, currentTime: Math.round(v.currentTime), controlsVisible: 'tap-tests next' }); })()", "name": "after-play" },
+  { "eval": "(() => { const v = document.querySelector('video'); v.currentTime = 60; return 'seeked-to-60'; })()", "name": "manual-seek" },
+  { "wait": 800 },
+  { "eval": "(() => { const fill = document.querySelector('.bg-primary.h-full'); const label = [...document.querySelectorAll('span.tabular-nums')].map(s => s.textContent).find(t => t.includes('/')); return JSON.stringify({ progressFillWidth: fill ? fill.style.width : 'none', timeLabel: label || 'none' }); })()", "name": "progress-after-seek" },
+  { "eval": "(() => { const bar = document.querySelector('.pb-safe.transition-\\\\[opacity,transform\\\\]'); const fs = [...bar.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Toàn màn hình'); if (!fs) return 'no-fs-btn'; const r = fs.getBoundingClientRect(); return 'fullscreen-btn: ' + Math.round(r.width) + 'x' + Math.round(r.height); })()", "name": "fs-btn" }
+]

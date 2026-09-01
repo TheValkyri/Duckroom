@@ -1,0 +1,18 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/library", "settle": 9000 },
+  { "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; rows[5].querySelector('button').click(); return 'playing row 6'; })()", "name": "play6" },
+  { "wait": 1800 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.querySelector('[role=button]').click(); return 'expand'; })()", "name": "expand" },
+  { "wait": 1200 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); [...fs.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('lời bài hát')).click(); return 'lyrics open'; })()", "name": "open" },
+  { "wait": 1500 },
+  { "eval": "(() => { const active = document.querySelector('button.scale-\\\\31 02'); const lines = [...document.querySelectorAll('button')].filter(b => b.dataset['base'] && b.textContent.trim()).length; return JSON.stringify({ activeLine: active ? active.textContent.slice(0, 40) : 'none', lyricButtons: lines }); })()", "name": "lyrics-state" },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const overlay = [...fs.querySelectorAll('div')].find(c => String(c.className).includes('absolute inset-0')); const seekInput = overlay.querySelector('input[type=range]'); if (seekInput) { const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; setter.call(seekInput, '70'); seekInput.dispatchEvent(new Event('input', { bubbles: true })); seekInput.dispatchEvent(new Event('change', { bubbles: true })); return 'seeked-to-70s'; } return 'no range in overlay (fullscreen seekbar is outside overlay)'; })()", "name": "try-seek" },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const bars = [...fs.querySelectorAll('input[type=range]')]; return 'range-inputs: ' + bars.length; })()", "name": "ranges" },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const bar = fs.querySelector('input[type=range]'); if (bar) { const r = bar.getBoundingClientRect(); return 'seekbar rect: ' + Math.round(r.width) + 'x' + Math.round(r.height); } return 'none'; })()", "name": "seekbar-rect" },
+  { "wait": 2500 },
+  { "eval": "(() => { const active = document.querySelector('button.scale-\\\\31 02'); const container = [...document.querySelectorAll('div')].find(d => d.classList && [...d.classList].some(c => String(c).includes('overflow-y-auto')) && d.querySelector('button[data-base]')); return JSON.stringify({ activeAfterSeek: active ? active.textContent.slice(0, 40) : 'none', scrolled: container ? Math.round(container.scrollTop) : 'no-container' }); })()", "name": "after-seek" },
+  { "measureFPS": 3000, "name": "during-play-lyrics" },
+  { "eval": "(() => { const active = document.querySelector('button.scale-\\\\31 02'); return 'final active: ' + (active ? active.textContent.slice(0, 40) : 'none'); })()", "name": "final-active" }
+]

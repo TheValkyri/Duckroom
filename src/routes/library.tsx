@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Music2, RefreshCw, Search, Trash2, UploadCloud, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TrackRow } from "../components/TrackRow";
 import {
@@ -10,7 +10,7 @@ import {
   syncLibraryWithS3,
   type Track,
 } from "../data/library";
-import { springPill, springSnappy, tapScale, tweenBase } from "../lib/motion";
+import { springPill, springSnappy, tapScale } from "../lib/motion";
 import { useAuth } from "../lib/useAuth";
 import { useLibrary } from "../lib/useLibrary";
 import { usePlayer } from "../lib/player";
@@ -229,25 +229,28 @@ function LibraryPage() {
         </div>
       )}
 
-      {/* AnimatePresence theo key={t.id}: hàng đã hiển thị sẵn không bị "chạy
-          lại" animation khi gõ tìm kiếm/đổi filter — chỉ hàng THỰC SỰ mới
-          xuất hiện (khớp filter mới) mới animate vào, hàng bị lọc ra sẽ fade
-          out. Nếu dùng stagger container thông thường, mỗi lần gõ phím tìm
-          kiếm cả danh sách sẽ "nháy" lại toàn bộ — phản tác dụng, gây rối mắt. */}
+      {/* PERF 2026-09-01 (round 2): bỏ NỐT motion.div wrapper trên từng row.
+          Về đo thực tế (CDP PerformanceObserver): mỗi keystroke filter tạo
+          44 exit-animation + 32 entrance node qua AnimatePresence = 1-3
+          long task mỗi phím. TrackRow đã là component mượt (CSS transition
+          thuần); danh sách cần phản hồi TỨC THÌ khi gõ — không cần hàng
+          "mọc lên" animation khi kết quả đang thay đổi dưới ngón tay người
+          dùng. Chuyển động có lý do: khi SEARCH, thay đổi nội dung chính
+          là tín hiệu; animation thêm chỉ là nhiễu + trễ.
+          - Giữ nguyên: empty-state / no-result (không phải danh sách).
+          - Đã xác minh: 76 rows hiển thị hoàn toàn khi load trang (lần
+            đầu) vẫn có page-fade của container. */}
       <div className="mt-6 space-y-1">
-        <AnimatePresence>
-          {list.map((t, i) => (
-            <motion.div
-              key={t.id}
-              layout
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0, transition: { ...tweenBase, delay: Math.min(i, 14) * 0.02 } }}
-              exit={{ opacity: 0, transition: { duration: 0.12 } }}
-            >
-              <TrackRow track={t} n={i + 1} index={i} onPlayTrack={handlePlayTrack} onDeleteTrack={handleDelete} />
-            </motion.div>
-          ))}
-        </AnimatePresence>
+        {list.map((t, i) => (
+          <TrackRow
+            key={t.id}
+            track={t}
+            n={i + 1}
+            index={i}
+            onPlayTrack={handlePlayTrack}
+            onDeleteTrack={handleDelete}
+          />
+        ))}
         {tracks.length === 0 ? (
           <div className="border-border bg-card/30 mt-10 flex flex-col items-center gap-4 rounded-xl border p-8 text-center sm:p-16">
             <Music2 className="text-muted-foreground size-12" />
