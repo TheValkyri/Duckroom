@@ -1,0 +1,20 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/library", "settle": 25000 },
+  { "tapSelector": "main .group button", "settle": 2000 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); if (!d) return 'no dock'; const order = [...d.querySelectorAll('button')].map(b => b.getAttribute('aria-label')).filter(Boolean); return JSON.stringify({ order }); })()", "name": "btn-order" },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); const prev = [...d.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Bài trước'); const play = [...d.querySelectorAll('button')].find(b => ['Phát','Tạm dừng'].includes(b.getAttribute('aria-label'))); const next = [...d.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Bài sau'); const p = prev.getBoundingClientRect().x; const c = play.getBoundingClientRect().x; const n = next.getBoundingClientRect().x; return JSON.stringify({ correctOrder: p < c && c < n, prevX: Math.round(p), playX: Math.round(c), nextX: Math.round(n) }); })()", "name": "order-geometry" },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.querySelector('[role=button]').click(); return 'expand'; })()" },
+  { "wait": 1400 },
+  { "eval": "(() => { const body = document.body; return JSON.stringify({ bodyLocked: getComputedStyle(body).overflow === 'hidden', bodyPos: getComputedStyle(body).position }); })()", "name": "scroll-lock-check" },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const lyr = [...fs.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('lời bài hát')); lyr.click(); return 'lyrics-open'; })()" },
+  { "wait": 1000 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const sheet = [...fs.querySelectorAll('[role=dialog]')].find(d => (d.getAttribute('aria-label')||'').includes('Lời bài hát')); if (!sheet) return 'no sheet'; const r = sheet.getBoundingClientRect(); return JSON.stringify({ sheetTop: Math.round(r.y), sheetH: Math.round(r.height), isNearFullscreen: r.y < 120 && r.height > 600 }); })()", "name": "sheet-fullscreen" },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const cur = [...fs.querySelectorAll('p')].find(p => String(p.className).includes('line-clamp-2')); return cur ? 'current-line clamped+centered: OK' : 'not-found'; })()", "name": "line-clamp" },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const sheet = [...fs.querySelectorAll('[role=dialog]')].find(d => (d.getAttribute('aria-label')||'').includes('Lời bài hát')); const close = [...sheet.querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.includes('Đóng lời')); close.click(); return 'closed'; })()" },
+  { "wait": 700 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const min = [...fs.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Thu nhỏ trình phát'); min.click(); return 'collapsed'; })()" },
+  { "wait": 900 },
+  { "eval": "(() => { return JSON.stringify({ bodyUnlocked: getComputedStyle(document.body).overflow !== 'hidden' }); })()", "name": "unlock-check" },
+  { "eval": "(() => { const activeBar = document.querySelector('.absolute.left-0.top-1\\\\/2.h-6.w-\\\\[3px\\\\]'); return activeBar ? 'active-row-bar: OK' : 'active-bar not present (check active row)'; })()", "name": "active-bar" }
+]

@@ -1,0 +1,21 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/videos", "settle": 20000 },
+  { "eval": "(() => { const thumbs = [...document.querySelectorAll('.bg-card\\\\/80')]; const imgs = [...document.querySelectorAll('a[href*=\"/videos/\"] img')]; const gen = [...document.querySelectorAll('a[href*=\"/videos/\"] img[src^=\"data:image/jpeg;base64\"]')]; return JSON.stringify({ placeholderCount: thumbs.length, imgCount: imgs.length, canvasGenerated: gen.length }); })()", "name": "video-preview" },
+  { "eval": "(() => { const vid = [...document.querySelectorAll('a[href*=\"/videos/\"]')][0]; vid.click(); return 'opened'; })()" },
+  { "wait": 2500 },
+  { "eval": "(() => { const video = document.querySelector('video'); return JSON.stringify({ hasVideo: !!video, hasSrc: !!video?.src, readyState: video?.readyState }); })()", "name": "video-page" },
+  { "navigate": "/library", "settle": 20000 },
+  { "eval": "(() => { const row = [...document.querySelectorAll('main .group')][3]; const fav = [...row.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('yêu thích')); fav.click(); return 'guest-fav-click'; })()", "name": "guest-fav" },
+  { "wait": 900 },
+  { "eval": "(() => { const modal = [...document.querySelectorAll('.fixed.inset-0')].find(e => e.textContent.includes('Lưu bài hát này')); const body = getComputedStyle(document.body); return JSON.stringify({ authGate: !!modal, bodyLocked: body.overflow === 'hidden' }); })()", "name": "gate+lock" },
+  { "eval": "(() => { const modal = [...document.querySelectorAll('.fixed.inset-0')].find(e => e.textContent.includes('Lưu bài hát này')); const later = [...modal.querySelectorAll('button')].find(b => b.textContent.includes('Để sau')); later.click(); return 'dismissed'; })()" },
+  { "wait": 700 },
+  { "eval": "(() => { return JSON.stringify({ unlockedAfter: getComputedStyle(document.body).overflow !== 'hidden' }); })()", "name": "unlock" },
+  { "eval": "(() => { const more = [...document.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('Xem thêm')); more.click(); return 'more-open'; })()" },
+  { "wait": 900 },
+  { "eval": "(() => { const body = getComputedStyle(document.body); const sheet = document.querySelector('[aria-label=\"Xem thêm mục điều hướng\"]'); return JSON.stringify({ moreSheet: !!sheet, bodyLockedBySheet: body.overflow === 'hidden' }); })()", "name": "more-lock" },
+  { "eval": "(() => { const sheet = document.querySelector('[aria-label=\"Xem thêm mục điều hướng\"]'); const link = [...sheet.querySelectorAll('a')].find(a => a.getAttribute('href') === '/albums'); link.click(); return 'to-albums'; })()" },
+  { "wait": 1200 },
+  { "eval": "(() => { return JSON.stringify({ path: location.pathname, unlocked: getComputedStyle(document.body).overflow !== 'hidden' }); })()", "name": "final" }
+]

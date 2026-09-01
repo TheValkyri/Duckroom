@@ -1,0 +1,13 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'hard-reload'", "name": "reload" },
+  { "wait": 25000 },
+  { "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; if (!rows.length) return 'no-rows'; rows[5].querySelector('button').click(); return 'play6'; })()" },
+  { "wait": 2000 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.querySelector('[role=button]').click(); return 'expand'; })()" },
+  { "wait": 1500 },
+  { "eval": "(() => { return JSON.stringify({ bodyPos: getComputedStyle(document.body).position, bodyTop: getComputedStyle(document.body).top }); })()", "name": "body-state" },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); [...fs.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('lời bài hát')).click(); return 'open'; })()" },
+  { "wait": 1500 },
+  { "eval": "(() => { const sheet = document.querySelector('[role=dialog][aria-label*=\"Lời bài hát\"]'); if (!sheet) return 'no-sheet'; const r = sheet.getBoundingClientRect(); const el = document.elementFromPoint(195, 400); const el2 = document.elementFromPoint(195, 700); return JSON.stringify({ sheetTop: Math.round(r.top), h: Math.round(r.height), midInSheet: sheet.contains(el), lowInSheet: sheet.contains(el2), transform: getComputedStyle(sheet).transform }); })()", "name": "hit-test-fresh" }
+]

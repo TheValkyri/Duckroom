@@ -171,6 +171,25 @@
   }
 }
 
+/* Phone lyrics sheet — hiệu ứng trượt lên (visual sugar). Lưu ý QA
+   lesson 2026-09-01: keyframes cần paint-frames; với base position
+   ĐÚNG (không transform tĩnh) thì kể cả animation không chạy (headless/
+   occluded tab) sheet vẫn đứng đúng chỗ — animation chỉ là gia vị.
+   `both` giữ frame cuối translateY(0) = identity. */
+@keyframes lyricsSheetIn {
+  from {
+    transform: translateY(28px);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.lyrics-sheet-in {
+  animation: lyricsSheetIn 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* Tôn trọng cờ "Reduce Motion" của hệ điều hành cho các animation CSS thuần
    nằm ngoài phạm vi Framer Motion / MotionConfig (transition-colors, hover
    states, .glass...). */

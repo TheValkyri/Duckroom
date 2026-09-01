@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { TrackRow } from "../components/TrackRow";
 import { useAuth } from "../lib/useAuth";
 import { useLibrary } from "../lib/useLibrary";
@@ -181,7 +182,7 @@ function MyLibraryPage() {
                   setNewPlaylist("");
                 } catch (err) {
                   console.error("[Duckroom MyLibrary] Create playlist failed:", err);
-                  alert(
+                  toast.error(
                     `Không tạo được playlist: ${err instanceof Error ? err.message : "lỗi không xác định"}. Vui lòng thử lại.`,
                   );
                 }
@@ -335,7 +336,7 @@ function PlaylistCard({ playlist, allTracks }: { playlist: MemberPlaylist; allTr
       await member.renamePlaylist(playlist.id, name);
     } catch (err) {
       console.error("[Duckroom MyLibrary] Rename playlist failed:", err);
-      alert(`Không đổi được tên playlist: ${err instanceof Error ? err.message : "lỗi không xác định."}`);
+      toast.error(`Không đổi được tên playlist: ${err instanceof Error ? err.message : "lỗi không xác định."}`);
     } finally {
       setRenaming(false);
       setRenameValue("");
@@ -413,7 +414,7 @@ function PlaylistCard({ playlist, allTracks }: { playlist: MemberPlaylist; allTr
               onClick={() => {
                 member.deletePlaylist(playlist.id).catch((err) => {
                   console.error("[Duckroom MyLibrary] Delete playlist failed:", err);
-                  alert(
+                  toast.error(
                     `Không xóa được playlist "${playlist.name}": ${err instanceof Error ? err.message : "lỗi không xác định."}`,
                   );
                 });

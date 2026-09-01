@@ -13,6 +13,14 @@ import { useDuckroomRole } from "../lib/useRole";
 import { createAndShareLink } from "../lib/share-client";
 import { springSnappy, tapScale } from "../lib/motion";
 import { useIsPhoneLayout } from "../hooks/use-media-query";
+import { useScrollLock } from "../hooks/use-scroll-lock";
+import { toast } from "sonner";
+
+/** Wrapper nhỏ để dùng hook trong component điều kiện (không phải TrackRow). */
+function LoginPromptLock({ active }: { active: boolean }) {
+  useScrollLock(active);
+  return null;
+}
 
 function LiveAudioWaves() {
   return (
@@ -102,7 +110,7 @@ export const TrackRow = memo(function TrackRow({
           await navigator.share({ title: `${track.title} — ${track.artist}`, url });
         } else if (navigator.clipboard) {
           await navigator.clipboard.writeText(url);
-          alert("Đã sao chép liên kết vào clipboard!");
+          toast.success("Đã sao chép liên kết!");
         }
       }
     } catch (err) {
@@ -126,6 +134,15 @@ export const TrackRow = memo(function TrackRow({
           active && "bg-accent/50 border-primary/20",
         )}
       >
+        {/* Accent bar trái — chỉ hiện ở hàng đang phát (CSS thuần, có lý
+            do: vị trí "bài này đang phát" quét được bằng mắt khi cuộn nhanh
+            qua danh sách dài; không phải trang trí). */}
+        {active && (
+          <span
+            aria-hidden
+            className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-primary shadow-[0_0_10px_oklch(0.76_0.14_66/0.6)]"
+          />
+        )}
         <button onClick={handlePlayClick} className="flex flex-1 items-center gap-4 min-w-0 text-left cursor-pointer">
           <span className="text-muted-foreground grid place-items-center text-sm tabular-nums shrink-0 size-5">
             <span className="group-hover:hidden">
@@ -257,6 +274,9 @@ export const TrackRow = memo(function TrackRow({
           </>
         )}
       </div>
+
+      {/* QoL: khoá scroll nền khi auth-gate mở */}
+      <LoginPromptLock active={showLoginPrompt} />
 
       <AnimatePresence>
         {showLoginPrompt && (

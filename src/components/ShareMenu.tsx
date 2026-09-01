@@ -1,6 +1,7 @@
 import { Link2, Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { createAndShareLink, expiresAtFromChoice, type ShareExpiryChoice } from "../lib/share-client";
 import { springSnappy, tapScale } from "../lib/motion";
 import { cn } from "../lib/utils";
@@ -54,7 +55,7 @@ export function ShareMenu({
       }, 1400);
     } catch (err) {
       console.warn("Share error:", err);
-      alert(`Không tạo được liên kết chia sẻ: ${err instanceof Error ? err.message : "lỗi không xác định."}`);
+      toast.error(`Không tạo được liên kết chia sẻ: ${err instanceof Error ? err.message : "lỗi không xác định."}`);
       setOpen(false);
     } finally {
       setBusy(false);

@@ -3,6 +3,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { springSnappy, springSmooth, tapScale } from "../lib/motion";
 import { cn } from "../lib/utils";
+import { useScrollLock } from "../hooks/use-scroll-lock";
 
 /**
  * MobileSheet — bottom sheet primitive (MOBILE_UI_ARCHITECTURE §5).
@@ -37,6 +38,8 @@ export function MobileSheet({
   includeHandle?: boolean;
 }) {
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  // QoL: khoá body-scroll khi sheet mở (consumer không cần tự làm).
+  useScrollLock(open);
 
   useEffect(() => {
     if (!open) return;

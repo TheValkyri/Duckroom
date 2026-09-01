@@ -1,7 +1,7 @@
-// CDP driver (port 9223 instance for this session)
+﻿// CDP driver (port 9224 instance for this session)
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 const TAB = process.argv[3] ?? "964D34B1DECB5BD63A7CB6DD91D2610C";
-const WS_URL = `ws://127.0.0.1:9223/devtools/page/${TAB}`;
+const WS_URL = `ws://127.0.0.1:9224/devtools/page/${TAB}`;
 const plan = JSON.parse(readFileSync(process.argv[2], "utf8").replace(/^\uFEFF/, ""));
 
 const results = [];

@@ -1,0 +1,15 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'r'", "name": "reload" },
+  { "wait": 25000 },
+  { "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; rows[5].querySelector('button').click(); return 'play6'; })()" },
+  { "wait": 2000 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.querySelector('[role=button]').click(); return 'expand'; })()" },
+  { "wait": 1500 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const lyr = [...fs.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('lời bài hát')); lyr.click(); return 'clicked'; })()" },
+  { "wait": 600 },
+  { "eval": "(() => { const sheet = document.querySelector('[role=dialog][aria-label*=\"Lờ bài hát\"]') || document.querySelector('[role=dialog]'); const t = sheet ? getComputedStyle(sheet).transform : 'no-sheet'; return 'transform@600ms: ' + t; })()", "name": "t600" },
+  { "wait": 900 },
+  { "eval": "(() => { const sheet = document.querySelector('[role=dialog]'); return 'transform@1500ms: ' + getComputedStyle(sheet).transform + ' | top: ' + Math.round(sheet.getBoundingClientRect().top); })()", "name": "t1500" },
+  { "eval": "(() => { const sheet = document.querySelector('[role=dialog]'); const allDialogs = [...document.querySelectorAll('[role=dialog]')].length; const ariaLabels = [...document.querySelectorAll('[role=dialog]')].map(d => d.getAttribute('aria-label')); return JSON.stringify({ allDialogs, ariaLabels }); })()", "name": "all-dialogs" }
+]

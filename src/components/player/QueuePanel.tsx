@@ -69,7 +69,7 @@ export function QueuePanel() {
                 src={
                   t.cover ||
                   albumById(t.albumId)?.cover ||
-                  "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"
+                  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Crect width='72' height='72' fill='%2318181b'/%3E%3C/svg%3E"
                 }
                 alt=""
                 loading="lazy"
@@ -77,7 +77,7 @@ export function QueuePanel() {
                 onError={(e) => {
                   const target = e.currentTarget;
                   const fallback =
-                    "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+                    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Crect width='72' height='72' fill='%2318181b'/%3E%3C/svg%3E";
                   if (target.src !== fallback) {
                     target.src = fallback;
                   }

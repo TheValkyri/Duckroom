@@ -148,7 +148,21 @@ export function PlayerBar() {
             <span className="block truncate text-sm font-medium text-foreground">{current.title}</span>
             <span className="text-muted-foreground block truncate text-xs">{current.artist}</span>
           </span>
-          {/* Transport — 44px touch targets; stopPropagation để không expand */}
+          {/* Transport — đúng thứ tự chuẩn: PREV → PLAY → NEXT
+              (feedback: trước đây play nằm trước prev = lệch bố cục).
+              44px touch targets; stopPropagation để không expand. */}
+          <motion.button
+            aria-label="Bài trước"
+            onClick={(e) => {
+              e.stopPropagation();
+              prev();
+            }}
+            whileTap={tapScale}
+            transition={springSnappy}
+            className="text-muted-foreground hover:text-foreground grid size-11 shrink-0 place-items-center rounded-full transition-colors cursor-pointer"
+          >
+            <SkipBack className="size-5" fill="currentColor" />
+          </motion.button>
           <motion.button
             aria-label={isPlaying ? "Tạm dừng" : "Phát"}
             onClick={(e) => {
@@ -162,20 +176,6 @@ export function PlayerBar() {
             <span className="bg-primary text-primary-foreground grid size-11 place-items-center rounded-full shadow-[0_8px_30px_-8px_oklch(0.76_0.14_66/0.7)]">
               {isPlaying ? <PauseIcon className="size-5" /> : <PlayIcon className="size-5 translate-x-px" />}
             </span>
-          </motion.button>
-          {/* Prev + Next — đối xứng 2 bên nút play (feedback: trước đây
-              thiếu nút lùi). Prev restart bài nếu >3s (§11.4 chuẩn). */}
-          <motion.button
-            aria-label="Bài trước"
-            onClick={(e) => {
-              e.stopPropagation();
-              prev();
-            }}
-            whileTap={tapScale}
-            transition={springSnappy}
-            className="text-muted-foreground hover:text-foreground grid size-11 shrink-0 place-items-center rounded-full transition-colors cursor-pointer"
-          >
-            <SkipBack className="size-5" fill="currentColor" />
           </motion.button>
           <motion.button
             aria-label="Bài sau"

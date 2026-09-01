@@ -20,11 +20,12 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
-import { springSnappy, tapScale } from "../lib/motion";
+import { pageVariants, springSnappy, tapScale } from "../lib/motion";
 import { getIngestionStoreState, subscribeIngestionStore, type IngestionStoreState } from "../lib/upload-store";
 import { useAuth } from "../lib/useAuth";
 import { useDuckroomRole } from "../lib/useRole";
 import { cn } from "../lib/utils";
+import { useScrollLock } from "../hooks/use-scroll-lock";
 import { NowPlaying } from "./player/NowPlaying";
 import { PlayerBar } from "./player/PlayerBar";
 
@@ -96,6 +97,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [ingestionState, setIngestionState] = useState<IngestionStoreState>(getIngestionStoreState());
   const [collapsed, setCollapsed] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  // QoL: khoá scroll nền khi More sheet mở.
+  useScrollLock(moreOpen);
 
   useEffect(() => {
     return subscribeIngestionStore(setIngestionState);

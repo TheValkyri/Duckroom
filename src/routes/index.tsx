@@ -86,7 +86,7 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
             src={
               track.cover && !track.cover.startsWith("blob:")
                 ? track.cover
-                : "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"
+                : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='600' height='600' fill='%2318181b'/%3E%3C/svg%3E"
             }
             alt={track.title}
             loading="lazy"
@@ -95,7 +95,7 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
             onError={(e) => {
               const target = e.currentTarget;
               const fallback =
-                "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='600' height='600' fill='%2318181b'/%3E%3C/svg%3E";
               if (target.src !== fallback) {
                 target.src = fallback;
               }
@@ -244,7 +244,8 @@ function Index() {
         <img
           key={hero.cover}
           src={
-            hero.cover || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"
+            hero.cover ||
+            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='600' height='600' fill='%2318181b'/%3E%3C/svg%3E"
           }
           alt=""
           aria-hidden
@@ -252,7 +253,7 @@ function Index() {
           onError={(e) => {
             const target = e.currentTarget;
             const fallback =
-              "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='600' height='600' fill='%2318181b'/%3E%3C/svg%3E";
             if (target.src !== fallback) {
               target.src = fallback;
             }
@@ -264,14 +265,14 @@ function Index() {
           <img
             src={
               hero.cover ||
-              "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"
+              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='600' height='600' fill='%2318181b'/%3E%3C/svg%3E"
             }
             alt={`Bìa album ${hero.title}`}
             decoding="async"
             onError={(e) => {
               const target = e.currentTarget;
               const fallback =
-                "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='600' height='600' fill='%2318181b'/%3E%3C/svg%3E";
               if (target.src !== fallback) {
                 target.src = fallback;
               }

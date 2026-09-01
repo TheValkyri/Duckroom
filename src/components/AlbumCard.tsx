@@ -96,7 +96,7 @@ export const AlbumCard = memo(function AlbumCard({
               layoutId={`cover-${album.id}`}
               src={
                 album.cover ||
-                "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80"
+                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='600' height='600' fill='%2318181b'/%3E%3C/svg%3E"
               }
               alt={`Bìa album ${album.title}`}
               loading="lazy"
@@ -105,7 +105,7 @@ export const AlbumCard = memo(function AlbumCard({
               onError={(e) => {
                 const target = e.currentTarget;
                 const fallback =
-                  "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80";
+                  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='600' height='600' fill='%2318181b'/%3E%3C/svg%3E";
                 if (target.src !== fallback) {
                   target.src = fallback;
                 }

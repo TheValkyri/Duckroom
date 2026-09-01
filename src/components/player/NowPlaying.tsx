@@ -135,6 +135,11 @@ export function NowPlaying() {
     direction,
   } = usePlayer();
   const open = expanded;
+  // LƯU Ý: KHÔNG scroll-lock ở đây. Fullscreen player là `fixed inset-0`
+  // chiếm toàn viewport + mọi input dưới nó không thể chạm → nền không
+  // cuộn được từ đầu. body position:fixed (iOS trick) lại làm LỆCH tọa
+  // độ của chính fullscreen (QA bắt parentTop=40, sheet transform sai).
+  // useScrollLock dành cho sheets/modals KHÔNG phủ kín màn hình.
   const isPhone = useIsPhoneLayout();
   const phoneDragControls = useDragControls();
   const album = current ? albumById(current.albumId) : undefined;
@@ -227,6 +232,16 @@ export function NowPlaying() {
         >
           {/* Ambient Dual-Buffer Crossfading Background */}
           <AmbientCrossfadeBackground cover={rawCoverUrl} accent={album?.accent} />
+
+          {/* PHONE lyrics sheet — neo TRỰC TIẾP vào fullscreen root
+              (fixed inset-0): top-[4.5rem] bottom-0 = gần full màn hình
+              dưới header (feedback: "bấm vào lời là fullscreen luôn").
+              Render tại root thay vì trong stage vì stage là flex-1
+              chiều cao thay đổi → absolute lệch tọa độ (bug đo được:
+              sheet top 856px ngoài viewport). Drag chỉ từ handle. */}
+          {isPhone && (
+            <PhoneLyricsSheet open={lyricsOpen} onClose={() => setLyricsOpen(false)} trackTitle={current.title} />
+          )}
 
           {/* Top Header Bar — cân đối lại (feedback 2026-09-01: nút sát mép
               trên quá, nhìn lệch). py-3 + min-h để luôn có đệm đều trên/dưới
@@ -564,12 +579,6 @@ export function NowPlaying() {
                   </motion.div>
                 )}
               </AnimatePresence>
-
-              {/* PHONE lyrics = bottom sheet (tách khỏi stage, nằm trong
-                  fullscreen player, trên transport — kéo xuống để đóng) */}
-              {isPhone && (
-                <PhoneLyricsSheet open={lyricsOpen} onClose={() => setLyricsOpen(false)} trackTitle={current.title} />
-              )}
             </div>
           </div>
 
@@ -614,10 +623,10 @@ function PhoneCurrentLyricLine() {
 
   return (
     <div
-      className="relative mx-auto mt-2 h-6 max-w-[92%] overflow-hidden"
+      className="relative mx-auto mt-2 h-8 max-w-[88%] overflow-hidden"
       style={{
-        WebkitMaskImage: "linear-gradient(90deg, transparent, black 14%, black 86%, transparent)",
-        maskImage: "linear-gradient(90deg, transparent, black 14%, black 86%, transparent)",
+        WebkitMaskImage: "linear-gradient(90deg, transparent, black 10%, black 90%, transparent)",
+        maskImage: "linear-gradient(90deg, transparent, black 10%, black 90%, transparent)",
       }}
       aria-hidden
     >
@@ -628,7 +637,7 @@ function PhoneCurrentLyricLine() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-          className="text-foreground/85 text-center text-[13px] font-medium leading-6 tracking-tight"
+          className="line-clamp-2 text-foreground/85 text-center text-[13px] font-medium leading-4 tracking-tight"
         >
           {activeIdx >= 0 && line?.text ? line.text : "· · ·"}
         </motion.p>
@@ -646,25 +655,60 @@ function PhoneCurrentLyricLine() {
  * liền, không phải khung viền.
  */
 function PhoneLyricsSheet({ open, onClose, trackTitle }: { open: boolean; onClose: () => void; trackTitle: string }) {
-  const sheet = (
-    <motion.div
+  // Đóng bằng: nút X, hoặc kéo HANDLE xuống (pointer thủ công).
+  // Vào/ra bằng CSS keyframes (PERF + fix bug motion: AnimatePresence lồng
+  // trong NowPlaying giữ transform y:100% mãi mãi — QA bắt được
+  // matrix(1,0,0,1,0,772) treo; animation CSS keyframes không thể treo vì
+  // mỗi lần mount chạy đúng 1 lần, unmount là biến mất).
+  const handleRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const handle = handleRef.current;
+    if (!handle) return;
+    let startY = 0;
+    let dragging = false;
+    const onDown = (e: PointerEvent) => {
+      dragging = true;
+      startY = e.clientY;
+      handle.setPointerCapture(e.pointerId);
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!dragging) return;
+      if (e.clientY - startY > 80) {
+        dragging = false;
+        onClose();
+      }
+    };
+    const onUp = () => {
+      dragging = false;
+    };
+    handle.addEventListener("pointerdown", onDown);
+    handle.addEventListener("pointermove", onMove);
+    handle.addEventListener("pointerup", onUp);
+    handle.addEventListener("pointercancel", onUp);
+    return () => {
+      handle.removeEventListener("pointerdown", onDown);
+      handle.removeEventListener("pointermove", onMove);
+      handle.removeEventListener("pointerup", onUp);
+      handle.removeEventListener("pointercancel", onUp);
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div
       role="dialog"
       aria-modal="true"
       aria-label={`Lời bài hát: ${trackTitle}`}
-      initial={{ y: "100%" }}
-      animate={{ y: 0 }}
-      exit={{ y: "100%" }}
-      transition={{ type: "spring", stiffness: 300, damping: 32 }}
-      drag="y"
-      dragConstraints={{ top: 0, bottom: 0 }}
-      dragElastic={{ top: 0, bottom: 0.5 }}
-      onDragEnd={(_, info) => {
-        if (info.offset.y > 100 || (info.velocity.y > 600 && info.offset.y > 24)) onClose();
-      }}
-      className="absolute inset-x-0 bottom-0 z-40 flex h-[68%] flex-col rounded-t-[28px] border-t border-white/10 bg-card/85 backdrop-blur-md pb-safe"
+      className="lyrics-sheet-in absolute inset-x-0 top-[4.5rem] bottom-0 z-40 flex flex-col rounded-t-[28px] border-t border-white/10 bg-card/92 backdrop-blur-md pb-safe"
     >
-      {/* Handle: vùng kéo-toả-sheet, cũng là điểm nắm trực quan */}
-      <div className="flex cursor-grab justify-center pt-2.5 pb-1 active:cursor-grabbing" aria-hidden>
+      {/* Handle: kéo xuống để đóng (pointer capture thủ công) */}
+      <div
+        ref={handleRef}
+        className="flex cursor-grab justify-center pt-2.5 pb-1.5 active:cursor-grabbing touch-none"
+        aria-hidden
+      >
         <div className="h-1.5 w-10 rounded-full bg-white/25" />
       </div>
       <div className="flex items-center justify-between px-5 pt-1.5 pb-2 shrink-0">
@@ -682,8 +726,6 @@ function PhoneLyricsSheet({ open, onClose, trackTitle }: { open: boolean; onClos
       <div className="min-h-0 flex-1">
         <LyricsPane compact />
       </div>
-    </motion.div>
+    </div>
   );
-
-  return <AnimatePresence>{open && sheet}</AnimatePresence>;
 }

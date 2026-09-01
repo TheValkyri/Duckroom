@@ -1,0 +1,14 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'r'", "name": "reload" },
+  { "wait": 25000 },
+  { "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; rows[5].querySelector('button').click(); return 'p'; })()" },
+  { "wait": 2000 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.querySelector('[role=button]').click(); return 'e'; })()" },
+  { "wait": 1300 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); [...fs.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('lời bài hát')).click(); return 'c'; })()" },
+  { "wait": 300 },
+  { "eval": "(() => { const sheet = document.querySelector('[role=dialog]'); const cs = getComputedStyle(sheet); return JSON.stringify({ cls: String(sheet.className).slice(0, 60), animName: cs.animationName, animState: cs.animationPlayState, animDur: cs.animationDuration, transform: cs.transform }); })()", "name": "anim-state-300ms" },
+  { "wait": 1200 },
+  { "eval": "(() => { const sheet = document.querySelector('[role=dialog]'); const cs = getComputedStyle(sheet); return JSON.stringify({ animName: cs.animationName, transform: cs.transform, top: Math.round(sheet.getBoundingClientRect().top) }); })()", "name": "anim-state-1500ms" }
+]

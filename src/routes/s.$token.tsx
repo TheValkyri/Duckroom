@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Play, Share2 } from "lucide-react";
 import { motion } from "motion/react";
+import { toast } from "sonner";
 import { resolveShareLinkServer } from "../lib/sharing";
 import { springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { formatTime } from "../data/library";
@@ -161,7 +162,7 @@ function SharedResourcePage() {
                     navigator.share({ title: `${title} — ${artist}`, url: window.location.href });
                   } else {
                     navigator.clipboard.writeText(window.location.href);
-                    alert("Đã sao chép link chia sẻ vào clipboard!");
+                    toast.success("Đã sao chép liên kết!");
                   }
                 }}
                 className="border-border rounded-full border px-5 py-2.5 text-sm font-medium hover:bg-accent transition-colors cursor-pointer"
