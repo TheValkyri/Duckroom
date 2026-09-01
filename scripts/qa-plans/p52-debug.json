@@ -1,0 +1,5 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/library", "settle": 12000 },
+  { "eval": "(() => { const rows = document.querySelectorAll('main .group').length; const text = document.body.textContent.slice(0, 200); return JSON.stringify({ rows, snippet: text.slice(0, 150) }); })()", "name": "state" }
+]

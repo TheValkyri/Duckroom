@@ -1,0 +1,15 @@
+[
+  { "viewport": [1280, 800, 1], "name": "desktop" },
+  { "navigate": "/videos", "settle": 20000 },
+  { "eval": "(() => { const card = [...document.querySelectorAll('a[href*=\"/videos/\"]')].filter(a => a.offsetHeight > 0)[0]; if (!card) return 'no-card'; card.click(); return 'video-page'; })()", "name": "video" },
+  { "wait": 2500 },
+  { "eval": "(() => { const v = document.querySelector('video'); return JSON.stringify({ hasSrc: !!v?.src, playing: v ? !v.paused : null }); })()", "name": "video-state" },
+  { "eval": "(() => { const playBtn = [...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Phát video'); if (!playBtn) return 'no-center-play'; playBtn.click(); return 'clicked-center-play'; })()", "name": "click-play" },
+  { "wait": 1000 },
+  { "eval": "(() => { const bar = [...document.querySelectorAll('div')].find(d => { const c = String(d.className); return c.includes('absolute') && c.includes('bottom-0') && d.querySelectorAll('button[aria-label]').length >= 3; }); return bar ? 'desktop-control-bar: OK with ' + bar.querySelectorAll('button[aria-label]').length + ' aria buttons' : 'control-bar: MISSING'; })()", "name": "control-bar" },
+  { "viewport": [390, 844, 3], "name": "phone" },
+  { "navigate": "/videos", "settle": 15000 },
+  { "eval": "(() => { const card = [...document.querySelectorAll('a[href*=\"/videos/\"]')].filter(a => a.offsetHeight > 0)[0]; card.click(); return 'phone-video'; })()" },
+  { "wait": 2500 },
+  { "eval": "(() => { const btns = [...document.querySelectorAll('button')].filter(b => b.getAttribute('aria-label')).map(b => b.getAttribute('aria-label')); return JSON.stringify({ videoBtns: btns.filter(b => ['Phát','Tắt tiếng','Toàn màn hình','Phát video','Tạm dừng video'].includes(b)) }); })()", "name": "phone-video-btns" }
+]

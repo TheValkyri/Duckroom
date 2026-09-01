@@ -1,4 +1,4 @@
-import { ChevronUp, ListMusic, Mic2, Play, SkipForward, Sparkles, Volume2, VolumeX } from "lucide-react";
+import { ChevronUp, ListMusic, Mic2, Play, SkipBack, SkipForward, Sparkles, Volume2, VolumeX } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { albumById, formatTime } from "../../data/library";
@@ -33,6 +33,7 @@ export function PlayerBar() {
     seek,
     toggle: togglePlayback,
     next,
+    prev,
   } = usePlayer();
 
   const [coverLoaded, setCoverLoaded] = useState(false);
@@ -51,12 +52,7 @@ export function PlayerBar() {
           nguyên cho >=md. Cùng một usePlayer API — không nhân bản logic. */}
       <AnimatePresence>{queueOpen && isPhone && <QueueSheet />}</AnimatePresence>
       <AnimatePresence>{queueOpen && !isPhone && <QueuePanel />}</AnimatePresence>
-      {/* Continue-Listening chip (Phase 5.2, thu gọn 2026-09-01):
-          Trước đây là pill chữ-dài giữa màn hình (to + che nội dung + lệch
-          tâm với dock). Giờ là MỘT chip hành động duy nhất neo góc trên-
-          trái của mini-player / desktop bar — đúng ngữ cảnh "player đang
-          có bài dở", không che nội dung, một chạm là resume. Thời lượng
-          đợi được hiển thị (h:bâo lâu nữa) thay vì câu hỏi dài. */}
+      {/* Continue-Listening chip — PHONE (<lg): neo phía trên mini-player */}
       <AnimatePresence>
         {resumeHint && !isPlaying && (
           <motion.div
@@ -64,7 +60,7 @@ export function PlayerBar() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 8, opacity: 0 }}
             transition={tweenFast}
-            className="fixed left-1/2 z-50 -translate-x-1/2 bottom-[calc(9.25rem+var(--safe-bottom))] lg:bottom-20"
+            className="fixed left-1/2 z-50 -translate-x-1/2 bottom-[calc(9.5rem+var(--safe-bottom))] lg:hidden"
           >
             <button
               onClick={() => {
@@ -75,13 +71,7 @@ export function PlayerBar() {
               className="glass-strong border-primary/30 text-foreground flex max-w-[calc(100vw-1.5rem)] items-center gap-2 rounded-full border px-3.5 py-1.5 shadow-lg cursor-pointer hover:border-primary/60 transition-colors"
               aria-label={`Phát tiếp từ vị trí ${formatTime(resumeHint.positionSeconds)}: ${current.title}`}
             >
-              <span className="bg-primary grid size-4 shrink-0 place-items-center rounded-full">
-                <Play className="text-primary-foreground size-2.5" fill="currentColor" />
-              </span>
-              <span className="truncate text-xs font-medium">
-                Tiếp tục <strong className="text-primary">{current.title}</strong>
-                <span className="text-muted-foreground"> · {formatTime(resumeHint.positionSeconds)}</span>
-              </span>
+              <ResumeChipLabel title={current.title} position={resumeHint.positionSeconds} />
             </button>
           </motion.div>
         )}
@@ -172,6 +162,20 @@ export function PlayerBar() {
             <span className="bg-primary text-primary-foreground grid size-11 place-items-center rounded-full shadow-[0_8px_30px_-8px_oklch(0.76_0.14_66/0.7)]">
               {isPlaying ? <PauseIcon className="size-5" /> : <PlayIcon className="size-5 translate-x-px" />}
             </span>
+          </motion.button>
+          {/* Prev + Next — đối xứng 2 bên nút play (feedback: trước đây
+              thiếu nút lùi). Prev restart bài nếu >3s (§11.4 chuẩn). */}
+          <motion.button
+            aria-label="Bài trước"
+            onClick={(e) => {
+              e.stopPropagation();
+              prev();
+            }}
+            whileTap={tapScale}
+            transition={springSnappy}
+            className="text-muted-foreground hover:text-foreground grid size-11 shrink-0 place-items-center rounded-full transition-colors cursor-pointer"
+          >
+            <SkipBack className="size-5" fill="currentColor" />
           </motion.button>
           <motion.button
             aria-label="Bài sau"
@@ -331,8 +335,46 @@ export function PlayerBar() {
             </motion.button>
             <VolumeBar />
           </div>
+
+          {/* DESKTOP resume chip — NGỒI TRONG footer (absolute), nổi lên
+              mép trên phải của bar. Không bao giờ dính content phía trên
+              vì nó là một phần của bar; tự ẩn khi play. */}
+          <AnimatePresence>
+            {resumeHint && !isPlaying && (
+              <motion.button
+                initial={{ y: 6, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 6, opacity: 0 }}
+                transition={tweenFast}
+                onClick={() => {
+                  seek(resumeHint.positionSeconds);
+                  togglePlayback();
+                  clearResumeHint();
+                }}
+                className="glass-strong border-primary/30 text-foreground absolute -top-4 right-6 z-10 flex max-w-xs items-center gap-2 rounded-full border px-3.5 py-1.5 shadow-lg cursor-pointer hover:border-primary/60 transition-colors"
+                aria-label={`Phát tiếp từ vị trí ${formatTime(resumeHint.positionSeconds)}: ${current.title}`}
+              >
+                <ResumeChipLabel title={current.title} position={resumeHint.positionSeconds} />
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
       </motion.footer>
+    </>
+  );
+}
+
+/** Nội dung chip resume dùng chung phone/desktop (giữ 2 vị trí đồng bộ UI). */
+function ResumeChipLabel({ title, position }: { title: string; position: number }) {
+  return (
+    <>
+      <span className="bg-primary grid size-4 shrink-0 place-items-center rounded-full">
+        <Play className="text-primary-foreground size-2.5" fill="currentColor" />
+      </span>
+      <span className="truncate text-xs font-medium">
+        Tiếp tục <strong className="text-primary">{title}</strong>
+        <span className="text-muted-foreground"> · {formatTime(position)}</span>
+      </span>
     </>
   );
 }

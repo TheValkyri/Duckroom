@@ -1,0 +1,14 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/library", "settle": 25000 },
+  { "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; if (!rows.length) return 'no-rows-yet'; if (rows.length < 6) return 'rows=' + rows.length; rows[5].querySelector('button').click(); return 'play6-ok'; })()", "name": "play6" },
+  { "wait": 2200 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); if (!d) return 'no-dock'; d.querySelector('[role=button]').click(); return 'expand'; })()" },
+  { "wait": 1500 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); if (!fs) return 'no-fs'; const line = [...fs.querySelectorAll('p')].find(p => String(p.className).includes('leading-6')); return line ? 'CURRENT-LINE: ' + JSON.stringify(line.textContent.slice(0, 50)) : 'not-found'; })()", "name": "current-line" },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const lyr = [...fs.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('lời bài hát')); lyr.click(); return 'open'; })()" },
+  { "wait": 900 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const sheet = [...fs.querySelectorAll('[role=dialog]')].find(d => (d.getAttribute('aria-label')||'').includes('Lời bài hát')); if (!sheet) return 'no-sheet'; const cs = getComputedStyle(sheet); const m = cs.backgroundColor.match(/rgba\\([^)]+,\\s*([\\d.]+)\\)/); const lines = sheet.querySelectorAll('button[data-base]').length; return JSON.stringify({ alpha: m ? m[1] : 'solid', blur: cs.backdropFilter.slice(0, 22), lyricLines: lines }); })()", "name": "material" },
+  { "screenshot": "C:/Users/Darne/AppData/Local/Temp/opencode/shots/lyrics-sheet-final.png" },
+  { "measureFPS": 2000, "name": "with-lyrics-sheet" }
+]

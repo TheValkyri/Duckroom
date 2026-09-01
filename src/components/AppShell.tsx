@@ -10,6 +10,7 @@ import {
   Loader2,
   LogIn,
   LogOut,
+  MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
   ShieldCheck,
@@ -94,6 +95,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const visibleNav = nav.filter((item) => item.to !== "/upload" || isOwner);
   const [ingestionState, setIngestionState] = useState<IngestionStoreState>(getIngestionStoreState());
   const [collapsed, setCollapsed] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
     return subscribeIngestionStore(setIngestionState);
@@ -102,6 +104,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const activeIngestion = ingestionState.items.find(
     (i) => i.stage === "uploading" || i.stage === "verifying_server" || i.stage === "committing",
   );
+
+  // Tab "Xem thêm" active khi đang ở 1 trong các đích phụ của More sheet.
+  const isMoreActive =
+    location.pathname.startsWith("/albums") ||
+    location.pathname.startsWith("/singles") ||
+    location.pathname === "/upload" ||
+    location.pathname === "/admin";
 
   return (
     <div className="bg-background min-h-screen" suppressHydrationWarning>
@@ -351,12 +360,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Mobile Bottom Navigation Dock — dính mép dưới màn hình, padding
           trong nav chịu safe-area (pb-safe) để tránh gesture bar; bản thân
           nav KHÔNG bị nâng lên (bottom:0), nếu không sẽ hở khe thấy content
-          chạy phía dưới. */}
+          chạy phía dưới.
+          Redesign 2026-09-01 (feedback "thiếu Đĩa đơn"): 5 mục — 4 đích
+          chính + 1 nút "Xem thêm" (⋯) mở LIBRARY SHEET kéo-lên chứa
+          Albums / Đĩa đơn / Tải lên (owner) / Owner Console — đúng pattern
+          "primary destinations + sheet cho secondary", cùng ngôn ngữ với
+          QueueSheet/TrackActionsSheet. */}
       <nav
         aria-label="Điều hướng chính"
         className="glass border-border fixed inset-x-0 bottom-0 z-30 border-t pb-safe lg:hidden"
       >
-        <div className="grid grid-cols-4">
+        <div className="grid grid-cols-5">
           {bottomNav.map(({ to, label, icon: Icon, match }) => {
             const isActive = match === "exact" ? location.pathname === "/" : location.pathname.startsWith(to);
             return (
@@ -383,8 +397,101 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+          {/* Nút "Xem thêm" — mở MoreSheet (Albums/Đĩa đơn/owner tools) */}
+          <button
+            type="button"
+            onClick={() => setMoreOpen(true)}
+            aria-label="Xem thêm mục"
+            aria-expanded={moreOpen}
+            className={cn(
+              "flex min-h-[56px] flex-col items-center justify-center gap-0.5 px-1 py-1.5 select-none transition-colors cursor-pointer",
+              isMoreActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <span className="relative">
+              <MoreHorizontal className="size-5" strokeWidth={isMoreActive ? 2.4 : 2} />
+              {isMoreActive && (
+                <span className="bg-primary absolute -bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full" />
+              )}
+            </span>
+            <span className={cn("text-[10px] leading-none", isMoreActive ? "font-semibold" : "font-medium")}>
+              Xem thêm
+            </span>
+          </button>
         </div>
       </nav>
+
+      {/* More Sheet — các đích phụ của bottom nav (kéo lên, đóng bằng kéo
+          xuống/nút) — same pattern QueueSheet. */}
+      <AnimatePresence>
+        {moreOpen && (
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", stiffness: 300, damping: 32 }}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.5 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 100 || (info.velocity.y > 600 && info.offset.y > 24)) setMoreOpen(false);
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Xem thêm mục điều hướng"
+            className="fixed inset-x-0 bottom-0 z-[70] flex flex-col rounded-t-[28px] border-t border-white/10 bg-card/95 backdrop-blur-md pb-safe lg:hidden"
+          >
+            <div className="flex cursor-grab justify-center pt-2.5 pb-1 active:cursor-grabbing" aria-hidden>
+              <div className="h-1.5 w-10 rounded-full bg-white/25" />
+            </div>
+            <div className="flex items-center justify-between px-5 pt-1.5 pb-2">
+              <h2 className="font-display text-lg font-semibold">Khám phá</h2>
+              <button
+                onClick={() => setMoreOpen(false)}
+                aria-label="Đóng bảng xem thêm"
+                className="text-muted-foreground hover:text-foreground hover:bg-white/10 grid size-11 place-items-center rounded-full transition-colors cursor-pointer"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 px-4 pb-4">
+              {[
+                { to: "/albums", label: "Albums", icon: Disc3, desc: "Bộ sưu tập đĩa" },
+                { to: "/singles", label: "Đĩa đơn", icon: Disc, desc: "Single & EP" },
+                ...(isOwner
+                  ? [
+                      { to: "/upload", label: "Tải lên", icon: UploadCloud, desc: "Trung tâm tiếp nhận" },
+                      { to: "/admin", label: "Owner Console", icon: ShieldCheck, desc: "Quản trị hệ thống" },
+                    ]
+                  : []),
+              ].map(({ to, label, icon: Icon, desc }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  onClick={() => setMoreOpen(false)}
+                  className="border-border bg-background/50 flex min-h-20 flex-col items-start justify-center gap-1 rounded-2xl border p-4 transition-colors hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
+                >
+                  <Icon className="text-primary size-5" />
+                  <span className="text-sm font-semibold">{label}</span>
+                  <span className="text-muted-foreground text-xs">{desc}</span>
+                </Link>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {moreOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[65] bg-black/50 lg:hidden"
+            onClick={() => setMoreOpen(false)}
+            aria-hidden
+          />
+        )}
+      </AnimatePresence>
 
       {/* Main Content Area
           Mobile: pt-14 (top header) + đủ khoảng trống cho bottom dock

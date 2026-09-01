@@ -1,0 +1,16 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/library", "settle": 25000 },
+  { "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; rows[5].querySelector('button').click(); return 'play-6-with-lyrics'; })()", "name": "play6" },
+  { "wait": 1800 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.querySelector('[role=button]').click(); return 'expand'; })()" },
+  { "wait": 1400 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const line = [...fs.querySelectorAll('p')].find(p => String(p.className).includes('leading-6')); return line ? 'CURRENT-LYRIC-ON-PLAYER: ' + JSON.stringify(line.textContent.slice(0, 40)) : 'not found'; })()", "name": "current-line" },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); [...fs.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('lời bài hát')).click(); return 'open'; })()" },
+  { "wait": 900 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const sheet = [...fs.querySelectorAll('[role=dialog]')].find(d => (d.getAttribute('aria-label')||'').includes('Lời bài hát')); const cs = getComputedStyle(sheet); const m = cs.backgroundColor.match(/rgba\\([^)]+,\\s*([\\d.]+)\\)/); const lines = sheet.querySelectorAll('button[data-base]').length; return JSON.stringify({ alpha: m ? m[1] : 'rgb-solid', blur: cs.backdropFilter, lyricLines: lines }); })()", "name": "sheet-material" },
+  { "screenshot": "C:/Users/Darne/AppData/Local/Temp/opencode/shots/lyrics-sheet-final.png" },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const sheet = [...fs.querySelectorAll('[role=dialog]')].find(d => (d.getAttribute('aria-label')||'').includes('Lời bài hát')); const close = [...sheet.querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.includes('Đóng lời')); close.click(); return 'closed'; })()" },
+  { "wait": 700 },
+  { "eval": "(() => { const chip = [...document.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('Phát tiếp từ vị trí')); if (!chip) return 'no-chip'; const dock = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); if (!dock) return 'no-dock (expanded?)'; const cr = chip.getBoundingClientRect(); const dr = dock.getBoundingClientRect(); return JSON.stringify({ chipBottom: Math.round(cr.bottom), dockTop: Math.round(dr.y), gap: Math.round(dr.y - cr.bottom) }); })()", "name": "chip-dock-gap" }
+]

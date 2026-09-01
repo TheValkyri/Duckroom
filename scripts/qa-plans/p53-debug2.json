@@ -1,0 +1,6 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/", "settle": 15000 },
+  { "eval": "(() => { const rows = document.querySelectorAll('main .group').length; const empty = document.body.textContent.includes('Kho nhạc của bạn đã sẵn sàng'); const albums = [...document.querySelectorAll('a[href*=\"/albums/\"]')].length; return JSON.stringify({ rows, emptyState: empty, albumLinks: albums }); })()", "name": "home-state" },
+  { "eval": "(() => { return fetch('/api/library-x').then(r => r.status).catch(e => 'net:' + e.name) })()", "name": "probe-net" }
+]

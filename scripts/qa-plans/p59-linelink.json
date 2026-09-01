@@ -1,0 +1,16 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/library", "settle": 25000 },
+  { "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; if (!rows.length) return 'no-rows'; rows[5].querySelector('button').click(); return 'play6'; })()", "name": "play6" },
+  { "wait": 2000 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.querySelector('[role=button]').click(); return 'expand'; })()" },
+  { "wait": 1400 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const lyr = [...fs.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('lời bài hát')); lyr.click(); return 'lyrics-open'; })()" },
+  { "wait": 900 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const sheet = [...fs.querySelectorAll('[role=dialog]')].find(d => (d.getAttribute('aria-label')||'').includes('Lời bài hát')); const line = sheet.querySelectorAll('button[data-base]')[12]; const text = line.textContent.slice(0, 30); line.click(); return 'seeked-to: ' + text; })()", "name": "tap-line-12" },
+  { "wait": 1200 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const sheet = [...fs.querySelectorAll('[role=dialog]')].find(d => (d.getAttribute('aria-label')||'').includes('Lời bài hát')); const active = [...sheet.querySelectorAll('button[data-base]')].find(b => b.className.includes('text-white opacity-100')); const lineOnPlayer = [...fs.querySelectorAll('p')].find(p => String(p.className).includes('leading-6')); return JSON.stringify({ sheetActive: active ? active.textContent.slice(0, 30) : 'none', playerLine: lineOnPlayer ? lineOnPlayer.textContent.slice(0, 30) : 'none' }); })()", "name": "both-lines" },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const sheet = [...fs.querySelectorAll('[role=dialog]')].find(d => (d.getAttribute('aria-label')||'').includes('Lời bài hát')); const close = [...sheet.querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.includes('Đóng lời')); close.click(); return 'closed'; })()" },
+  { "wait": 800 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const lineOnPlayer = [...fs.querySelectorAll('p')].find(p => String(p.className).includes('leading-6')); return 'AFTER CLOSE — current-line still on player: ' + (lineOnPlayer ? lineOnPlayer.textContent.slice(0, 35) : 'missing'); })()", "name": "line-after-close" }
+]

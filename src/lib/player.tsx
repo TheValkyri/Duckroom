@@ -845,7 +845,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           channelTrackIdB.current = null;
         }
       } else {
-        next(true);
+        // BUG FIX 2026-09-01 (repeat-one "không hoạt động"): sự kiện `ended`
+        // là auto-next, nhưng call trước đây dùng next(true) (manual) —
+        // manual=true khiến decideNext BỎ QUA repeat=one (chỉ auto-next
+        // mới lặp lại bài) → bật "Lặp 1 bài" xong hết bài vẫn nhảy bài
+        // kế. Đúng ngữ nghĩa: ended = tự nhiên → next(false) để decideNext
+        // thấy repeat=one và restart-current, repeat=all wrap, off=stop.
+        // Crossfade-handover branch phía trên đã tự tách repeat=one.
+        next(false);
       }
     };
 

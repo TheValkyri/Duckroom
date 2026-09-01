@@ -228,7 +228,10 @@ export function NowPlaying() {
           {/* Ambient Dual-Buffer Crossfading Background */}
           <AmbientCrossfadeBackground cover={rawCoverUrl} accent={album?.accent} />
 
-          {/* Top Header Bar */}
+          {/* Top Header Bar — cân đối lại (feedback 2026-09-01: nút sát mép
+              trên quá, nhìn lệch). py-3 + min-h để luôn có đệm đều trên/dưới
+              nút, pt-safe cho notch; grid 3 cột giữ dấu chấm giữa (next
+              pill) và 2 cụm nút có KHOẢNG THỞ ngang đều hai bên. */}
           <div
             onClick={(e) => {
               if (e.target === e.currentTarget) handleMinimize();
@@ -236,8 +239,10 @@ export function NowPlaying() {
             data-drag-dismiss
             onPointerDown={startDragDismiss}
             className={cn(
-              "relative z-20 grid items-center shrink-0 w-full pt-safe",
-              isPhone ? "grid-cols-[auto_1fr_auto] gap-1 px-3 py-2" : "grid-cols-3 px-6 py-4",
+              "relative z-20 grid w-full shrink-0 items-center",
+              isPhone
+                ? "grid-cols-[3rem_1fr_3rem] gap-2 px-4 pb-1 pt-[calc(0.75rem+var(--safe-top))]"
+                : "grid-cols-3 px-6 pb-3 pt-[calc(1rem+var(--safe-top))]",
             )}
           >
             <div className="flex items-center justify-start">
@@ -415,17 +420,33 @@ export function NowPlaying() {
                         </motion.div>
                       </motion.div>
 
-                      {/* Album / Track Jacket (Vỏ bìa đĩa) */}
+                      {/* Album / Track Jacket (Vỏ bìa đĩa).
+                          Fix "artwork bị crop" 2026-09-01: trước đây
+                          object-cover cắt mép mọi artwork không-square.
+                          - Portrait artwork (MV-thumbnail, cover dọc):
+                            hiển thị NGUYÊN VẸN (object-contain) trong khung
+                            rounded — nền phía sau là chính artwork phóng
+                            mờ nên khung không bao giờ "hộp đen".
+                          - Square/landscape: giữ cover (đúng aspect khung). */}
                       <div
                         className={cn(
                           "relative z-10 rounded-2xl overflow-hidden shadow-[0_25px_80px_-15px_oklch(0_0_0/0.95)] border border-white/10 transition-all duration-500 bg-neutral-900",
                           isLandscape
                             ? "w-full max-w-[min(48vh,400px)] aspect-video"
                             : isPhone
-                              ? "aspect-square w-full max-w-[min(42vh,300px)]"
+                              ? "aspect-square w-full max-w-[min(44vh,320px)]"
                               : "aspect-square w-full max-w-[min(34vh,270px)] md:max-w-[min(36vh,290px)]",
                         )}
                       >
+                        {/* Nền artwork-blur phía trong khung cho chế độ
+                            contain (portrait) — che "hộp đen" hai bên */}
+                        <img
+                          src={cleanCoverUrl || rawCoverUrl}
+                          alt=""
+                          aria-hidden
+                          decoding="async"
+                          className="absolute inset-0 size-full scale-110 object-cover opacity-60 blur-xl"
+                        />
                         <motion.img
                           src={cleanCoverUrl || rawCoverUrl}
                           alt={`Bìa ${current.title}`}
@@ -451,7 +472,10 @@ export function NowPlaying() {
                           }}
                           animate={{ scale: isPlaying ? 1 : 0.97 }}
                           transition={{ type: "spring", stiffness: 220, damping: 20 }}
-                          className="size-full object-cover rounded-2xl"
+                          className={cn(
+                            "relative size-full rounded-2xl",
+                            isLandscape ? "object-cover" : "object-contain",
+                          )}
                         />
                       </div>
                     </motion.div>
@@ -495,10 +519,18 @@ export function NowPlaying() {
                     </AnimatePresence>
                   </div>
 
-                  {/* Fixed Stable Visualizer, Seekbar & Controls (NEVER remounts or jumps) */}
-                  {/* Visualizer: 20 bars trên phone (đủ để đọc "waveform",
-                      ít work canvas+analyser hơn ~45%), 36 desktop. */}
-                  <Visualizer playing={isPlaying} bars={isPhone ? 20 : 36} height={38} className="mt-3" />
+                  {/* Fixed Stable Visualizer, Seekbar & Controls (NEVER remounts or jumps).
+                      Phone (feedback "visualizer bị phèn"): visualizer canvas
+                      thu gọn thành 1 dải mini 16px phía dưới, và NGAY DƯỚI
+                      title là dòng LỜI ĐANG PHÁT (current lyric line) mượt
+                      bằng CSS mask fade 2 bên — lời "chảy" trên player ngay
+                      cả khi sheet chưa mở. */}
+                  {isPhone ? (
+                    <PhoneCurrentLyricLine />
+                  ) : (
+                    <Visualizer playing={isPlaying} bars={36} height={38} className="mt-3" />
+                  )}
+                  {isPhone && <Visualizer playing={isPlaying} bars={28} height={16} className="mt-2 opacity-70" />}
 
                   <div className="mt-2">
                     <SeekBar />
@@ -511,63 +543,33 @@ export function NowPlaying() {
                 </div>
               </motion.div>
 
-              {/* Lyrics Pane: desktop = right-half overlay (unchanged);
-                  phone = phủ toàn bộ stage. Fix "viền đen" 2026-09-01: bỏ
-                  slab bg-background/92 + backdrop-blur (nó vẽ ra một KHỐI
-                  đen rõ rệt trên nền ambient — thứ bạn thấy trong ảnh).
-                  Thay bằng tấm gradient tinh tế mờ dần vào ambient + darken
-                  vừa đủ (50%) để chữ trắng vẫn đạt độ tương phản chuẩn,
-                  giữ cảm giác "lời nổi trên artwork" như Apple Music —
-                  không có biên, không có khối, chỉ có không gian. */}
+              {/* Lyrics — REDESIGN PHONE (feedback 2026-09-01: "khung viền
+                  đen rất kỳ"). Trước đây: overlay phủ toàn màn với gradient
+                  nền đen → cảm giác như một KHUNG đen. Giờ đúng chuẩn app
+                  nhạc: LỜI LÀ MỘT BOTTOM SHEET có handle kéo, surface
+                  mờ liền mạch (glass), kéo-thả để đóng, NỘI DUNG phía sau
+                  (artwork + progress) vẫn nhìn thấy ở trên — mở/đóng là
+                  một chuyển động không gian có lý do (từ dưới lên như
+                  QueueSheet). Desktop giữ right-half overlay như cũ. */}
               <AnimatePresence>
-                {lyricsOpen && (
+                {lyricsOpen && !isPhone && (
                   <motion.div
-                    initial={isPhone ? { opacity: 0 } : { opacity: 0, x: 60 }}
-                    animate={isPhone ? { opacity: 1 } : { opacity: 1, x: 0 }}
-                    exit={isPhone ? { opacity: 0 } : { opacity: 0, x: 60 }}
-                    transition={isPhone ? tweenBase : springSmooth}
-                    className={cn(
-                      "flex flex-col justify-center overflow-hidden z-20",
-                      isPhone
-                        ? "absolute inset-0 h-full w-full px-1 pb-2"
-                        : "w-full lg:w-1/2 h-[60vh] lg:h-[72vh] lg:absolute lg:right-0",
-                    )}
+                    initial={{ opacity: 0, x: 60 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 60 }}
+                    transition={springSmooth}
+                    className="w-full lg:w-1/2 h-[60vh] lg:h-[72vh] lg:absolute lg:right-0 flex flex-col justify-center overflow-hidden z-20"
                   >
-                    {isPhone && (
-                      <>
-                        {/* Lớp legibility: gradient dọc từ nền (trên) xuống
-                            đen 55% (dưới-chứa-chữ). Nằm dưới chữ, trên
-                            ambient — không phải "slab" phủ đều nên không
-                            tạo viền. pointer-events-none để tap vẫn tới
-                            lyrics. */}
-                        <div
-                          aria-hidden
-                          className="pointer-events-none absolute inset-0 z-0"
-                          style={{
-                            background:
-                              "linear-gradient(180deg, oklch(0.16 0.022 258 / 0.55) 0%, oklch(0.13 0.02 258 / 0.62) 40%, oklch(0.11 0.02 258 / 0.72) 100%)",
-                          }}
-                        />
-                        <div className="relative z-10 flex items-center justify-between px-4 pt-2 pb-1 shrink-0">
-                          <span className="text-primary text-[11px] font-semibold uppercase tracking-[0.22em]">
-                            {current.title}
-                          </span>
-                          <button
-                            onClick={() => setLyricsOpen(false)}
-                            aria-label="Đóng lời bài hát"
-                            className="text-muted-foreground hover:text-foreground hover:bg-accent/50 grid size-11 place-items-center rounded-full transition-colors cursor-pointer"
-                          >
-                            <X className="size-5" />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                    <div className="relative z-10 min-h-0 flex-1">
-                      <LyricsPane compact={isPhone} />
-                    </div>
+                    <LyricsPane />
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* PHONE lyrics = bottom sheet (tách khỏi stage, nằm trong
+                  fullscreen player, trên transport — kéo xuống để đóng) */}
+              {isPhone && (
+                <PhoneLyricsSheet open={lyricsOpen} onClose={() => setLyricsOpen(false)} trackTitle={current.title} />
+              )}
             </div>
           </div>
 
@@ -582,4 +584,106 @@ export function NowPlaying() {
       )}
     </AnimatePresence>
   );
+}
+
+/**
+ * PhoneCurrentLyricLine — dòng lời đang phát hiển thị ngay dưới title
+ * trên phone (feedback: muốn "lời chạy trên player luôn"). Subscriber DUY
+ * NHẤT là time; active line được tính bằng binary search rồi setState CHỈ
+ * khi index đổi (2-4 lần/phút) — không phải mỗi tick. CSS mask fade 2 bên,
+ * đổi chữ bằng key AnimatePresence để dòng mới trượt nhẹ lên (có lý do:
+ * người dùng theo dõi lời theo thời gian thực).
+ */
+function PhoneCurrentLyricLine() {
+  const { current } = usePlayer();
+  const time = usePlayerTime();
+  const lines = current?.lyrics ?? [];
+  const [activeIdx, setActiveIdx] = useState(-1);
+
+  useEffect(() => {
+    let idx = -1;
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      if (l && time >= l.time) idx = i;
+    }
+    setActiveIdx((prev) => (prev === idx ? prev : idx));
+  }, [time, lines]);
+
+  if (!lines.length) return null;
+  const line = lines[Math.max(0, activeIdx)];
+
+  return (
+    <div
+      className="relative mx-auto mt-2 h-6 max-w-[92%] overflow-hidden"
+      style={{
+        WebkitMaskImage: "linear-gradient(90deg, transparent, black 14%, black 86%, transparent)",
+        maskImage: "linear-gradient(90deg, transparent, black 14%, black 86%, transparent)",
+      }}
+      aria-hidden
+    >
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.p
+          key={`${activeIdx}-${line?.text ?? ""}`}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          className="text-foreground/85 text-center text-[13px] font-medium leading-6 tracking-tight"
+        >
+          {activeIdx >= 0 && line?.text ? line.text : "· · ·"}
+        </motion.p>
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/**
+ * PhoneLyricsSheet — lyrics dạng bottom-sheet cho fullscreen phone player
+ * (redesign 2026-09-01 theo feedback: bỏ overlay "khung đen", thay bằng
+ * sheet kéo lên có handle — cùng ngôn ngữ chuyển động với QueueSheet nên
+ * cả app nhất quán: "mở cái gì từ dưới lên, kéo xuống để đóng").
+ * Surface dùng glass (blur 12px) trên nền ambient — sheet là MỘT bề mặt
+ * liền, không phải khung viền.
+ */
+function PhoneLyricsSheet({ open, onClose, trackTitle }: { open: boolean; onClose: () => void; trackTitle: string }) {
+  const sheet = (
+    <motion.div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Lời bài hát: ${trackTitle}`}
+      initial={{ y: "100%" }}
+      animate={{ y: 0 }}
+      exit={{ y: "100%" }}
+      transition={{ type: "spring", stiffness: 300, damping: 32 }}
+      drag="y"
+      dragConstraints={{ top: 0, bottom: 0 }}
+      dragElastic={{ top: 0, bottom: 0.5 }}
+      onDragEnd={(_, info) => {
+        if (info.offset.y > 100 || (info.velocity.y > 600 && info.offset.y > 24)) onClose();
+      }}
+      className="absolute inset-x-0 bottom-0 z-40 flex h-[68%] flex-col rounded-t-[28px] border-t border-white/10 bg-card/85 backdrop-blur-md pb-safe"
+    >
+      {/* Handle: vùng kéo-toả-sheet, cũng là điểm nắm trực quan */}
+      <div className="flex cursor-grab justify-center pt-2.5 pb-1 active:cursor-grabbing" aria-hidden>
+        <div className="h-1.5 w-10 rounded-full bg-white/25" />
+      </div>
+      <div className="flex items-center justify-between px-5 pt-1.5 pb-2 shrink-0">
+        <span className="text-primary text-[11px] font-semibold uppercase tracking-[0.22em] truncate">
+          {trackTitle}
+        </span>
+        <button
+          onClick={onClose}
+          aria-label="Đóng lời bài hát"
+          className="text-muted-foreground hover:text-foreground hover:bg-white/10 grid size-9 place-items-center rounded-full transition-colors cursor-pointer"
+        >
+          <X className="size-4.5" />
+        </button>
+      </div>
+      <div className="min-h-0 flex-1">
+        <LyricsPane compact />
+      </div>
+    </motion.div>
+  );
+
+  return <AnimatePresence>{open && sheet}</AnimatePresence>;
 }

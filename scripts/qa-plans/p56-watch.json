@@ -1,0 +1,8 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'nav'", "name": "go" },
+  { "wait": 20000 },
+  { "eval": "(() => { const rows = document.querySelectorAll('main .group').length; const txt = document.body.textContent; const hasCount = txt.match(/(\\d+) bản thu/); const err = document.querySelector('[role=alert]'); const t = performance.now(); return JSON.stringify({ rows, count: hasCount ? hasCount[1] : 'none', atMs: Math.round(t), path: location.pathname }); })()", "name": "state-20s" },
+  { "wait": 15000 },
+  { "eval": "(() => { const rows = document.querySelectorAll('main .group').length; return JSON.stringify({ rows, atMs: Math.round(performance.now()) }); })()", "name": "state-35s" }
+]

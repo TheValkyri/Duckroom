@@ -96,7 +96,7 @@ async function main() {
       }
       if (step.screenshot) {
         const r = await send("Page.captureScreenshot", { format: "png" });
-        const dir = require("node:path").dirname(step.screenshot);
+        const dir = step.screenshot.split("/").slice(0, -1).join("/");
         if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
         writeFileSync(step.screenshot, Buffer.from(r.data, "base64"));
         log(`[screenshot] ${step.screenshot}`);

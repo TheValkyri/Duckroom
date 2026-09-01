@@ -152,14 +152,24 @@ function VideoPage() {
 
       {/* PERF 2026-09-01: bỏ layoutId video-* (đo layout cross-page mỗi
           lần vào trang) và bỏ motion wrapper — container tĩnh. */}
-      <div ref={containerRef} className="group relative overflow-hidden rounded-xl bg-black shadow-2xl">
+      <div
+        ref={containerRef}
+        className={cn(
+          "group relative overflow-hidden bg-black shadow-2xl",
+          // Fullscreen fix 2026-09-01: trước đây container giữ aspect-video
+          // + rounded trong fullscreen native → video dính mép TRÊN, hở
+          // đen dưới (như ảnh 3). Khi fullscreen: chiếm trọn 100vw/100vh,
+          // bỏ radius, video object-contain tự center → chuẩn hệ TV.
+          isFullscreen ? "h-screen w-screen rounded-none" : "rounded-xl",
+        )}
+      >
         <video
           ref={videoRef}
           src={videoSrc || undefined}
           poster={video.thumb || undefined}
           preload="metadata"
           playsInline
-          className="aspect-video w-full object-contain"
+          className={cn("w-full object-contain", isFullscreen ? "h-full" : "aspect-video")}
           onPlay={() => {
             pauseAudioPlayer();
             setIsPlaying(true);

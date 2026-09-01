@@ -106,3 +106,15 @@ describe("mobile shell: queue + track actions reachable without hover", () => {
     expect(sheet).not.toMatch(/[^/\s"']confirm\(/);
   });
 });
+
+describe("player regression guards (2026-09-01 feedback round)", () => {
+  it("BUGFIX: natural track end (`ended`) must be AUTO-next, not manual — repeat=one relies on it", () => {
+    // Regression: onEnded previously called next(true) (manual), which made
+    // decideNext SKIP the repeat=one restart branch — repeat-one appeared
+    // broken to users. The ended event is an automatic transition.
+    const src = read("lib/player.tsx");
+    const endedBlock = src.match(/const onEnded = \(\) => \{[\s\S]*?\s+next\(\w+\);\s*\}\s*\};/);
+    expect(endedBlock).toBeTruthy();
+    expect(endedBlock![0]).toContain("next(false)");
+  });
+});

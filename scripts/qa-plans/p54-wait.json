@@ -1,0 +1,5 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "navigate": "/library", "settle": 25000 },
+  { "eval": "(() => { return JSON.stringify({ rows: document.querySelectorAll('main .group').length, navOK: !!document.querySelector(\"nav[aria-label='Điều hướng chính']\") }); })()", "name": "after-25s" }
+]

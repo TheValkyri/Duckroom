@@ -1,0 +1,14 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "location.href = 'http://localhost:5173/library?cb=' + Date.now(); 'fresh-load'", "name": "hard-nav" },
+  { "wait": 25000 },
+  { "tapSelector": "main .group button", "settle": 1800 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.querySelector('[role=button]').click(); return 'expand'; })()" },
+  { "wait": 1400 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const minBtn = [...fs.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Thu nhỏ trình phát'); const r = minBtn.getBoundingClientRect(); return JSON.stringify({ minTop: Math.round(r.y), breathingOK: r.y >= 10 }); })()", "name": "header-after-fix" },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); [...fs.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('lời bài hát')).click(); return 'open'; })()" },
+  { "wait": 900 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const sheet = [...fs.querySelectorAll('[role=dialog]')].find(d => (d.getAttribute('aria-label')||'').includes('Lời bài hát')); const cs = getComputedStyle(sheet); const rgba = cs.backgroundColor; const alpha = rgba.match(/rgba\\([^)]+,\\s*([\\d.]+)\\)/); return JSON.stringify({ bg: rgba, alpha: alpha ? alpha[1] : 'opaque', isGlassy: alpha ? parseFloat(alpha[1]) < 1 : false, hasBlur: cs.backdropFilter !== 'none' }); })()", "name": "sheet-material" },
+  { "screenshot": "C:/Users/Darne/AppData/Local/Temp/opencode/shots/lyrics-sheet-v2.png" },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const sheet = [...fs.querySelectorAll('[role=dialog]')].find(d => (d.getAttribute('aria-label')||'').includes('Lời bài hát')); const drag = new MouseEvent('pointerdown', { bubbles: true }); return 'sheet present: ' + !!sheet; })()" }
+]
