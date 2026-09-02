@@ -88,10 +88,8 @@ export const AlbumCard = memo(function AlbumCard({
         )}
 
         <Link to="/albums/$albumId" params={{ albumId: album.id }} className="block">
-          <div className="relative overflow-hidden rounded-xl bg-card/60 shadow-md">
-            {!imgLoaded && (
-              <div className="absolute inset-0 bg-muted/40 animate-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-            )}
+          <div className="card-lift relative overflow-hidden rounded-xl bg-card/60">
+            {!imgLoaded && <div className="skeleton-bone absolute inset-0" />}
             <motion.img
               layoutId={`cover-${album.id}`}
               src={

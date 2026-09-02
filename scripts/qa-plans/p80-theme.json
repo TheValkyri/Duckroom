@@ -1,0 +1,21 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'r'", "name": "reload" },
+  { "wait": 22000 },
+  { "eval": "(() => { const root = document.documentElement; return JSON.stringify({ dataTheme: root.getAttribute('data-theme'), primary: root.style.getPropertyValue('--primary').trim().slice(0, 30), themeBtn: !![...document.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('Tùy chỉnh giao diện')) }); })()", "name": "init-state" },
+  { "eval": "(() => { const btn = [...document.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('Tùy chỉnh giao diện')); btn.click(); return 'picker-open'; })()" },
+  { "wait": 900 },
+  { "eval": "(() => { const p = document.querySelector('[aria-label=\"Tùy chỉnh giao diện\"][role=dialog], [aria-label=\"Bảng tùy chỉnh giao diện\"]') || document.querySelector('[role=dialog]'); if (!p) return 'no-dialog'; const swatches = [...p.querySelectorAll('button[aria-label^=\"Màu\"]')].length; const sliders = p.querySelectorAll('input[type=range]').length; const modeBtns = [...p.querySelectorAll('button[aria-pressed]')].length; return JSON.stringify({ swatches, sliders, modeBtns }); })()", "name": "picker-content" },
+  { "eval": "(() => { const p = document.querySelector('[role=dialog]'); const violet = [...p.querySelectorAll('button[aria-label]')].find(b => b.getAttribute('aria-label').includes('Tím')); if (!violet) return 'no-violet'; violet.click(); const root = document.documentElement; return 'after violet: ' + root.style.getPropertyValue('--primary').trim(); })()", "name": "pick-violet" },
+  { "eval": "(() => { const persisted = JSON.parse(localStorage.getItem('duckroom.theme.v1')); return JSON.stringify(persisted); })()", "name": "persist-check" },
+  { "eval": "(() => { const p = document.querySelector('[role=dialog]'); const light = [...p.querySelectorAll('button')].find(b => b.textContent.includes('Sáng')); light.click(); return 'light-click'; })()" },
+  { "wait": 800 },
+  { "eval": "(() => { const root = document.documentElement; const bg = getComputedStyle(document.body).backgroundColor; return JSON.stringify({ dataTheme: root.getAttribute('data-theme'), bodyBg: bg, persisted: JSON.parse(localStorage.getItem('duckroom.theme.v1')).mode }); })()", "name": "light-mode" },
+  { "screenshot": "C:/Users/Darne/AppData/Local/Temp/opencode/shots/theme-light.png" },
+  { "eval": "(() => { const p = document.querySelector('[role=dialog]'); const hueSlider = p.querySelectorAll('input[type=range]')[0]; const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; setter.call(hueSlider, '150'); hueSlider.dispatchEvent(new Event('input', { bubbles: true })); hueSlider.dispatchEvent(new Event('change', { bubbles: true })); const root = document.documentElement; return 'hue150: ' + root.style.getPropertyValue('--primary').trim(); })()", "name": "hue-slider" },
+  { "eval": "(() => { const root = document.documentElement; return JSON.stringify({ persistedNow: JSON.parse(localStorage.getItem('duckroom.theme.v1')) }); })()", "name": "persist-custom" },
+  { "eval": "(() => { const close = [...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.includes('Đóng bảng')); close.click(); return 'closed'; })()" },
+  { "wait": 600 },
+  { "eval": "(() => { return JSON.stringify({ stillLight: document.documentElement.getAttribute('data-theme') === 'light', primaryHeld: document.documentElement.style.getPropertyValue('--primary').trim() }); })()", "name": "after-close" },
+  { "measureFPS": 1500, "name": "light-fps" }
+]

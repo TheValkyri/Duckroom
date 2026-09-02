@@ -1,0 +1,6 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'reload-with-theme'", "name": "reload" },
+  { "wait": 20000 },
+  { "eval": "(() => { const root = document.documentElement; return JSON.stringify({ afterReload: { mode: root.getAttribute('data-theme'), primary: root.style.getPropertyValue('--primary').trim() }, matchesSaved: JSON.parse(localStorage.getItem('duckroom.theme.v1')) }); })()", "name": "fouac-check" }
+]

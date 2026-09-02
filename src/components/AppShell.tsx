@@ -11,6 +11,7 @@ import {
   LogIn,
   LogOut,
   MoreHorizontal,
+  Palette,
   PanelLeftClose,
   PanelLeftOpen,
   ShieldCheck,
@@ -26,6 +27,8 @@ import { useAuth } from "../lib/useAuth";
 import { useDuckroomRole } from "../lib/useRole";
 import { cn } from "../lib/utils";
 import { useScrollLock } from "../hooks/use-scroll-lock";
+import { ThemePicker } from "./ThemePicker";
+import { ensureThemeApplied } from "../lib/theme";
 import { NowPlaying } from "./player/NowPlaying";
 import { PlayerBar } from "./player/PlayerBar";
 
@@ -99,6 +102,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [moreOpen, setMoreOpen] = useState(false);
   // QoL: khoá scroll nền khi More sheet mở.
   useScrollLock(moreOpen);
+  const [themeOpen, setThemeOpen] = useState(false);
+  const [themeOrigin, setThemeOrigin] = useState<{ x: number; y: number } | null>(null);
+
+  // Belt-and-suspenders: đảm bảo inline vars khớp store sau khi hydrate
+  // (init-script đã chạy trước trong <head>; gọi lại 1 lần vô hại).
+  useEffect(() => {
+    ensureThemeApplied();
+  }, []);
 
   useEffect(() => {
     return subscribeIngestionStore(setIngestionState);
@@ -310,6 +321,21 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
         </Link>
         <div className="flex items-center gap-1">
+          <motion.button
+            type="button"
+            whileTap={tapScale}
+            transition={springSnappy}
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setThemeOrigin({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
+              setThemeOpen(true);
+            }}
+            aria-label="Tùy chỉnh giao diện"
+            title="Tùy chỉnh giao diện"
+            className="text-muted-foreground hover:text-primary grid size-11 place-items-center rounded-full transition-colors hover:bg-accent/50 cursor-pointer"
+          >
+            <Palette className="size-5" />
+          </motion.button>
           {isOwner && (
             <>
               <Link
@@ -525,6 +551,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
       <PlayerBar />
       <NowPlaying />
+      <AnimatePresence>
+        {themeOpen && <ThemePicker open={themeOpen} onClose={() => setThemeOpen(false)} triggerOrigin={themeOrigin} />}
+      </AnimatePresence>
     </div>
   );
 }

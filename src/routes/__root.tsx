@@ -118,6 +118,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-icon", href: "/og-image.jpg" },
       { rel: "manifest", href: "/site.webmanifest" },
     ],
+    scripts: [
+      // Chặn FOUC theme: áp data-theme + accent vars TRƯỚC hydrate. Phải
+      // đứng trước mọi CSS render-blocking để không thấy flash màu mặc định.
+      { src: "/theme-init.js" },
+    ],
   }),
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
