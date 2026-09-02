@@ -72,13 +72,12 @@ describe("theme: CSS foundation", () => {
     expect(css).toMatch(/\[data-theme="light"\][\s\S]*?--background: oklch\(0\.965/);
   });
 
-  it("view-transition rules present (circle reveal)", () => {
-    expect(css).toContain("::view-transition-old(root)");
-    expect(css).toContain("::view-transition-new(root)");
-  });
-
-  it(".theme-fx soft fallback present", () => {
-    expect(css).toMatch(/\.theme-fx,/);
+  it("v1 jank sources are REMOVED (rework 2026-09-01)", () => {
+    // View Transitions = chụp snapshot viewport mỗi lần đổi → khựng.
+    expect(css).not.toContain("::view-transition-old(root)");
+    expect(css).not.toContain("::view-transition-new(root)");
+    // transition * + !important = style-recalc nghìn node → jank.
+    expect(css).not.toMatch(/\.theme-fx,/);
   });
 
   it("accent tokens defined as :root fallback (pre-hydration)", () => {
@@ -93,6 +92,44 @@ describe("theme: CSS foundation", () => {
     expect(m).toBeTruthy();
     expect(m![0]).toContain("translateY(28px)");
     expect(m![0]).not.toContain("translateY(100%)");
+  });
+});
+
+describe("theme: ripple implementation (sóng nước)", () => {
+  const store = read("src/lib/theme.ts");
+
+  it("no startViewTransition call-site anywhere (the v1 lag source)", () => {
+    // Nhắc TÊN trong comment giải thích là OK; CALL-SITE mới là bug.
+    expect(store).not.toMatch(/\.startViewTransition\s*\(/);
+  });
+
+  it("ripple uses GPU-only WAAPI on 2 custom properties", () => {
+    expect(store).toContain("--ripple-r");
+    expect(store).toContain("--ripple-d");
+    expect(store).toContain("wrap.animate");
+    expect(store).toContain("pointer-events:none");
+  });
+
+  it("random ripple origin avoids edges (12% margin)", () => {
+    const m = store.match(/export function randomRippleOrigin[\s\S]*?\n\}/);
+    expect(m).toBeTruthy();
+    expect(m![0]).toContain("0.12");
+  });
+
+  it("ripple cleans up (finish removes layer + timeout failsafe)", () => {
+    expect(store).toMatch(/wrap\.remove\(\)/);
+    expect(store).toMatch(/setTimeout\(finish/);
+  });
+
+  it("accent morph = rAF tween, shortest hue path", () => {
+    expect(store).toContain("setAccentWithMorph");
+    expect(store).toContain("dh -= 360");
+    expect(store).toContain("requestAnimationFrame(step)");
+  });
+
+  it("slider drag never writes localStorage synchronously (debounced)", () => {
+    expect(store).toContain("persistDebounced");
+    expect(store).toMatch(/live\?:\s*boolean/);
   });
 });
 

@@ -235,37 +235,14 @@
 }
 
 /* ---------------------------------------------------------------------------
- * THEME FX (2026-09-01)
- * - View Transitions circle-reveal: JS animate() dùng pseudo-element
- *   ::view-transition-new(root) — cần các rule gốc này để layer tồn tại
- *   và không bị blend lỗi. reduced-motion đã tắt bởi block toàn cục.
- * - .theme-fx: fallback mềm — transition màu 420ms mọi phần tử đang
- *   đổi token (không layout-prop nào nằm trong đây).
+ * THEME FX v2 (rework 2026-09-01 "sóng nước")
+ * View Transitions + clip-path đã bị LOẠI — chụp snapshot viewport mỗi lần
+ * chuyển mode là nguyên nhân khựng chính (raster cả cây DOM). Thay bằng
+ * ripple 2-layer GPU trong theme.ts (chỉ animate 2 custom property).
+ * rules ::view-transition cũ đã xóa hẳn để không ai dùng lại nhầm.
+ * .theme-fx cũ (transition * + !important → style-recalc nghìn node)
+ * cũng đã xóa cùng lý do.
  * ------------------------------------------------------------------------ */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
-}
-::view-transition-old(root) {
-  z-index: 1;
-}
-::view-transition-new(root) {
-  z-index: 9999;
-}
-
-.theme-fx,
-.theme-fx *,
-.theme-fx *::before,
-.theme-fx *::after {
-  transition:
-    background-color 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    color 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    fill 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    stroke 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 420ms cubic-bezier(0.22, 1, 0.36, 1) !important;
-}
 
 /* ---------------------------------------------------------------------------
  * SANG TRỌNG HOÁ (2026-09-01) — chất liệu, không phải trang trí.

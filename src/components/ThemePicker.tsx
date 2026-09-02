@@ -1,21 +1,28 @@
 import { Check, Moon, Palette, Sun } from "lucide-react";
 import { motion } from "motion/react";
 import { useMemo, useRef } from "react";
-import { ACCENT_PRESETS, HUE_MAX, SAT_MAX, SAT_MIN, setModeWithReveal, setTheme, useTheme } from "../lib/theme";
+import {
+  ACCENT_PRESETS,
+  HUE_MAX,
+  SAT_MAX,
+  SAT_MIN,
+  setAccentWithMorph,
+  setModeWithRipple,
+  setTheme,
+  useTheme,
+} from "../lib/theme";
 import { springSnappy, tapScale } from "../lib/motion";
 import { cn } from "../lib/utils";
 import { useScrollLock } from "../hooks/use-scroll-lock";
 
 /**
- * ThemePicker — bảng tùy chỉnh giao diện (2026-09-01).
- * Mode (dark/light) + 8 preset accent + slider Hue & "Đậm" (saturation).
- * - Preset: chạm là đổi màu accent TOÀN app ngay (repaint biến, 0 layout).
- * - Slider: kéo liên tục — accent hiện đại ứng biến qua oklch; cả hai
- *   chân đều có mốc (mono → gold → neon-ish) cho cảm giác có quy luật.
- * - Mode: bấm Icon chuyển qua setModeWithReveal — hiệu ứng TRÒN LAN TỎA
- *   từ đúng vị trí ngón tay (View Transitions; fallback transition mềm).
- * Pure client (localStorage qua store) — Guest/Member đều dùng được;
- * Member sau này có thể sync server (user_preferences.theme — cột đã có).
+ * ThemePicker — bảng tùy chỉnh giao diện (rework "sóng nước" 2026-09-01).
+ * - Mode: SÓNG NƯỚC lan tỏa — tâm NGẪU NHIÊN mỗi lần bấm (yếu tố wow),
+ *   viền sóng phát sáng màu accent mới; GPU-only, 0 khựng.
+ * - Preset: màu MORPH chảy sang preset (~260ms) — không đột biến.
+ * - Slider: repaint live qua CSS vars khi KÉO; localStorage chỉ ghi khi
+ *   THẢ TAY (change event) — không bao giờ chặn cử chỉ đang kéo.
+ * Pure client — Guest/Member đều dùng được.
  */
 export function ThemePicker({
   open,
@@ -24,7 +31,7 @@ export function ThemePicker({
 }: {
   open: boolean;
   onClose: () => void;
-  /** Điểm bấm để làm tâm hiệu ứng reveal khi đổi mode. */
+  /** Điểm bấm làm MẶT ĐỰC modes-toggle; tâm sóng thật sự là ngẫu nhiên. */
   triggerOrigin: { x: number; y: number } | null;
 }) {
   useScrollLock(open);
@@ -45,15 +52,27 @@ export function ThemePicker({
   if (!open) return null;
 
   const pickPreset = (id: string, hue: number, sat: number) => {
-    setTheme({ preset: id, hue, sat });
+    void triggerOrigin;
+    setAccentWithMorph(hue, sat, id);
   };
 
+  // Kéo: chỉ repaint (live) — KHÔNG persist giữa cử chỉ.
   const onHueInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setTheme({ hue: Number(e.target.value), preset: "custom" });
+    setTheme({ hue: Number(e.target.value), preset: "custom" }, { live: true });
   };
   const onSatInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setTheme({ sat: Number(e.target.value), preset: "custom" });
+    setTheme({ sat: Number(e.target.value), preset: "custom" }, { live: true });
   };
+  // Thả tay: persist kết quả cuối (một write duy nhất).
+  const commitFromInput = (el: HTMLInputElement) => {
+    const v = Number(el.value);
+    if (el === hueSliderRef.current) setTheme({ hue: v, preset: "custom" });
+    else setTheme({ sat: v, preset: "custom" });
+  };
+  const onHueCommit = (e: React.PointerEvent<HTMLInputElement> | React.KeyboardEvent<HTMLInputElement>) =>
+    commitFromInput(e.currentTarget);
+  const onSatCommit = (e: React.PointerEvent<HTMLInputElement> | React.KeyboardEvent<HTMLInputElement>) =>
+    commitFromInput(e.currentTarget);
 
   const previewCss = `oklch(${theme.mode === "dark" ? 0.76 : 0.52} ${theme.sat} ${theme.hue})`;
 
@@ -65,7 +84,7 @@ export function ThemePicker({
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => void setModeWithReveal("dark", triggerOrigin)}
+            onClick={() => setModeWithRipple("dark", null)}
             className={cn(
               "flex items-center justify-center gap-2 rounded-2xl border py-3 text-sm font-medium transition-colors cursor-pointer",
               theme.mode === "dark"
@@ -78,7 +97,7 @@ export function ThemePicker({
           </button>
           <button
             type="button"
-            onClick={() => void setModeWithReveal("light", triggerOrigin)}
+            onClick={() => setModeWithRipple("light", null)}
             className={cn(
               "flex items-center justify-center gap-2 rounded-2xl border py-3 text-sm font-medium transition-colors cursor-pointer",
               theme.mode === "light"
@@ -144,7 +163,8 @@ export function ThemePicker({
           />
           <div className="min-w-0 flex-1 space-y-2.5">
             {/* Hue slider — track là CHÍNH vòng màu oklch (độc đáo,
-                          người dùng thấy ngay cả dải màu đang kéo). */}
+                người dùng thấy ngay cả dải màu đang kéo).
+                Kéo = repaint live; THẢ TAY = persist (1 write). */}
             <label className="block">
               <span className="text-muted-foreground mb-1 flex items-center justify-between text-[11px]">
                 <span>Màu sắc</span>
@@ -158,6 +178,8 @@ export function ThemePicker({
                 step={1}
                 value={theme.hue}
                 onChange={onHueInput}
+                onPointerUp={onHueCommit}
+                onKeyUp={onHueCommit}
                 aria-label="Đổi màu nhấn"
                 className="hue-range h-6 w-full cursor-pointer appearance-none bg-transparent"
               />
@@ -175,6 +197,8 @@ export function ThemePicker({
                 step={0.005}
                 value={theme.sat}
                 onChange={onSatInput}
+                onPointerUp={onSatCommit}
+                onKeyUp={onSatCommit}
                 aria-label="Đổi độ đậm màu"
                 className="sat-range h-6 w-full cursor-pointer appearance-none bg-transparent"
               />

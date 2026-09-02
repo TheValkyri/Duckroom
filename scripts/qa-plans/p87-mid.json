@@ -1,0 +1,12 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'r'", "name": "reload" },
+  { "wait": 22000 },
+  { "eval": "(() => { const btn = [...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Tùy chỉnh giao diện'); btn.click(); return 'open'; })()" },
+  { "wait": 900 },
+  { "eval": "(() => { const dialog = document.querySelector('[role=dialog][aria-label=\"Tùy chỉnh giao diện\"]'); const dark = [...dialog.querySelectorAll('button')].find(b => b.textContent.includes('Tối')); const light = [...dialog.querySelectorAll('button')].find(b => b.textContent.includes('Sáng')); const target = document.documentElement.getAttribute('data-theme') === 'dark' ? light : dark; const o = { x: 195, y: 400 }; window.__ripple_test = true; target.click(); const layer = document.getElementById('duckroom-theme-ripple'); return JSON.stringify({ layerAt0ms: !!layer, children: layer ? layer.children.length : 0 }); })()", "name": "layer-immediately" },
+  { "eval": "(() => { const layer = document.getElementById('duckroom-theme-ripple'); if (!layer) return 'gone-already'; const newL = layer.children[1]; const cs = getComputedStyle(newL); const m = cs.maskImage.match(/circle ([\\d.]+)px/); return JSON.stringify({ midRippleRadius: m ? m[1] + 'px' : cs.maskImage.slice(0, 50), edgeVisible: layer.children.length === 3 }); })()", "name": "mid-ripple" },
+  { "screenshot": "C:/Users/Darne/AppData/Local/Temp/opencode/shots/ripple-mid.png" },
+  { "wait": 1000 },
+  { "eval": "(() => { return JSON.stringify({ cleaned: !document.getElementById('duckroom-theme-ripple'), mode: document.documentElement.getAttribute('data-theme') }); })()", "name": "cleaned" }
+]
