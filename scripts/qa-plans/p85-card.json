@@ -1,0 +1,9 @@
+[
+  { "viewport": [1440, 900, 1] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'r'", "name": "reload" },
+  { "wait": 20000 },
+  { "eval": "(() => { const btn = [...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Tùy chỉnh giao diện'); btn.click(); return 'open'; })()" },
+  { "wait": 1000 },
+  { "eval": "(() => { const dialogs = [...document.querySelectorAll('[role=dialog][aria-label=\"Tùy chỉnh giao diện\"]')]; const desktop = dialogs[1]; const card = desktop.querySelector('.max-w-md'); if (!card) return 'no-card'; const r = card.getBoundingClientRect(); return JSON.stringify({ cardW: Math.round(r.width), cardH: Math.round(r.height), centeredX: Math.abs(r.x + r.width / 2 - window.innerWidth / 2) < 20, y: Math.round(r.y), swatches: desktop.querySelectorAll('button[aria-label^=\"Màu\"]').length, sliders: desktop.querySelectorAll('input[type=range]').length }); })()", "name": "card-check" },
+  { "screenshot": "C:/Users/Darne/AppData/Local/Temp/opencode/shots/desktop-theme-open.png" }
+]

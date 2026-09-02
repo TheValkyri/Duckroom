@@ -1,0 +1,11 @@
+[
+  { "viewport": [1440, 900, 1] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'r'", "name": "reload" },
+  { "wait": 20000 },
+  { "eval": "(() => { const btn = [...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Tùy chỉnh giao diện'); btn.click(); return 'open'; })()" },
+  { "wait": 900 },
+  { "eval": "(() => { const dialogs = [...document.querySelectorAll('[role=dialog][aria-label=\"Tùy chỉnh giao diện\"]')]; const visible = dialogs.filter(d => d.offsetParent !== null && d.getBoundingClientRect().width > 0); const r = visible[0]?.getBoundingClientRect(); return JSON.stringify({ total: dialogs.length, visibleCount: visible.length, isDesktopDialog: !!r && r.y > 60 && r.y < 350 && r.width > 300, rect: r ? { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width) } : null }); })()", "name": "visible-dialog" },
+  { "eval": "(() => { const visible = [...document.querySelectorAll('[role=dialog][aria-label=\"Tùy chỉnh giao diện\"]')].filter(d => d.offsetParent !== null && d.getBoundingClientRect().width > 0); const close = [...visible[0].querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.includes('Đóng')); close.click(); return 'closed'; })()" },
+  { "wait": 900 },
+  { "eval": "(() => { const visible = [...document.querySelectorAll('[role=dialog][aria-label=\"Tùy chỉnh giao diện\"]')].filter(d => d.offsetParent !== null && d.getBoundingClientRect().width > 0); return JSON.stringify({ visibleAfterClose: visible.length, themeHeld: document.documentElement.getAttribute('data-theme') }); })()", "name": "closed-clean" }
+]

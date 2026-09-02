@@ -247,6 +247,24 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="mt-auto flex flex-col gap-2">
+          {/* Theme — desktop parity với mobile header (feedback: máy tính
+              không có nút chuyển theme). Collapsed → chỉ icon + tooltip. */}
+          <motion.button
+            type="button"
+            whileTap={tapScale}
+            transition={springSnappy}
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setThemeOrigin({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
+              setThemeOpen(true);
+            }}
+            aria-label="Tùy chỉnh giao diện"
+            title="Tùy chỉnh giao diện"
+            className="text-muted-foreground hover:text-primary hover:bg-primary/10 border-border/60 flex items-center gap-3.5 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors cursor-pointer"
+          >
+            <Palette className="size-5 shrink-0 text-primary" />
+            {!collapsed && <span className="whitespace-nowrap truncate">Giao diện</span>}
+          </motion.button>
           {isLoggedIn ? (
             <div className="flex flex-col gap-1">
               {!collapsed ? (

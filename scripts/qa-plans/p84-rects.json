@@ -1,0 +1,8 @@
+[
+  { "viewport": [1440, 900, 1] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'r'", "name": "reload" },
+  { "wait": 20000 },
+  { "eval": "(() => { const btn = [...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Tùy chỉnh giao diện'); btn.click(); return 'open'; })()" },
+  { "wait": 900 },
+  { "eval": "(() => { const dialogs = [...document.querySelectorAll('[role=dialog][aria-label=\"Tùy chỉnh giao diện\"]')]; const withSize = dialogs.map(d => { const r = d.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), y: Math.round(r.y) }; }); return JSON.stringify(withSize); })()", "name": "both-rects" }
+]
