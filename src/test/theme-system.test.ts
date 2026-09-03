@@ -95,7 +95,7 @@ describe("theme: CSS foundation", () => {
   });
 });
 
-describe("theme: ripple implementation (sóng nước)", () => {
+describe("theme: ripple implementation (sóng nước v3)", () => {
   const store = read("src/lib/theme.ts");
 
   it("no startViewTransition call-site anywhere (the v1 lag source)", () => {
@@ -103,9 +103,17 @@ describe("theme: ripple implementation (sóng nước)", () => {
     expect(store).not.toMatch(/\.startViewTransition\s*\(/);
   });
 
-  it("ripple uses GPU-only WAAPI on 2 custom properties", () => {
-    expect(store).toContain("--ripple-r");
-    expect(store).toContain("--ripple-d");
+  it("v3 ripple does NOT cover content (fix 'trắng tinh/đen thui')", () => {
+    // Không còn lớp phủ màu đặc kín màn hình — chỉ 1 ring quét.
+    expect(store).not.toMatch(/inset:0;background:/);
+    expect(store).not.toContain("backgroundForMode");
+    // Ring là MỘT element viền, không phải fill màn hình.
+    expect(store).toMatch(/border-radius:50%/);
+    expect(store).not.toMatch(/background:\$\{accent\}/);
+  });
+
+  it("ripple uses GPU-only WAAPI on custom props", () => {
+    expect(store).toContain("--ripple-ring-scale");
     expect(store).toContain("wrap.animate");
     expect(store).toContain("pointer-events:none");
   });
@@ -127,8 +135,9 @@ describe("theme: ripple implementation (sóng nước)", () => {
     expect(store).toContain("requestAnimationFrame(step)");
   });
 
-  it("slider drag never writes localStorage synchronously (debounced)", () => {
+  it("slider drag: live CSS-var write + rAF-throttled React emit + debounced persist", () => {
     expect(store).toContain("persistDebounced");
+    expect(store).toContain("emitThrottled");
     expect(store).toMatch(/live\?:\s*boolean/);
   });
 });

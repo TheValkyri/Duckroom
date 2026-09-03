@@ -290,13 +290,13 @@ export function PlayerBar() {
               whileHover={{ y: -1 }}
               transition={springSnappy}
               className={cn(
-                "text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border border-white/10 cursor-pointer shadow-sm",
+                "text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border border-border/60 cursor-pointer shadow-sm",
                 crossfade > 0
-                  ? "text-amber-400 border-amber-500/40 bg-amber-500/10 shadow-[0_0_12px_rgba(245,158,11,0.15)]"
+                  ? "text-primary border-primary/40 bg-primary/10 shadow-[0_0_12px_oklch(from_var(--primary)_l_c_h/0.25)]"
                   : "hover:bg-accent/50",
               )}
             >
-              <Sparkles className={cn("size-3.5", crossfade > 0 && "text-amber-400 animate-pulse")} />
+              <Sparkles className={cn("size-3.5", crossfade > 0 && "text-primary animate-pulse")} />
               <span className="hidden sm:inline font-mono">{crossfade > 0 ? `${crossfade}s` : "Mix Off"}</span>
             </motion.button>
             <motion.button
@@ -335,31 +335,33 @@ export function PlayerBar() {
             </motion.button>
             <VolumeBar />
           </div>
-
-          {/* DESKTOP resume chip — NGỒI TRONG footer (absolute), nổi lên
-              mép trên phải của bar. Không bao giờ dính content phía trên
-              vì nó là một phần của bar; tự ẩn khi play. */}
-          <AnimatePresence>
-            {resumeHint && !isPlaying && (
-              <motion.button
-                initial={{ y: 6, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 6, opacity: 0 }}
-                transition={tweenFast}
-                onClick={() => {
-                  seek(resumeHint.positionSeconds);
-                  togglePlayback();
-                  clearResumeHint();
-                }}
-                className="glass-strong border-primary/30 text-foreground absolute -top-4 right-6 z-10 flex max-w-xs items-center gap-2 rounded-full border px-3.5 py-1.5 shadow-lg cursor-pointer hover:border-primary/60 transition-colors"
-                aria-label={`Phát tiếp từ vị trí ${formatTime(resumeHint.positionSeconds)}: ${current.title}`}
-              >
-                <ResumeChipLabel title={current.title} position={resumeHint.positionSeconds} />
-              </motion.button>
-            )}
-          </AnimatePresence>
         </div>
       </motion.footer>
+
+      {/* DESKTOP resume chip — v2 fix "bị cắt đôi bên phải":
+          footer dùng .glass (contain: paint) → CLIP mọi con tràn biên
+          (chip absolute -top-4 bị chặt sổ theo đúng mô tả). Đưa chip
+          RA KHỎI footer: fixed neo trên mép bar (bottom = chiều cao
+          bar + 8px), không thuộc footer nên không bị contain cắt. */}
+      <AnimatePresence>
+        {resumeHint && !isPlaying && (
+          <motion.button
+            initial={{ y: 6, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 6, opacity: 0 }}
+            transition={tweenFast}
+            onClick={() => {
+              seek(resumeHint.positionSeconds);
+              togglePlayback();
+              clearResumeHint();
+            }}
+            className="glass-strong border-primary/30 text-foreground fixed right-6 bottom-[calc(4.5rem)] z-50 hidden max-w-xs items-center gap-2 rounded-full border px-3.5 py-1.5 shadow-lg cursor-pointer hover:border-primary/60 transition-colors lg:flex"
+            aria-label={`Phát tiếp từ vị trí ${formatTime(resumeHint.positionSeconds)}: ${current.title}`}
+          >
+            <ResumeChipLabel title={current.title} position={resumeHint.positionSeconds} />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </>
   );
 }

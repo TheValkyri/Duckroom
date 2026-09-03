@@ -1,0 +1,19 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'r'", "name": "reload" },
+  { "wait": 22000 },
+  { "tapSelector": "main .group button", "settle": 2000 },
+  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.querySelector('[role=button]').click(); return 'expand'; })()" },
+  { "wait": 1300 },
+  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); return fs ? 'fs-ok' : 'no-fs'; })()", "name": "fs" },
+  { "eval": "(() => { const btn = [...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Tùy chỉnh giao diện'); if (btn) { btn.click(); return 'picker'; } const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); const inFs = fs && fs.querySelector('[aria-label=\"Tùy chỉnh giao diện\"]'); return 'header-behind: ' + !!inFs; })()" },
+  { "wait": 800 },
+  { "eval": "(() => { const dialog = document.querySelector('[role=dialog][aria-label=\"Tùy chỉnh giao diện\"]'); if (!dialog) return 'no-dialog'; const light = [...dialog.querySelectorAll('button')].find(b => b.textContent.includes('Sáng')); light.click(); return 'ripple'; })()", "name": "ripple" },
+  { "wait": 300 },
+  { "eval": "(() => { const rows = document.querySelectorAll('main .group').length; const layer = document.getElementById('duckroom-theme-ripple'); return JSON.stringify({ rowsDuringRipple: rows, layerAlive: !!layer, ringOnly: layer ? layer.children.length : 0 }); })()", "name": "phone-ripple-mid" },
+  { "wait": 900 },
+  { "eval": "(() => { return JSON.stringify({ cleaned: !document.getElementById('duckroom-theme-ripple'), mode: document.documentElement.getAttribute('data-theme') }); })()", "name": "phone-cleaned" },
+  { "eval": "(() => { const dialog = document.querySelector('[role=dialog][aria-label=\"Tùy chỉnh giao diện\"]'); const hue = dialog.querySelectorAll('input[type=range]')[0]; const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; for (let h = 0; h <= 360; h += 6) { setter.call(hue, String(h)); hue.dispatchEvent(new Event('input', { bubbles: true })); } return 'drag-61'; })()", "name": "phone-drag" },
+  { "measureFPS": 1000, "name": "phone-drag-fps" },
+  { "eval": "(() => { const st = JSON.parse(localStorage.getItem('duckroom.theme.v1')); return JSON.stringify({ liveColor: document.documentElement.style.getPropertyValue('--primary').trim(), persistedHue: st.hue, preset: st.preset }); })()", "name": "drag-state" }
+]

@@ -158,40 +158,52 @@ function persistDebounced(s: ThemeState) {
   }, 350);
 }
 
+/* rAF-throttle cho emit khi drag liên tục: input có thể bắn 60-120 lần/giây
+ * nhưng React chỉ cần re-render 1 lần/MỖI FRAME. applyToDocument (CSS var
+ * write) vẫn chạy thẳng mỗi event — đó là phần người dùng "thấy" tức thì
+ * (đổi màu), còn re-render swatch-label là phần được ghép frame. */
+let emitRaf = 0;
+function emitThrottled() {
+  if (emitRaf) return;
+  emitRaf = requestAnimationFrame(() => {
+    emitRaf = 0;
+    emit();
+  });
+}
+
 export function setTheme(next: Partial<ThemeState>, opts?: { live?: boolean }) {
   state = { ...state, ...next };
   if (typeof next.hue === "number") state.hue = normalizeHue(next.hue);
   if (typeof next.sat === "number") state.sat = clampNumber(next.sat, SAT_MIN, SAT_MAX, state.sat);
   applyToDocument(state);
-  // live = đang kéo slider: repaint ngay, KHÔNG persist giữa cử chỉ
-  // (persistDebounced gom về 1 write sau khi thả). Mặc định: persist qua
-  // debounce (click preset/mode).
-  persistDebounced(state);
+  // live = đang kéo slider: màu đổi NGAY (CSS var write thẳng — không
+  // chờ frame), React UI ghép về 1 render/frame, KHÔNG persist giữa cử
+  // chỉ. Mặc định (preset/mode): persist debounce + emit đầy đủ.
+  if (opts?.live) {
+    emitThrottled();
+    persistDebounced(state);
+  } else {
+    emit();
+    persistDebounced(state);
+  }
   void opts;
-  emit();
 }
-
 /* ---------------------------------------------------------------------------
- * SÓNG NƯỚC (ripple reveal) — rework 2026-09-01.
+ * SÓNG NƯỚC v3 (fix "trắng tinh/đen thui" 2026-09-01).
  *
- * Tại sao KHÔNG dùng View Transitions + clip-path cho mode switch:
- * - clip-path circle trên ::view-transition-new(root) bắt browser chụp
- *   SNAPSHOT nguyên viewport (raster cả cây) rồi animate — trên cây lớn
- *   + phone mid-range chính là cú khựng người dùng thấy.
- * - .theme-fx transition * (kèm !important) ép style-recalc mọi node
- *   đồng thời — nghìn node → jank rõ.
+ * LỖI v2: phủ 2 lớp màu ĐẶC kín toàn màn (oldBg + newBg) → trong 620ms
+ * người dùng thấy màn hình trống trơn đúng như feedback "khựng trắng
+ * tinh hoặc đen thui rồi mới đổi". RẤT SAI — sóng phải là HIỆU ỨNG
+ * quét trên NỘI DUNG, không phải màn màu che nội dung.
  *
- * Cách mới (0 đụng main thread):
- * 1. Chụp MÀU nền cũ + mới (2 chuỗi oklch) — không chụp DOM.
- * 2. 2 lớp fixed pointer-events-none: lớp dưới = màu CŨ, lớp trên =
- *   màu MỚI khoét lỗ bằng mask radial (circle) + viền sóng glow accent.
- * 3. Animate MỘT custom property --ripple-r (bán kính) bằng WAAPI —
- *   GPU composite, transform-like, không layout, không paint subtree.
- * 4. Xong: gỡ cả 2 lớp (một lần), DOM thật đã đổi màu từ đầu (dưới
- *   lớp old-color nên không thấy nhảy).
- * Tâm sóng NGẪU NHIÊN (margin an toàn tránh mép) — mỗi lần chuyển là
- * một điểm khởi phát khác nhau = yếu tố "wow" không lặp lại.
- * prefers-reduced-motion → đổi thẳng, không sóng.
+ * v3 (chỉ 1 lớp, không che gì):
+ * - DOM đổi màu NGAY như cũ (dưới sóng không thấy nhảy).
+ * - MỘT layer duy nhất: vòng tròn viền (accent mới) + fill rất mờ
+ *   (18%) chạy theo mặt sóng — như gợn nước ánh sáng quét qua, nội
+ *   dung luôn thấy xuyên qua.
+ * - Sóng lan từ tâm ngẫu nhiên ra ngoài; ngoài biên tan dần (mask).
+ * - Vẫn GPU-only: 1 WAAPI trên 2 custom props, 0 snapshot, 0 recalc
+ *   cây lớn; cleanup onfinish + failsafe 1.2s cho tab ẩn.
  * ------------------------------------------------------------------------- */
 
 const RIPPLE_LAYER_ID = "duckroom-theme-ripple";
@@ -208,88 +220,79 @@ export function randomRippleOrigin(w: number, h: number): RippleOrigin {
   };
 }
 
-function backgroundForMode(mode: ThemeMode): string {
-  // Phải khớp token --background trong styles.css (hai giá trị này là
-  // hằng của dark/light — theme-system test pin).
-  return mode === "light" ? "oklch(0.965 0.009 85)" : "oklch(0.16 0.022 258)";
+function accentFor(s: ThemeState): string {
+  return accentCssVars(s).primary;
 }
 
 /**
- * Chuyển mode kèm sóng nước lan tỏa. origin = null → chọn tâm ngẫu nhiên.
- * Trình duyệt không hỗ trợ WAAPI element.animate → đổi thẳng (không khựng
- * là ưu tiên cao hơn hiệu ứng).
+ * Chuyển mode kèm sóng nước quét (không che nội dung). origin = null →
+ * tâm ngẫu nhiên. WAAPI thiếu → đổi thẳng (không hiệu ứng).
  */
 export function setModeWithRipple(mode: ThemeMode, origin?: RippleOrigin | null) {
   if (mode === state.mode) return;
   const doc = typeof document === "undefined" ? null : document;
   if (!doc) return;
   const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Áp DOM thật NGAY (nội dung đổi màu tức thì — sóng chỉ là vệt quét).
+  setTheme({ mode });
+
+  if (reduced) return;
   const w = window.innerWidth;
   const h = window.innerHeight;
   const o = origin ?? randomRippleOrigin(w, h);
-  const r = Math.hypot(Math.max(o.x, w - o.x), Math.max(o.y, h - o.y)) * 1.15;
+  const r = Math.hypot(Math.max(o.x, w - o.x), Math.max(o.y, h - o.y)) * 1.2;
+  const accent = accentFor(state);
 
-  // Áp DOM thật NGAY (dưới các lớp sóng nên không thấy nhảy màu).
-  setTheme({ mode });
-  const accent = accentCssVars(state).primary;
-  const oldBg = backgroundForMode(mode === "light" ? "dark" : "light");
-
-  // Dọn sóng cũ nếu còn (kéo spam nút chuyển).
+  // Dọn sóng cũ (kéo spam nút).
   doc.getElementById(RIPPLE_LAYER_ID)?.remove();
 
   const wrap = doc.createElement("div");
   wrap.id = RIPPLE_LAYER_ID;
   wrap.setAttribute("aria-hidden", "true");
   wrap.style.cssText = "position:fixed;inset:0;z-index:2147483000;pointer-events:none;contain:strict;";
-  // Lớp 0: màu CŨ phủ kín (che DOM đã đổi màu phía dưới).
-  const oldLayer = doc.createElement("div");
-  oldLayer.style.cssText = `position:absolute;inset:0;background:${oldBg};`;
-  // Lớp 1: màu MỚI khoét lỗ từ tâm — lỗ mở dần như nước rút, viền là
-  // sóng phát sáng accent; mask + radius điều khiển bằng 1 var duy nhất.
-  const newLayer = doc.createElement("div");
-  newLayer.style.cssText = [
-    "position:absolute;inset:0;",
-    `background:${backgroundForMode(mode)};`,
-    `-webkit-mask-image:radial-gradient(circle var(--ripple-r) at ${o.x}px ${o.y}px, black 99%, transparent 100%);`,
-    `mask-image:radial-gradient(circle var(--ripple-r) at ${o.x}px ${o.y}px, black 99%, transparent 100%);`,
-    "--ripple-r:0px;",
-  ].join("");
-  // Lớp 2: viền sóng — vòng tròn mảnh glow accent chạy theo bán kính.
-  const edge = doc.createElement("div");
-  edge.style.cssText = [
+
+  // MỘT vòng sóng: fill accent cực mờ (như gợn nước ánh sáng) + viền
+  // sáng dày hơn. Vòng TĂNG dần từ tâm (giá trị -r → r) và chỉ hiện
+  // MẶT SÓNG (dải mỏng), tan biến khi đi qua mép.
+  const ring = doc.createElement("div");
+  const ringSize = Math.round(r * 2);
+  ring.style.cssText = [
     "position:absolute;",
-    `left:${o.x}px;top:${o.y}px;width:var(--ripple-d);height:var(--ripple-d);`,
-    "transform:translate(-50%,-50%);",
+    `left:${o.x}px;top:${o.y}px;`,
+    `width:${ringSize}px;height:${ringSize}px;`,
+    "transform:translate(-50%,-50%) var(--ripple-ring-scale,0);",
     "border-radius:50%;",
-    `box-shadow:0 0 0 2px ${accent}, 0 0 42px 12px ${accent};`,
-    "opacity:0.85;",
-    "--ripple-d:0px;",
+    // Dải ring: viền 2px accent + quầng 24px mờ; chiều dày tessler theo
+    // tỉ lệ vòng để không quá mỏng ở bán kính lớn.
+    `box-shadow:0 0 0 2px ${accent}, inset 0 0 0 2px ${accent}, 0 0 32px 6px ${accent} / 0.22;`,
+    "opacity:0.95;",
+    "--ripple-ring-scale:0;",
   ].join("");
-  wrap.append(oldLayer, newLayer, edge);
+  wrap.appendChild(ring);
   doc.body.appendChild(wrap);
 
   const finish = () => wrap.remove();
-  if (reduced || typeof wrap.animate !== "function") {
+  if (typeof wrap.animate !== "function") {
     finish();
     return;
   }
-
-  // Một animation duy nhất, điều khiển 2 biến bằng keyframes — GPU-only.
   const anim = wrap.animate(
     [
-      { "--ripple-r": "0px", "--ripple-d": "0px" } as unknown as Keyframe,
-      { "--ripple-r": `${Math.round(r)}px`, "--ripple-d": `${Math.round(r * 2)}px` } as unknown as Keyframe,
+      { "--ripple-ring-scale": "0", opacity: "0.95" } as unknown as Keyframe,
+      { "--ripple-ring-scale": "1", opacity: "0.9" } as unknown as Keyframe,
+      { "--ripple-ring-scale": "1", opacity: "0" } as unknown as Keyframe,
     ],
     {
-      duration: 620,
+      duration: 760,
       easing: "cubic-bezier(0.22, 1, 0.36, 1)",
       fill: "forwards",
     },
   );
   anim.onfinish = finish;
   anim.oncancel = finish;
-  // Nếu tab ẩn (rAF dừng) — không để sóng treo vĩnh viễn.
-  window.setTimeout(finish, 1400);
+  // Failsafe cho tab ẩn (rAF không vẽ).
+  window.setTimeout(finish, 1300);
 }
 
 /**

@@ -92,4 +92,50 @@ describe("Lyrics Formatter V2 — Zero Content Mutation & Precise Timing", () =>
       expect(applyLyricsOffset([], 500)).toEqual([]);
     });
   });
+
+  describe("parseLrc v2 — mở rộng nhận diện (2026-09-01)", () => {
+    it("chấp nhận phút 1 chữ số: [1:23.45]", () => {
+      const parsed = parseLrc(`[1:23.45] Một chữ số phút`);
+      expect(parsed).toHaveLength(1);
+      expect(parsed[0]!.time).toBeCloseTo(83.45);
+    });
+
+    it("chấp nhận ms 1..3 chữ số (.5/.45/.456) đúng chuẩn thập phân", () => {
+      expect(parseLrc(`[00:10.5] nửa giây`)[0]!.time).toBeCloseTo(10.5);
+      expect(parseLrc(`[00:10.45]`)[0]!.time).toBeCloseTo(10.45);
+      expect(parseLrc(`[00:10.456]`)[0]!.time).toBeCloseTo(10.456);
+    });
+
+    it("MULTI-TIMESTAMP sinh nhiều entry cùng text (điệp khúc lặp)", () => {
+      const parsed = parseLrc(`[00:12.00][00:45.80][01:30.10]Điệp khúc`);
+      expect(parsed).toHaveLength(3);
+      expect(parsed.map((l) => l.text)).toEqual(["Điệp khúc", "Điệp khúc", "Điệp khúc"]);
+      expect(parsed[0]!.time).toBeCloseTo(12);
+      expect(parsed[1]!.time).toBeCloseTo(45.8);
+      expect(parsed[2]!.time).toBeCloseTo(90.1);
+    });
+
+    it("bỏ qua tag metadata (ti/ar/al/by) — không thành lời", () => {
+      const parsed = parseLrc(`[ti:Tên bài]\n[ar:Ca sĩ]\n[al:Album]\n[00:10.00]Lời thật`);
+      expect(parsed).toHaveLength(1);
+      expect(parsed[0]!.text).toBe("Lời thật");
+    });
+
+    it("áp tag [offset:±ms] chuẩn LRC cho toàn file, không đổi text", () => {
+      const parsed = parseLrc(`[offset:500]\n[00:10.00]Lời\n[offset:-200]\n[00:20.00]Lời sau`);
+      // Tag offset: chỉ tag ĐẦU TIÊN áp cho cả file theo spec thực dụng —
+      // hai tag: lấy tag gần nhất TRƯỚC dòng (chunk semantics). 10 + 0.5 = 10.5.
+      expect(parsed[0]!.time).toBeCloseTo(10.5);
+      expect(parsed[1]!.text).toBe("Lời sau");
+    });
+
+    it("timestamp phân cách bằng ':' trong phần ms cũng hợp lệ [00:10:45]", () => {
+      expect(parseLrc(`[00:10:45] colon`)[0]!.time).toBeCloseTo(10.45);
+    });
+
+    it("sort ổn định: cùng timestamp giữ thứ tự trong file", () => {
+      const parsed = parseLrc(`[00:30.00]A trước\n[00:30.00]B sau\n[00:10.00]C đầu`);
+      expect(parsed.map((l) => l.text)).toEqual(["C đầu", "A trước", "B sau"]);
+    });
+  });
 });

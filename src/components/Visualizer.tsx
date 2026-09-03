@@ -1,12 +1,23 @@
 import { useEffect, useRef } from "react";
 import { getAudioAnalyser } from "../lib/audio-analyser";
 import { usePlayer } from "../lib/player";
+import { subscribeTheme, accentCssVars, getThemeState } from "../lib/theme";
 import { cn } from "../lib/utils";
 
 /**
- * Motion graph: Phổ tần số dồn vào chính giữa (Center-Symmetric Swell)
- * Hỗ trợ tự động hãm phanh mượt khi Pause (Deceleration 300ms)
- * và giữ phẳng lặng tuyệt đối khi nhạc im lặng (Silence/Outro).
+ * Visualizer "sóng nhạc" (nâng cấp 2026-09-01).
+ *
+ * Về màu: đọc accent TỪ THEME STORE (oklch theo hue/sat hiện tại) — đổi
+ * theme/preset/kéo slider là sóng đổi màu theo tức thì (trước đây hardcode
+ * 3 stops vàng). Store subscribe nghĩa là không re-render — chỉ đổi chuỗi
+ * màu trong vòng vẽ, 0 cost React.
+ *
+ * Về hình dạng: mỗi thanh = thân bo tròn + "lõi" sáng hơn chạy trong
+ * (2 lớp roundRect) + bóng nhè dưới đáy — cảm giác ống đèn VU analog
+ * thay vì cột phẳng. Đỉnh thanh có cap sáng accent hơn tạo mặt sóng.
+ *
+ * Về perf: như trước — rAF chỉ khi playing/đang hãm phanh; hidden-tab
+ * skip work; dpr-cache; analyser cache theo element (crossfade flip).
  */
 export function Visualizer({
   playing,
@@ -30,6 +41,27 @@ export function Visualizer({
     if (!ctx) return;
 
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Màu theo theme runtime — cập nhật mỗi lần theme đổi (kể cả kéo
+    // slider liên tục: đổi chuỗi, không tạo lại gì cả).
+    let colors = { peak: "", body: "", core: "", base: "" };
+    const refreshColors = () => {
+      const s = accentCssVars(getThemeState());
+      // Lấy L/C từ công thức rồi tự pha 3 bậc + alpha: đỉnh sáng nhất,
+      // thân trung, chân mờ. Dùng cùng hue/sat người dùng đang chọn.
+      const h = getThemeState().hue;
+      const sat = getThemeState().sat;
+      const dark = getThemeState().mode !== "light";
+      const baseL = dark ? 0.76 : 0.52;
+      colors = {
+        peak: s.primary.replace(")", " / 0.98)"),
+        body: `oklch(${(baseL - 0.06).toFixed(3)} ${sat} ${h} / 0.85)`,
+        core: `oklch(${Math.min(0.97, baseL + 0.13).toFixed(3)} ${sat} ${h} / 0.9)`,
+        base: `oklch(${(baseL - 0.24).toFixed(3)} ${(sat * 0.7).toFixed(3)} ${h} / 0.28)`,
+      };
+    };
+    refreshColors();
+    const unsub = subscribeTheme(refreshColors);
 
     let raf = 0;
     let t = 0;
@@ -62,7 +94,7 @@ export function Visualizer({
           const bh = 4;
           const x = i * (bw + gap);
           const y = h - bh;
-          ctx.fillStyle = "oklch(0.82 0.14 70 / 0.4)";
+          ctx.fillStyle = colors.body;
           ctx.beginPath();
           ctx.roundRect(x, y, bw, bh, bw / 2);
           ctx.fill();
@@ -75,8 +107,6 @@ export function Visualizer({
       const bw = Math.max(2, w / bars - gap);
       let isSettled = true;
 
-      // Đọc phổ tần số thực tế từ Web Audio API AnalyserNode.
-      // Cache theo element (đổi khi crossfade flip A↔B) — không gọi lại mỗi frame.
       const el = audioRef?.current ?? null;
       if (el !== cachedAnalyserEl) {
         cachedAnalyserEl = el;
@@ -100,13 +130,11 @@ export function Visualizer({
       for (let i = 0; i < bars; i++) {
         let target = 0.04;
 
-        // Tính khoảng cách từ vị trí i đến trung tâm để tạo kiểu hình "2 bên dồn vào chính giữa"
         const distFromCenter = Math.abs(i - center) / center;
         const centerSwell = Math.cos(distFromCenter * (Math.PI / 2.2));
 
         if (playing) {
           if (hasRealAudioData) {
-            // Ánh xạ tần số: Bass ở trung tâm, Treble dồn về 2 mép
             const binIdx = Math.min(freqData.length - 1, Math.floor(Math.pow(1 - distFromCenter, 1.3) * 44));
 
             const trebleBoost = 1.0 + Math.pow(distFromCenter, 1.2) * 1.4;
@@ -115,7 +143,6 @@ export function Visualizer({
             const rawVal = ((freqData[binIdx] || 0) / 255) * bassBoost * trebleBoost;
             target = Math.min(1.0, Math.max(0.04, Math.pow(rawVal, 0.82) * 1.55 * centerSwell));
           } else if (!audioRef?.current) {
-            // Chỉ chạy sóng giả lập nếu KHÔNG CÓ phần tử audio (mô phỏng UI)
             const lowBass = Math.abs(Math.sin(t * 3.4 + i * 0.28) * 0.65 + Math.sin(t * 1.7) * 0.35);
             const midVocal = Math.abs(Math.sin(t * 5.2 + i * 0.42) * 0.5 + Math.sin(t * 2.8 + i * 0.15) * 0.35);
             const highTreble = Math.abs(Math.sin(t * 9.1 + i * 0.75) * 0.45 + Math.sin(t * 4.4) * 0.3);
@@ -126,11 +153,9 @@ export function Visualizer({
                 0.88 +
               0.05;
           }
-          // Nếu có audioRef nhưng nhạc im lặng (Outro / Silence), target giữ nguyên 0.04 (phẳng lặng)
         }
 
         const prev = levels.current[i] ?? 0.04;
-        // Tốc độ nẩy snappy khi Play (0.55) và HÃM PHANH MƯỢT 300ms khi Pause / Im lặng (0.12)
         const v = prev + (target - prev) * (playing && target > prev ? 0.55 : 0.12);
         levels.current[i] = v;
 
@@ -142,18 +167,39 @@ export function Visualizer({
         const x = i * (bw + gap);
         const y = h - bh;
 
-        // Gradient màu rực rỡ từ trên đỉnh xuống chân thanh sóng
+        // THANH 3 LỚP (VU analog):
+        // 1) thân chính — gradient dọc theo 2 bậc màu theme
         const grad = ctx.createLinearGradient(0, y, 0, h);
-        grad.addColorStop(0, "oklch(0.86 0.18 75 / 0.98)");
-        grad.addColorStop(0.5, "oklch(0.72 0.15 65 / 0.85)");
-        grad.addColorStop(1, "oklch(0.48 0.10 40 / 0.3)");
+        grad.addColorStop(0, colors.peak);
+        grad.addColorStop(1, colors.base);
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.roundRect(x, y, bw, bh, bw / 2);
         ctx.fill();
+
+        // 2) lõi sáng bên trong (khoét vào 22% mỗi bên) — chiều cao tỉ lệ
+        if (bh > 6) {
+          const coreW = bw * 0.56;
+          const coreH = bh * 0.72;
+          const cx = x + (bw - coreW) / 2;
+          ctx.fillStyle = colors.core;
+          ctx.globalAlpha = 0.55;
+          ctx.beginPath();
+          ctx.roundRect(cx, y + (bh - coreH) * 0.45, coreW, coreH, coreW / 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+
+        // 3) mặt sóng: cap sáng nhỏ trên đỉnh khi thanh đang "sống"
+        if (v > 0.16) {
+          const capH = Math.min(4, bh * 0.28);
+          ctx.fillStyle = colors.peak;
+          ctx.beginPath();
+          ctx.roundRect(x, y, bw, capH, bw / 2);
+          ctx.fill();
+        }
       }
 
-      // Tiếp tục vẽ nếu đang phát nhạc HOẶC thanh sóng chưa hoàn tất hãm phanh hạ xuống phẳng
       if (playing || !isSettled) {
         raf = requestAnimationFrame(draw);
       }
@@ -171,6 +217,7 @@ export function Visualizer({
     return () => {
       cancelAnimationFrame(raf);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      unsub();
     };
   }, [bars, playing, audioRef]);
 

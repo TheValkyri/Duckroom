@@ -2,36 +2,70 @@ import type { LyricLine } from "../data/library";
 
 /**
  * Parses LRC text into synchronized LyricLine array WITHOUT mutating lyric text content.
- * Respects original artist wording:
- * - Trims extraneous whitespace per line.
- * - Extracts timestamp [mm:ss.xx] and maps to seconds.
- * - Sorts by timestamp in ascending order.
+ *
+ * Nâng cấp nhận diện 2026-09-01 (feedback "cải thiện nhận diện .LRC"):
+ * - Phút 1..2 chữ số: [1:23.45] chuẩn như [01:23.45].
+ * - Giây bắt buộc, ms tùy chọn với 1..3 chữ số: [.5] [.45] [.456].
+ * - MULTI-TIMESTAMP trên 1 dòng: "[00:12.00][00:45.80]Đoạn điệp khúc"
+ *   → sinh 2 entry cùng text (điệp khúc lặp).
+ * - Tag metadata LRC ([ti:], [ar:], [al:], [by:], [offset:]) bị bỏ qua
+ *   đúng cách (không nhầm thành lời); tag [offset:±ms] được ÁP DỤNG vào
+ *   timestamp của file (chuẩn LRC spec) — không đổi text gốc.
+ * - Dòng không timestamp giữ nguyên vị trí như lời plain (không discard)
+ *   — chỉ khi file KHÔNG có bất kỳ timestamp nào thì trả [] để caller
+ *   phân nhánh plain (kỷ luật hiện có).
  */
 export function parseLrc(lrcText: string): LyricLine[] {
   if (!lrcText || !lrcText.trim()) return [];
   const lines = lrcText.split(/\r?\n/);
   const result: LyricLine[] = [];
-  const regex = /^\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\]\s*(.*)$/;
+
+  const TS_RE = /\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g;
+  const META_RE = /^\[(ti|ar|al|by|offset|re|ve|length|au):/i;
+  let globalOffsetMs = 0;
 
   for (const rawLine of lines) {
     const trimmed = rawLine.trim();
     if (!trimmed) continue;
 
-    const match = trimmed.match(regex);
-    if (match) {
-      const minutes = parseInt(match[1]!, 10);
-      const seconds = parseInt(match[2]!, 10);
-      const msStr = match[3] || "0";
-      const ms = parseInt(msStr.padEnd(3, "0").slice(0, 3), 10) / 1000;
-      const time = Math.max(0, minutes * 60 + seconds + ms);
-      const text = match[4]?.trim() || "";
+    // Tag metadata — bỏ qua (trừ offset: áp 1 lần cho cả file).
+    if (META_RE.test(trimmed)) {
+      const off = trimmed.match(/^\[offset:\s*([+-]?\d+)\s*\]/i);
+      if (off) globalOffsetMs = parseInt(off[1]!, 10);
+      continue;
+    }
 
+    // Gom MỌI timestamp ở đầu dòng (multi-timestamp = điệp khúc lặp).
+    TS_RE.lastIndex = 0;
+    const stamps: number[] = [];
+    let m: RegExpExecArray | null;
+    let consumed = 0;
+    while ((m = TS_RE.exec(trimmed)) !== null) {
+      const minutes = parseInt(m[1]!, 10);
+      const seconds = parseInt(m[2]!, 10);
+      const fracRaw = m[3] || "0";
+      // .5 → 500ms; .45 → 450ms; .456 → 456ms (pad phải theo số chữ số).
+      const fracMs = parseInt(fracRaw.padEnd(3, "0").slice(0, 3), 10);
+      stamps.push(Math.max(0, minutes * 60 + seconds + fracMs / 1000));
+      consumed = TS_RE.lastIndex;
+    }
+
+    if (!stamps.length) continue; // dòng thường (không ts) — không nhầm
+    const text = trimmed.slice(consumed).trim();
+
+    for (const base of stamps) {
+      const time = Math.max(0, base + globalOffsetMs / 1000);
       result.push({ time, text });
     }
   }
 
-  // Sort chronologically
-  return result.sort((a, b) => a.time - b.time);
+  if (!result.length) return [];
+
+  // Chronological; stable cho các dòng cùng timestamp (giữ thứ tự file).
+  return result
+    .map((line, idx) => ({ line, idx }))
+    .sort((a, b) => a.line.time - b.line.time || a.idx - b.idx)
+    .map((e) => e.line);
 }
 
 /**
