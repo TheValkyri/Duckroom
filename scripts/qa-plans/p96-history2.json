@@ -1,0 +1,12 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "(() => { localStorage.setItem('duckroom.searchHistory.library', JSON.stringify(['mck', 'hvl', 'elegie'])); return 'planted'; })()" },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'r'", "name": "reload" },
+  { "wait": 24000 },
+  { "eval": "(() => { const input = document.querySelector(\"input[type='search']\"); input.focus(); return 'focus'; })()" },
+  { "wait": 700 },
+  { "eval": "(() => { const box = document.querySelector('[role=listbox][aria-label=\"Tìm kiếm gần đây\"]'); if (!box) return 'MISSING'; const items = [...box.querySelectorAll('button')].map(b => b.textContent.trim()).filter(t => t && t !== 'Xóa hết'); return JSON.stringify({ items }); })()", "name": "box-after-reload" },
+  { "eval": "(() => { const box = document.querySelector('[role=listbox]'); const item = [...box.querySelectorAll('button')].find(b => b.textContent.trim() === 'mck'); item.click(); return 'picked'; })()" },
+  { "wait": 600 },
+  { "eval": "(() => { const input = document.querySelector(\"input[type='search']\"); const rows = [...document.querySelectorAll('main .group')].filter(r => r.offsetHeight > 0).length; return JSON.stringify({ q: input.value, rows }); })()", "name": "picked-result" }
+]

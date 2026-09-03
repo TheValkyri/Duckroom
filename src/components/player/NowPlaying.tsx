@@ -10,6 +10,7 @@ import { cn } from "../../lib/utils";
 import { Visualizer } from "../Visualizer";
 import { SeekBar, TransportControls } from "./Controls";
 import { LyricsPane } from "./Lyrics";
+import { SleepTimerMenu } from "./SleepTimerMenu";
 import { useIsPhoneLayout } from "../../hooks/use-media-query";
 
 // Tách nhãn thời gian ra component riêng: chỉ phần này re-render mỗi tick
@@ -133,6 +134,11 @@ export function NowPlaying() {
     setQueueOpen,
     next,
     direction,
+    // QoL: sleep timer cần pause + volume khi hết giờ.
+    pause,
+    setVolume,
+    volume,
+    toggle: togglePlayback,
   } = usePlayer();
   const open = expanded;
   // LƯU Ý: KHÔNG scroll-lock ở đây. Fullscreen player là `fixed inset-0`
@@ -295,9 +301,17 @@ export function NowPlaying() {
               )}
             </div>
 
-            {/* Phải: Lời + Hàng đợi (mobile cần nút hàng đợi vì PlayerBar
-                mini không có chỗ; desktop giữ nguyên chỉ "Lời") */}
+            {/* Phải: Hẹn giờ + Lời + Hàng đợi (mobile cần nút hàng đợi vì
+                PlayerBar mini không có chỗ; desktop giữ nguyên chỉ "Lời") */}
             <div className="flex items-center justify-end">
+              {/* QoL A2: hẹn tắt nhạc (fade êm 30s cuối) */}
+              <SleepTimerMenu
+                onFinish={() => {
+                  pause();
+                  setVolume(1);
+                }}
+                onFadeTick={(v) => setVolume(Math.max(0.02, v))}
+              />
               {isPhone && (
                 <motion.button
                   onClick={() => setQueueOpen(!queueOpen)}

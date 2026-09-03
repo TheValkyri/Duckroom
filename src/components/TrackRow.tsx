@@ -1,6 +1,6 @@
 import { Ellipsis, Heart, Pencil, Play, Share2, Trash2, Volume2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { albumById, formatTime, type Track } from "../data/library";
 import { usePlayerIsCurrent, usePlayerIsPlaying } from "../lib/player";
@@ -80,6 +80,13 @@ export const TrackRow = memo(function TrackRow({
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);
+  /** Long-press timer holder (A6) — cleanup an toàn khi unmount. */
+  const longPressRef = useRef<{ timer: number; target: HTMLElement } | null>(null);
+  useEffect(() => {
+    return () => {
+      if (longPressRef.current) window.clearTimeout(longPressRef.current.timer);
+    };
+  }, []);
 
   const handlePlayClick = useCallback(() => {
     if (onPlay) {
@@ -133,6 +140,39 @@ export const TrackRow = memo(function TrackRow({
           "group hover:bg-accent/40 flex w-full items-center gap-2 sm:gap-3 rounded-lg px-2.5 sm:px-3 py-2.5 text-left transition-[background-color,border-color,transform] duration-200 relative border border-transparent hover:border-white/5 hover:translate-x-[2px]",
           active && "bg-accent/50 border-primary/20",
         )}
+        /* QoL A6: long-press (500ms) mở ActionsSheet — phản xạ tự nhiên
+           trên cảm ứng, song song với nút ⋯ vẫn còn. Hủy nếu di chuyển
+           ngón (scroll) hoặc thả sớm (tap thường). Chỉ touch/pen. */
+        onPointerDown={(e) => {
+          if (e.pointerType === "mouse") return;
+          const target = e.currentTarget;
+          const timer = window.setTimeout(() => {
+            longPressRef.current = null;
+            navigator.vibrate?.(10);
+            setShowActionsSheet(true);
+          }, 500);
+          longPressRef.current = { timer, target };
+        }}
+        onPointerMove={(e) => {
+          const lp = longPressRef.current;
+          if (!lp) return;
+          if (Math.abs(e.movementX) > 8 || Math.abs(e.movementY) > 8) {
+            window.clearTimeout(lp.timer);
+            longPressRef.current = null;
+          }
+        }}
+        onPointerUp={() => {
+          if (longPressRef.current) {
+            window.clearTimeout(longPressRef.current.timer);
+            longPressRef.current = null;
+          }
+        }}
+        onPointerCancel={() => {
+          if (longPressRef.current) {
+            window.clearTimeout(longPressRef.current.timer);
+            longPressRef.current = null;
+          }
+        }}
       >
         {/* Accent bar trái — chỉ hiện ở hàng đang phát (CSS thuần, có lý
             do: vị trí "bài này đang phát" quét được bằng mắt khi cuộn nhanh

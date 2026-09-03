@@ -1,0 +1,9 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'r'", "name": "reload" },
+  { "wait": 26000 },
+  { "tapSelector": "input[type='search']", "settle": 250 },
+  { "eval": "(() => { const input = document.querySelector(\"input[type='search']\"); const focused = document.activeElement === input; const box = !!document.querySelector('[role=listbox]'); return JSON.stringify({ focusedNow: focused, boxNow: box }); })()", "name": "state-250ms" },
+  { "wait": 900 },
+  { "eval": "(() => { const input = document.querySelector(\"input[type='search']\"); const focused = document.activeElement === input; const box = !!document.querySelector('[role=listbox]'); return JSON.stringify({ focusedLater: focused, boxLater: box }); })()", "name": "state-1150ms" }
+]

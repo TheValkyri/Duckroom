@@ -4,6 +4,12 @@ import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TrackRow } from "../components/TrackRow";
 import {
+  clearSearchHistory,
+  pushSearchHistory,
+  readSearchHistory,
+  removeSearchHistoryItem,
+} from "../lib/search-history";
+import {
   clearAllTracks,
   deleteTrack,
   sortTracksDeterministically,
@@ -44,6 +50,9 @@ function LibraryPage() {
   const { isLoggedIn } = useAuth();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<string>("all");
+  // QoL A7: lịch sử tìm kiếm (5 từ gần nhất, localStorage per scope).
+  const [history, setHistory] = useState<string[]>(() => readSearchHistory("library"));
+  const [showHistory, setShowHistory] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
   const handleSyncS3 = async () => {
@@ -178,7 +187,21 @@ function LibraryPage() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <input
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setShowHistory(e.target.value === "");
+              }}
+              onFocus={() => setShowHistory(true)}
+              onBlur={() => {
+                // Đợi click vào item kịp xử lý trước khi đóng.
+                window.setTimeout(() => setShowHistory(false), 180);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && q.trim()) {
+                  setHistory(pushSearchHistory("library", q));
+                  setShowHistory(false);
+                }
+              }}
               type="search"
               inputMode="search"
               enterKeyHint="search"
@@ -189,6 +212,52 @@ function LibraryPage() {
               aria-label="Tìm bài hát, nghệ sĩ"
               className="w-full bg-card/70 border border-border focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl pl-9.5 pr-10 py-2.5 text-sm outline-none transition-all"
             />
+            {/* QoL A7: Lịch sử tìm kiếm — hiện khi input rỗng + focus.
+                Chọn mục = điền + search + đóng; nút ✕ xóa từng mục. */}
+            {showHistory && history.length > 0 && !q && (
+              <div
+                role="listbox"
+                aria-label="Tìm kiếm gần đây"
+                className="bg-card border-border absolute inset-x-0 top-full z-30 mt-1.5 overflow-hidden rounded-2xl border p-1.5 shadow-2xl"
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <div className="flex items-center justify-between px-2.5 pt-1 pb-1.5">
+                  <span className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
+                    Tìm kiếm gần đây
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setHistory(clearSearchHistory("library"))}
+                    className="text-muted-foreground hover:text-destructive text-[10px] font-medium transition-colors cursor-pointer"
+                  >
+                    Xóa hết
+                  </button>
+                </div>
+                {history.map((term) => (
+                  <div key={term} className="group/h flex items-center rounded-xl transition-colors hover:bg-accent/50">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQ(term);
+                        setShowHistory(false);
+                      }}
+                      className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-2 text-left text-sm cursor-pointer"
+                    >
+                      <Search className="text-muted-foreground/70 size-3.5 shrink-0" />
+                      <span className="truncate">{term}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHistory(removeSearchHistoryItem("library", term))}
+                      aria-label={`Xóa khỏi lịch sử: ${term}`}
+                      className="text-muted-foreground/40 hover:text-destructive mr-1 grid size-9 shrink-0 place-items-center rounded-lg opacity-0 transition-all group-hover/h:opacity-100 cursor-pointer"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             {q && (
               <button
                 type="button"

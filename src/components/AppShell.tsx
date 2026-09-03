@@ -27,6 +27,7 @@ import { useAuth } from "../lib/useAuth";
 import { useDuckroomRole } from "../lib/useRole";
 import { cn } from "../lib/utils";
 import { useScrollLock } from "../hooks/use-scroll-lock";
+import { HotkeysOverlay } from "./HotkeysOverlay";
 import { ThemePicker } from "./ThemePicker";
 import { ensureThemeApplied } from "../lib/theme";
 import { NowPlaying } from "./player/NowPlaying";
@@ -569,6 +570,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
       <PlayerBar />
       <NowPlaying />
+      {/* QoL A5: phím tắt overlay — Shift+/ (hay "?") trên desktop. */}
+      <HotkeysOverlay />
       <AnimatePresence>
         {themeOpen && <ThemePicker open={themeOpen} onClose={() => setThemeOpen(false)} triggerOrigin={themeOrigin} />}
       </AnimatePresence>

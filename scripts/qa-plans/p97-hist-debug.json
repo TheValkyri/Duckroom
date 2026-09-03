@@ -1,0 +1,11 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'r'", "name": "reload" },
+  { "wait": 24000 },
+  { "eval": "(() => { const ls = JSON.parse(localStorage.getItem('duckroom.searchHistory.library') || 'null'); const input = document.querySelector(\"input[type='search']\"); input.focus(); const inputFocused = document.activeElement === input; return JSON.stringify({ ls, inputFocused }); })()", "name": "state-check" },
+  { "wait": 400 },
+  { "eval": "(() => { const box = document.querySelector('[role=listbox]'); return box ? 'box-present' : 'no-box'; })()", "name": "box" },
+  { "eval": "(() => { const input = document.querySelector(\"input[type='search']\"); input.blur(); input.focus(); return 'refocus'; })()" },
+  { "wait": 500 },
+  { "eval": "(() => { const box = document.querySelector('[role=listbox]'); return box ? 'box-after-refocus: ' + box.querySelectorAll('button').length + ' buttons' : 'still-no-box'; })()", "name": "after-refocus" }
+]

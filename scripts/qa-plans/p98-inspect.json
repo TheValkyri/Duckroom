@@ -1,0 +1,9 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'r'", "name": "reload" },
+  { "wait": 24000 },
+  { "eval": "(() => { const input = document.querySelector(\"input[type='search']\"); if (!input) return 'no-input'; const props = Object.keys(input).find(k => k.startsWith('__reactProps')); const onFocus = props ? typeof input[props].onFocus : 'n/a'; const parent = input.parentElement; const roleList = document.querySelector('[role=listbox]'); return JSON.stringify({ hasOnFocus: onFocus === 'function', parentChildren: parent ? parent.children.length : 0, anyListbox: !!roleList, reactPropsKeys: props ? Object.keys(input[props]).slice(0, 12) : [] }); })()", "name": "dom-inspect" },
+  { "eval": "(() => { const input = document.querySelector(\"input[type='search']\"); const reactProps = Object.keys(input).find(k => k.startsWith('__reactProps')); input[reactProps].onFocus({ target: input, currentTarget: input, type: 'focus' }); return 'called-onFocus-directly'; })()" },
+  { "wait": 500 },
+  { "eval": "(() => { return document.querySelector('[role=listbox]') ? 'BOX-APPEARS after manual focus call' : 'still-no-box'; })()", "name": "after-manual" }
+]

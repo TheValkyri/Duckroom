@@ -1,0 +1,12 @@
+[
+  { "viewport": [1440, 900, 1], "name": "desktop" },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'r'", "name": "reload" },
+  { "wait": 24000 },
+  { "eval": "(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true })); return 'sent-question-key'; })()" },
+  { "wait": 600 },
+  { "eval": "(() => { const dialog = document.querySelector('[role=dialog][aria-label=\"Phím tắt\"]'); if (!dialog) return 'overlay: MISSING'; const rows = dialog.querySelectorAll('li').length; const sample = dialog.querySelector('kbd'); return JSON.stringify({ hotkeyRows: rows, sampleKey: sample ? sample.textContent : null }); })()", "name": "hotkeys-overlay" },
+  { "eval": "(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return 'esc'; })()" },
+  { "wait": 500 },
+  { "eval": "(() => { return document.querySelector('[role=dialog][aria-label=\"Phím tắt\"]') ? 'STILL OPEN' : 'closed-via-esc: OK'; })()", "name": "esc-closes" },
+  { "screenshot": "C:/Users/Darne/AppData/Local/Temp/opencode/shots/qol-hotkeys.png" }
+]

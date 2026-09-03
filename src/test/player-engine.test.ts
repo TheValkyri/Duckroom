@@ -96,6 +96,57 @@ describe("player-engine (Phase 5.1)", () => {
     expect(state(e).index).toBe(0);
   });
 
+  /* QoL A1 — insertNext ("Phát kế tiếp") semantics. */
+  it("insertNext chèn NGAY SAU bài hiện tại, giữ index & isPlaying", () => {
+    const e = createPlayerEngine();
+    e.actions.playQueue([mkTrack("a"), mkTrack("b"), mkTrack("c")], 0); // đang phát a
+    const x = mkTrack("x");
+    e.actions.insertNext(x);
+    const s = state(e);
+    expect(s.queue.map((t) => t.id)).toEqual(["a", "x", "b", "c"]);
+    expect(s.index).toBe(0); // bài đang phát KHÔNG đổi
+    expect(s.isPlaying).toBe(true);
+  });
+
+  it("insertNext ở giữa queue: chèn sau current chứ không phải cuối", () => {
+    const e = createPlayerEngine();
+    e.actions.playQueue([mkTrack("a"), mkTrack("b"), mkTrack("c"), mkTrack("d")], 1); // đang phát b
+    e.actions.insertNext(mkTrack("y"));
+    expect(state(e).queue.map((t) => t.id)).toEqual(["a", "b", "y", "c", "d"]);
+    expect(state(e).index).toBe(1);
+  });
+
+  it("insertNext track trùng bài đang phát = no-op (không tự nhân)", () => {
+    const e = createPlayerEngine();
+    e.actions.playQueue([mkTrack("a"), mkTrack("b")], 0);
+    e.actions.insertNext(mkTrack("a"));
+    expect(state(e).queue).toHaveLength(2);
+  });
+
+  it("insertNext hai lần = stack đúng thứ tự gọi (LIFO theo ý người dùng)", () => {
+    const e = createPlayerEngine();
+    e.actions.playQueue([mkTrack("a"), mkTrack("z")], 0);
+    e.actions.insertNext(mkTrack("n1"));
+    e.actions.insertNext(mkTrack("n2"));
+    // Lần 2 chèn sau current (a) → đẩy n1 xuống: a n2 n1 z.
+    expect(state(e).queue.map((t) => t.id)).toEqual(["a", "n2", "n1", "z"]);
+  });
+
+  it("insertNext rồi nextIntent(manual) phát đúng bài vừa chèn", () => {
+    const e = createPlayerEngine();
+    e.actions.playQueue([mkTrack("a"), mkTrack("tail")], 0);
+    e.actions.insertNext(mkTrack("next-up"));
+    e.actions.nextIntent(true);
+    expect(state(e).queue[state(e).index]!.id).toBe("next-up");
+  });
+
+  it("insertNext khi queue rỗng: chèn thành bài đầu (an toàn)", () => {
+    const e = createPlayerEngine();
+    e.actions.insertNext(mkTrack("solo"));
+    expect(state(e).queue.map((t) => t.id)).toEqual(["solo"]);
+    expect(state(e).index).toBe(0);
+  });
+
   it("toggleShuffle keeps the current track first; toggling off restores the base order at the same track", () => {
     const e = createPlayerEngine();
     const list = [mkTrack("a"), mkTrack("b"), mkTrack("c"), mkTrack("d")];

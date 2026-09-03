@@ -1,0 +1,11 @@
+[
+  { "viewport": [1440, 900, 1] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'r'", "name": "reload" },
+  { "wait": 24000 },
+  { "eval": "(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true })); return 'open'; })()" },
+  { "wait": 700 },
+  { "eval": "(() => { const d = document.querySelector('[role=dialog][aria-label=\"Phím tắt\"]'); return d ? 'open-ok' : 'never-opened'; })()", "name": "opened" },
+  { "eval": "(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return 'esc-sent'; })()" },
+  { "wait": 1100 },
+  { "eval": "(() => { const d = document.querySelector('[role=dialog][aria-label=\"Phím tắt\"]'); return d ? 'STILL after 1100ms' : 'closed-ok'; })()", "name": "closed-check" }
+]

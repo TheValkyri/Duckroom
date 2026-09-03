@@ -412,12 +412,46 @@ function PlaylistCard({ playlist, allTracks }: { playlist: MemberPlaylist; allTr
             </button>
             <button
               onClick={() => {
-                member.deletePlaylist(playlist.id).catch((err) => {
-                  console.error("[Duckroom MyLibrary] Delete playlist failed:", err);
-                  toast.error(
-                    `Không xóa được playlist "${playlist.name}": ${err instanceof Error ? err.message : "lỗi không xác định."}`,
-                  );
-                });
+                /* QoL A4: xóa có UNDO — toast 6s giữ snapshot (tên + mô tả +
+                 * ds track_id theo vị trí); "Hoàn tác" tạo lại playlist rồi
+                 * add lại từng bài theo thứ tự gốc. Server là source of
+                 * truth: xóa thật fail → KHÔNG hiện undo (không có gì để undo);
+                 * undo fail giữa chừng → toast lỗi, người dùng thấy rõ. */
+                const snapshot = {
+                  name: playlist.name,
+                  description: playlist.description,
+                  trackIds: [...(playlist.tracks ?? [])].sort((a, b) => a.position - b.position).map((t) => t.track_id),
+                };
+                member
+                  .deletePlaylist(playlist.id)
+                  .then(() => {
+                    toast(`Đã xóa "${playlist.name}"`, {
+                      duration: 6000,
+                      action: {
+                        label: "Hoàn tác",
+                        onClick: async () => {
+                          try {
+                            const recreated = await member.createPlaylist(snapshot.name, snapshot.description);
+                            for (const trackId of snapshot.trackIds) {
+                              await member.addToPlaylist(recreated.id, trackId);
+                            }
+                            toast.success(`Đã khôi phục "${snapshot.name}"`);
+                          } catch (err) {
+                            console.error("[Duckroom MyLibrary] Undo delete failed:", err);
+                            toast.error(
+                              `Không khôi phục được: ${err instanceof Error ? err.message : "lỗi không xác định."}`,
+                            );
+                          }
+                        },
+                      },
+                    });
+                  })
+                  .catch((err) => {
+                    console.error("[Duckroom MyLibrary] Delete playlist failed:", err);
+                    toast.error(
+                      `Không xóa được playlist "${playlist.name}": ${err instanceof Error ? err.message : "lỗi không xác định."}`,
+                    );
+                  });
               }}
               className="text-muted-foreground hover:text-destructive rounded-lg p-2 transition-colors cursor-pointer"
               aria-label={`Xóa ${playlist.name}`}

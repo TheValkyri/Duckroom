@@ -169,6 +169,8 @@ type PlayerState = {
   setQueueOpen: (v: boolean) => void;
   jumpTo: (i: number) => void;
   moveInQueue: (from: number, to: number) => void;
+  /** QoL A1: chèn track phát kế tiếp (sau bài hiện tại). */
+  insertNext: (track: Track) => void;
 };
 
 const Ctx = createContext<PlayerState | null>(null);
@@ -1150,6 +1152,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [actions],
   );
 
+  /** QoL A1: "Phát kế tiếp" — chèn vào sau bài hiện tại (engine thuần). */
+  const insertNext = useCallback(
+    (track: Track) => {
+      actions.insertNext(track);
+    },
+    [actions],
+  );
+
   const playQueue = useCallback(
     (list: Track[], startIndex = 0, shuffleNow?: boolean) => {
       if (list.length === 0) return;
@@ -1368,6 +1378,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setQueueOpen,
       jumpTo,
       moveInQueue,
+      insertNext,
     };
   }, [
     current,
@@ -1396,6 +1407,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     cycleRepeat,
     jumpTo,
     moveInQueue,
+    insertNext,
   ]);
 
   return (

@@ -1,0 +1,10 @@
+[
+  { "viewport": [1440, 900, 1] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'r'", "name": "reload" },
+  { "wait": 24000 },
+  { "eval": "(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true })); return 'open-1'; })()" },
+  { "wait": 700 },
+  { "eval": "(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true })); return 'toggle-off'; })()" },
+  { "wait": 900 },
+  { "eval": "(() => { const d = document.querySelector('[role=dialog][aria-label=\"Phím tắt\"]'); if (!d) return 'toggle-closed: OK (vậy ESC handler ok, chỉ motion-exit stall)'; const cs = getComputedStyle(d); return 'still-there opacity=' + cs.opacity; })()", "name": "toggle-result" }
+]

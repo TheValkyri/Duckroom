@@ -56,6 +56,10 @@ export interface PlayerEngineActions {
   /** Crossfade handover advance (wraps; preserves pre-engine semantics). */
   advanceWrapForHandover(): void;
   moveInQueue(from: number, to: number): void;
+  /** QoL A1 (2026-09-01): chèn track vào NGAY SAU bài đang phát.
+   *  Duplicate có chủ đích (user yêu cầu) — không dedupe. Không đổi index.
+   *  Nếu bài chèn TRÙNG bài hiện tại: bỏ qua (chèn chính nó = vô nghĩa). */
+  insertNext(track: Track): void;
   toggleShuffle(): void;
   cycleRepeat(): RepeatMode;
   setVolume(v: number): void;
@@ -201,6 +205,21 @@ export function createPlayerEngine(initial?: Partial<PlayerEngineState>): Player
       if (!item) return;
       copy.splice(to, 0, item);
       set({ queue: copy, index: clampIndexToQueue(computeIndexAfterMove(from, to, state.index), copy.length) });
+    },
+
+    insertNext(track) {
+      if (!track) return;
+      const cur = state.queue[state.index];
+      if (cur && cur.id === track.id) return; // chèn chính bài đang phát = no-op
+      const insertAt = state.queue.length ? state.index + 1 : 0;
+      const copy = [...state.queue];
+      copy.splice(insertAt, 0, track);
+      // Không đổi index, không đổi isPlaying — bài đang phát giữ nguyên,
+      // queue chỉ "mọc" 1 slot sau nó. baseQueue KHÔNG chèn (nó là
+      // library snapshot; queue là bản phát). Shuffle đang bật thì vẫn
+      // chèn sau current — "phát kế tiếp" là ý định rõ ràng của user,
+      // thắng mọi thứ tự shuffle.
+      set({ queue: copy });
     },
 
     toggleShuffle() {

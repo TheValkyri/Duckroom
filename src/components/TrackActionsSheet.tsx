@@ -1,4 +1,4 @@
-import { Heart, Pencil, Play, Plus, Share2, Trash2 } from "lucide-react";
+import { Heart, ListPlus, Pencil, Play, Plus, Share2, SkipForward, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { Link } from "@tanstack/react-router";
 import { albumById, formatTime, type Track } from "../data/library";
@@ -10,6 +10,7 @@ import { useMemberLibraryContext } from "../lib/member-library-context";
 import { useDuckroomRole } from "../lib/useRole";
 import { createAndShareLink } from "../lib/share-client";
 import { cn } from "../lib/utils";
+import { toast } from "sonner";
 import { useState } from "react";
 
 /**
@@ -41,7 +42,7 @@ export function TrackActionsSheet({
   const { isLoggedIn } = useAuth();
   const { favorites, toggleFavorite } = useMemberLibraryContext();
   const { isOwner } = useDuckroomRole();
-  const { playQueue } = usePlayer();
+  const { playQueue, insertNext } = usePlayer();
   const isFavorite = favorites?.has ? favorites.has(track.id) : false;
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);
@@ -104,6 +105,21 @@ export function TrackActionsSheet({
           className={cn(rowBase, "text-foreground hover:bg-accent/50")}
         >
           <Play className="text-primary size-5 shrink-0" fill="currentColor" /> Phát bài hát
+        </motion.button>
+
+        {/* QoL A1: "Phát kế tiếp" — chèn vào sau bài đang phát (không đổi
+            bài hiện tại). Toast xác nhận; đóng sheet ngay. */}
+        <motion.button
+          whileTap={tapScale}
+          transition={springSnappy}
+          onClick={() => {
+            insertNext(track);
+            toast(`Sẽ phát "${track.title}" sau bài này`);
+            onClose();
+          }}
+          className={cn(rowBase, "text-foreground hover:bg-accent/50")}
+        >
+          <SkipForward className="text-primary size-5 shrink-0" /> Phát kế tiếp
         </motion.button>
 
         {isLoggedIn ? (

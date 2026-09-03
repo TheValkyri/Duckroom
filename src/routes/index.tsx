@@ -12,6 +12,7 @@ import { listContainerVariants, listItemVariants, springSnappy, tapScale, tweenB
 import { usePlayer } from "../lib/player";
 import { useLibrary } from "../lib/useLibrary";
 import { useAuth } from "../lib/useAuth";
+import { useMemberLibraryContext } from "../lib/member-library-context";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/")({
@@ -153,11 +154,36 @@ function Index() {
   const { playQueue, isPlaying } = usePlayer();
   const { tracks, albums, videos } = useLibrary();
   const { isLoggedIn } = useAuth();
+  const member = useMemberLibraryContext();
   const [editingHeroAlbum, setEditingHeroAlbum] = useState<Album | null>(null);
 
   const hero = albums[0];
   const heroTracks = useMemo(() => (hero ? albumTracks(hero.id) : []), [hero]);
-  const recent = useMemo(() => tracks.slice(0, 5), [tracks]);
+
+  /* QoL A3: "Nghe gần đây" THẬT thay vì tracks.slice(0,5) giả.
+   * - Member: playbackHistory từ server (mới nhất trước) → map ra Track,
+   *   dedupe theo id (một bài nghe 10 lần chỉ xuất 1 lần ở vị trí gần nhất).
+   * - Guest: fallback đúng hành vi cũ (thứ tự library) — không có session
+   *   recents riêng cho guest theo Master Plan §1.3 (guest không persist).
+   * - Luôn cắt 5 và chỉ hiển thị section khi CÓ dữ liệu thật. */
+  const recent = useMemo(() => {
+    const history = member.history;
+    if (isLoggedIn && history?.length) {
+      const seen = new Set<string>();
+      const out: Track[] = [];
+      for (const h of history) {
+        if (!h?.track_id || seen.has(h.track_id)) continue;
+        const t = tracks.find((x) => x.id === h.track_id);
+        if (t) {
+          seen.add(t.id);
+          out.push(t);
+        }
+        if (out.length >= 5) break;
+      }
+      if (out.length) return out;
+    }
+    return tracks.slice(0, 5);
+  }, [isLoggedIn, member.history, tracks]);
 
   const singles = useMemo(
     () =>

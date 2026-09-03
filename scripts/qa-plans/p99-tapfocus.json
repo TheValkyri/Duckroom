@@ -1,0 +1,10 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "location.href = 'http://localhost:5173/library'; 'r'", "name": "reload" },
+  { "wait": 26000 },
+  { "tapSelector": "input[type='search']", "settle": 700 },
+  { "eval": "(() => { const box = document.querySelector('[role=listbox]'); return box ? 'BOX via real tap: ' + box.querySelectorAll('button').length + ' btns' : 'no-box'; })()", "name": "tap-focus-box" },
+  { "eval": "(() => { const box = document.querySelector('[role=listbox]'); const item = [...box.querySelectorAll('button')].find(b => b.textContent.trim() === 'mck'); item.click(); return 'picked'; })()" },
+  { "wait": 600 },
+  { "eval": "(() => { const input = document.querySelector(\"input[type='search']\"); const rows = [...document.querySelectorAll('main .group')].filter(r => r.offsetHeight > 0).length; return JSON.stringify({ q: input.value, rows }); })()", "name": "final" }
+]
