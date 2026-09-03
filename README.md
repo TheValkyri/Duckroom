@@ -14,7 +14,7 @@
 [![Styling](https://img.shields.io/badge/Styling-Tailwind%20v4%20%2B%20Motion-cyan?logo=tailwindcss)](https://tailwindcss.com)
 [![Deployment](https://img.shields.io/badge/Deploy-Vercel%20Nitro%20SSR-black?logo=vercel)](https://vercel.com)
 
-[🌐 Web App](https://duckroom.vercel.app) &nbsp;•&nbsp; [📖 Master Plan](docs/DUCKROOM_MASTER_PLAN.md) &nbsp;•&nbsp; [⚡ Audit hiện tại](docs/audit/CURRENT_VERIFICATION.md)
+[🌐 Web App](https://duckroom.vercel.app) &nbsp;•&nbsp; [📘 Hướng dẫn sử dụng](docs/USER_GUIDE.md) &nbsp;•&nbsp; [📖 Master Plan](docs/DUCKROOM_MASTER_PLAN.md) &nbsp;•&nbsp; [⚡ Audit hiện tại](docs/audit/CURRENT_VERIFICATION.md)
 
 ---
 
@@ -30,6 +30,8 @@ Kiến trúc: **PostgreSQL (Supabase)** là canonical metadata source-of-truth d
 
 ## 🔥 Tính năng
 
+> 📖 **[Hướng dẫn sử dụng đầy đủ](docs/USER_GUIDE.md)** — mọi tính năng kèm thao tác cụ thể cho cả điện thoại và máy tính.
+
 ### 🔊 Player & Âm thanh
 
 - **Master preservation**: giữ nguyên FLAC/WAV/ALAC/M4A như đã upload.
@@ -37,17 +39,40 @@ Kiến trúc: **PostgreSQL (Supabase)** là canonical metadata source-of-truth d
 - **Crossfade 0–10s**, gapless best-effort theo giới hạn browser.
 - **ReplayGain Off/Track/Album** — giá trị dB đọc từ tag thật của file (server analysis), chỉ áp dụng ở playback, không đụng vào master.
 - **Player engine tách rời UI**: audio engine độc lập với render pressure của React; multi-tab arbitration qua BroadcastChannel; continue-listening restore cho Member.
+- **Phát kế tiếp** — chèn bài vào ngay sau bài đang phát, không ngắt nhạc hiện tại (menu bài hát / nhấn-giữ trên điện thoại).
+- **Hẹn tắt nhạc** — 15/30/45/60/90 phút; 30 giây cuối **tự hạ âm lượng êm dần rồi mới pause** (không bao giờ cắt đột ngột); badge đếm ngược trên icon.
+- **MediaSession đầy đủ** — phím media bàn phím + màn hình khóa: play/pause/next/prev/seek/stop.
+- **Sóng nhạc VU-analog** — 3 lớp mỗi thanh (gradient + lõi sáng + mặt sóng), **đổi màu theo accent theme bạn chọn**, phân tích phổ tần số thật (bass giữa, treble mép).
 
 ### 🎬 Video archive
 
 - Lưu trữ MP4/MKV/WebM/MOV bản gốc; phát qua HTML5 video + HTTP Range.
-- Khả năng phát phụ thuộc container/codec mà browser hỗ trợ.
+- **Tự sinh preview**: MV chưa có ảnh bìa được chụp khung hình đầu qua canvas (cache theo URL).
+- **Điều khiển cảm ứng chuẩn TV**: chạm để hiện/ẩn controls (tự ẩn 2.6s), nhấn-đúp fullscreen, mọi nút 44px.
 
 ### 🎤 Lyrics-first
 
 - Synced (.lrc) + plain lyrics; offset hiển thị ±ms không đụng timestamp gốc.
+- **Parser LRC v2**: phút 1 chữ số, mili-giây 1-3 chữ số, **multi-timestamp** (điệp khúc lặp tự sinh entry), tag metadata chuẩn, `[offset:±ms]` áp đúng spec.
+- **Dòng đang hát chạy trên trình phát** ngay cả khi sheet đóng; sheet lyrics gần toàn màn hình trên điện thoại (kéo handle để đóng).
 - Nguồn đa provider có ghi nhận `source`: embedded, LRCLIB, Lyrics.ovh, nhập tay, import.
 - Timeline editor (tap-sync theo waveform) trong Review Center lúc upload.
+
+### 🎨 Tùy chỉnh giao diện (Theme system)
+
+- **Dark / Light** — light là palette "giấy ấm" first-class, không phải dark invert.
+- **8 màu nhấn preset**: Vàng đồng · Hổ phách · San hô · Hồng · Tím · Xanh dương · Xanh ngọc · Xanh lục.
+- **Tự chỉnh kéo màu**: thanh hue chính là vòng màu oklch thật; thanh độ đậm grayscale→accent. Màu áp dụng **ngay khi kéo** (thả tay mới ghi nhớ).
+- **Chuyển mode = sóng nước** lan từ điểm ngẫu nhiên — viền sóng phát sáng màu accent mới; GPU-only, 0 khựng.
+- Chống FOUC: theme áp trước hydrate (script init trong `<head>`); ghi nhớ theo thiết bị.
+
+### 📱 Mobile-first UI
+
+- **Bottom nav 5 mục** + sheet "Xem thêm" (Albums/Đĩa đơn/Owner tools) kéo-lên.
+- **Nhấn-giữ bài hát** ~0.5s mở menu thao tác (Phát / Phát kế tiếp / Yêu thích / Thêm playlist / Chia sẻ / sửa-xóa cho Owner).
+- **Lịch sử tìm kiếm** — 5 từ gần nhất, chạm để tìm lại, xóa từng mục.
+- Scroll-lock mọi sheet/modal (nền không cuộn xuyên), safe-area chuẩn notch/Dynamic Island.
+- Bố cục mini-player chuẩn: **Prev → Play → Next** đối xứng, 44px mọi nút.
 
 ### 🔒 Phân quyền 3 tầng — Guest / Member / Owner
 
@@ -55,6 +80,7 @@ Kiến trúc: **PostgreSQL (Supabase)** là canonical metadata source-of-truth d
 | ---------------------------------------------------- | :---: | :----: | :---: |
 | Nghe public library, lyrics, artwork                 |  ✅   |   ✅   |  ✅   |
 | Share link                                           |  ✅   |   ✅   |  ✅   |
+| Tùy chỉnh giao diện (theo thiết bị)                  |  ✅   |   ✅   |  ✅   |
 | Favorites / Playlists / History / Continue listening |  ❌   |   ✅   |  ✅   |
 | Upload master / sửa metadata / trash                 |  ❌   |   ❌   |  ✅   |
 | Storage tools / user management / audit logs         |  ❌   |   ❌   |  ✅   |
@@ -62,12 +88,23 @@ Kiến trúc: **PostgreSQL (Supabase)** là canonical metadata source-of-truth d
 - Auth fail-closed: JWT verify phía server (`supabase.auth.getUser`), role đọc từ DB, không tin payload client.
 - Service-role key chỉ tồn tại server-side; secret scan gate chạy trong CI.
 
+### 📚 Kho của tôi (Member dashboard)
+
+- **Thẻ "Nghe tiếp"** nổi bật + 3 ô thống kê (bài yêu thích / album yêu thích / playlist).
+- **Album yêu thích** — lưới album dẫn xuất từ favorites, badge ♥ số bài, sắp theo độ "thâm niên".
+- **Xóa playlist có Hoàn tác** — toast 6 giây khôi phục lại toàn bộ playlist + thứ tự gốc.
+- "Nghe gần đây" trên trang chủ dùng **playbackHistory thật** (dedupe theo bài), không còn dữ liệu giả.
+
 ### 📦 Ingestion pipeline
 
 - Phân tích binary thật: magic-byte dispatch, Xing/VBRI, ISOBMFF moov-tail fallback.
 - SHA-256 transport integrity — client/server mismatch fail-closed.
 - Duplicate detection (exact/likely/uncertain) + quyết định upload_anyway/use_existing/cancel.
 - Review Center: bulk edit, retry, recovery states có cleanup-debt compensation.
+
+### ⌨️ Phím tắt (desktop)
+
+Nhấn `?` bất kỳ đâu để mở bảng hướng dẫn: `Space` play/pause · `Shift+→/←` next/prev · `S` shuffle · `R` repeat · `L` lyrics · `Esc` thu nhỏ.
 
 ### 🔗 Share & Spotify bridge
 
@@ -86,7 +123,7 @@ Kiến trúc: **PostgreSQL (Supabase)** là canonical metadata source-of-truth d
 | Media Storage    | Pikamc S3 + @aws-sdk/client-s3 | Binary masters + presigned URLs     |
 | Canonical DB     | Supabase PostgreSQL + RLS      | Metadata định danh, phân quyền      |
 | Styling & Motion | Tailwind CSS v4 + Motion       | Design system, reduced-motion aware |
-| Testing          | Vitest 4 + ESLint 9 + Prettier | 270+ test, secret-scan gate         |
+| Testing          | Vitest 4 + ESLint 9 + Prettier | 350+ test, secret-scan gate         |
 
 ---
 
@@ -173,7 +210,7 @@ Bốn mức xác minh cần phân biệt rõ — README này chỉ claim hai m�
 | Mức                     | Phạm vi                                                                                           | Trạng thái                                                    |
 | ----------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
 | **Implemented**         | Master Plan Phase 0–11 theo §30                                                                   | ✅ Toàn bộ phase ladder đã có code trong repo                 |
-| **Tested in-repo**      | 290+ test case (mocked transports) + typecheck/lint/build/secret-scan + dev-server smoke          | ✅ Green trên working copy                                    |
+| **Tested in-repo**      | 350+ test case (mocked transports) + typecheck/lint/build/secret-scan + dev-server smoke          | ✅ Green trên working copy                                    |
 | **Externally verified** | Live Supabase (migrations + RLS/security matrix), live S3, credential rotation, browser perf pass | ⛔ Chưa — đây là external gates bắt buộc trước public release |
 | **Release-ready**       | Cả 3 mức trên đồng thời                                                                           | ❌ NO                                                         |
 

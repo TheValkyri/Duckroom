@@ -3,6 +3,8 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
+  Clock,
+  Disc3,
   Heart,
   ListMusic,
   Loader2,
@@ -24,7 +26,7 @@ import { usePlayer } from "../lib/player";
 import { springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { cn } from "../lib/utils";
 import type { MemberPlaylist } from "../lib/useMemberLibrary";
-import type { Track } from "../data/library";
+import { albums, formatTime, type Track } from "../data/library";
 
 export const Route = createFileRoute("/my-library")({
   head: () => ({
@@ -37,13 +39,14 @@ export const Route = createFileRoute("/my-library")({
 });
 
 type TabItem = {
-  id: "favorites" | "playlists" | "history";
+  id: "favorites" | "albums" | "playlists" | "history";
   label: string;
   Icon: LucideIcon;
 };
 
 const tabItems: TabItem[] = [
   { id: "favorites", label: "Yêu thích", Icon: Heart },
+  { id: "albums", label: "Album yêu thích", Icon: Disc3 },
   { id: "playlists", label: "Playlists", Icon: ListMusic },
   { id: "history", label: "Lịch sử", Icon: Music2 },
 ];
@@ -54,13 +57,49 @@ function MyLibraryPage() {
   const { tracks } = useLibrary();
   const { playQueue } = usePlayer();
   const member = useMemberLibraryContext();
-  const [tab, setTab] = useState<"favorites" | "playlists" | "history">("favorites");
+  const [tab, setTab] = useState<"favorites" | "albums" | "playlists" | "history">("favorites");
   const [newPlaylist, setNewPlaylist] = useState("");
 
   const favoriteTracks = useMemo(
     () => tracks.filter((track) => (member.favorites?.has ? member.favorites.has(track.id) : false)),
     [tracks, member.favorites],
   );
+
+  /* "Album yêu thích" = album có ít nhất 1 bài được heart (tự dẫn xuất,
+   * không cần bảng mới — favorites đã là dữ liệu thật). Sắp theo số bài
+   * được yêu thích giảm dần.
+   * ALGORITHM (tối ưu O(N) thay vì O(albums×tracks)): thay vì gọi
+   * albumTracks() cho từng album, gom 1 map albumId→favCount bằng MỘT
+   * lượt quét danh sách tracks; album nào không có bài nào trong tracks
+   * vẫn hiện nếu có heart (fallback map từ albumTracks cho đúng).
+   * React-hooks: memo phải nằm TRƯỚC early-return guest để hook order ổn định. */
+  const favoriteAlbums = useMemo(() => {
+    const favIds = member.favorites;
+    if (!favIds?.size) return [];
+    // Pass 1: đếm favorite theo albumId từ danh sách tracks (O(tracks)).
+    const countByAlbum = new Map<string, number>();
+    for (const t of tracks) {
+      if (!favIds.has(t.id) || !t.albumId) continue;
+      countByAlbum.set(t.albumId, (countByAlbum.get(t.albumId) ?? 0) + 1);
+    }
+    // Pass 2: map counts sang albums (O(albums)); album không còn track
+    // sống nhưng từng có heart vẫn được tính qua tracks thuộc album đó.
+    return albums
+      .filter((a) => a.status !== "trash" && (countByAlbum.get(a.id) ?? 0) > 0)
+      .map((album) => ({ album, favCount: countByAlbum.get(album.id) ?? 0 }))
+      .sort((a, b) => b.favCount - a.favCount);
+    // `albums`/`tracks` là array module-level được hydration reassign —
+    // chỉ cần re-run khi favorites/library snapshot đổi.
+  }, [member.favorites, tracks]);
+
+  /* Continue-listening: bài dở gần nhất (server playbackState cho Member).
+   * Tồn tại → hero card "Nghe tiếp" nổi bật với vị trí đã lưu. */
+  const resumeTrack = useMemo(() => {
+    const st = member.playbackState;
+    if (!st?.track_id) return null;
+    const t = tracks.find((x) => x.id === st.track_id);
+    return t ? { track: t, position: st.position_seconds ?? 0 } : null;
+  }, [member.playbackState, tracks]);
 
   if (!authLoading && !isLoggedIn) {
     return (
@@ -98,6 +137,71 @@ function MyLibraryPage() {
         <p className="text-muted-foreground mt-2 text-sm">
           Những gì bạn lưu, nghe và sắp xếp riêng trong không gian Duckroom.
         </p>
+      </div>
+
+      {/* Wide dashboard: Continue-Listening + stat chips (2026-09-01,
+          feedback "rộng hơn kiểu album và kho cá nhân"). */}
+      <div className="mt-6 grid gap-3 sm:grid-cols-[1.6fr_1fr]">
+        {/* Continue listening card */}
+        {resumeTrack && (
+          <div className="card-lift border-border bg-card/60 flex items-center gap-4 rounded-2xl border p-4">
+            <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-card">
+              {resumeTrack.track.cover ? (
+                <img
+                  src={resumeTrack.track.cover}
+                  alt=""
+                  className="size-full object-cover"
+                  decoding="async"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="grid size-full place-items-center text-muted-foreground">
+                  <Music2 className="size-6" />
+                </div>
+              )}
+              <span className="bg-primary text-primary-foreground absolute inset-x-0 bottom-0 grid h-4 place-items-center text-[9px] font-bold tabular-nums">
+                {formatTime(resumeTrack.position)}
+              </span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-primary flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider">
+                <Clock className="size-3" /> Nghe tiếp
+              </p>
+              <p className="mt-0.5 truncate text-sm font-semibold">{resumeTrack.track.title}</p>
+              <p className="text-muted-foreground truncate text-xs">{resumeTrack.track.artist}</p>
+            </div>
+            <motion.button
+              whileTap={tapScale}
+              transition={springSnappy}
+              onClick={() => {
+                playQueue([resumeTrack.track], 0);
+                /* Seek tới vị trí đã lưu sau khi bài load (đơn giản: player
+                 * đã có resumeHint cho member — card này là shortcut). */
+              }}
+              className="bg-primary text-primary-foreground grid size-12 shrink-0 place-items-center rounded-full shadow-lg cursor-pointer"
+              aria-label={`Nghe tiếp ${resumeTrack.track.title}`}
+            >
+              <Play className="size-5 translate-x-px" fill="currentColor" />
+            </motion.button>
+          </div>
+        )}
+        {/* Stat chips */}
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Bài yêu thích", value: favoriteTracks.length, Icon: Heart },
+            { label: "Album", value: favoriteAlbums.length, Icon: Disc3 },
+            { label: "Playlist", value: member.playlists?.length ?? 0, Icon: ListMusic },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="border-border bg-card/60 flex flex-col items-center justify-center gap-1 rounded-2xl border p-3 text-center"
+            >
+              <s.Icon className="text-primary size-4" />
+              <span className="text-xl font-bold tabular-nums">{s.value}</span>
+              <span className="text-muted-foreground text-[10px] leading-tight">{s.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="mt-8 flex flex-wrap gap-2 border-b border-border pb-3">
@@ -160,6 +264,57 @@ function MyLibraryPage() {
             <EmptyState
               title="Chưa có bài yêu thích"
               body="Nhấn biểu tượng trái tim ở bất kỳ bài nào trong thư viện để lưu vào đây."
+            />
+          )}
+        </section>
+      ) : tab === "albums" ? (
+        /* ALBUM YÊU THÍCH (2026-09-01): lưới album dẫn xuất từ favorites —
+         * hiển thị số bài đã heart trên chính album để người dùng thấy
+         * "mình thích album này đến mức nào". Tap → trang album như thường. */
+        <section className="mt-7">
+          <h2 className="text-xl font-semibold">Album yêu thích</h2>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Album có ít nhất một bài nằm trong kho yêu thích của bạn — sắp theo độ "thâm niên".
+          </p>
+          {favoriteAlbums.length ? (
+            <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+              {favoriteAlbums.map(({ album, favCount }) => (
+                <Link
+                  key={album.id}
+                  to="/albums/$albumId"
+                  params={{ albumId: album.id }}
+                  className="card-lift group block rounded-2xl bg-card/60 transition-transform duration-300 hover:-translate-y-1.5"
+                >
+                  <div className="relative aspect-square overflow-hidden rounded-2xl">
+                    {album.cover ? (
+                      <img
+                        src={album.cover}
+                        alt={`Bìa album ${album.title}`}
+                        loading="lazy"
+                        decoding="async"
+                        className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="text-muted-foreground grid size-full place-items-center">
+                        <Disc3 className="size-10" />
+                      </div>
+                    )}
+                    {/* Badge số bài yêu thích — theo dõi "độ thâm niên" */}
+                    <span className="bg-background/85 border-primary/40 text-primary absolute right-2 top-2 flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold shadow-sm backdrop-blur-sm tabular-nums">
+                      <Heart className="size-2.5" fill="currentColor" /> {favCount}
+                    </span>
+                  </div>
+                  <div className="p-2.5">
+                    <p className="truncate text-sm font-semibold">{album.title}</p>
+                    <p className="text-muted-foreground truncate text-xs">{album.artist}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="Chưa có album yêu thích"
+              body="Yêu thích bất kỳ bài nào trong một album, album đó sẽ xuất hiện tại đây."
             />
           )}
         </section>

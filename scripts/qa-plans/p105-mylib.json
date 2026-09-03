@@ -1,0 +1,7 @@
+[
+  { "viewport": [390, 844, 3] },
+  { "eval": "location.href = 'http://localhost:5173/my-library'; 'r'", "name": "reload" },
+  { "wait": 20000 },
+  { "eval": "(() => { const guest = document.body.textContent.includes('Đây là kho riêng của bạn'); const login = document.body.textContent.includes('Đăng nhập ngay'); return JSON.stringify({ guestView: guest, loginCTA: login }); })()", "name": "guest-view" },
+  { "eval": "(() => { const tabs = [...document.querySelectorAll('button')].map(b => b.textContent.trim()).filter(t => ['Yêu thích','Album yêu thích','Playlists','Lịch sử'].includes(t)); return JSON.stringify({ tabsFound: tabs }); })()", "name": "tabs-guest" }
+]
