@@ -3,6 +3,7 @@ import { Music2, RefreshCw, Search, Trash2, UploadCloud, X } from "lucide-react"
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TrackRow } from "../components/TrackRow";
+import { LibrarySkeleton } from "../components/LibrarySkeleton";
 import {
   clearSearchHistory,
   pushSearchHistory,
@@ -46,7 +47,7 @@ export const Route = createFileRoute("/library")({
 
 function LibraryPage() {
   const { playQueue } = usePlayer();
-  const { tracks, albums } = useLibrary();
+  const { tracks, albums, status } = useLibrary();
   const { isLoggedIn } = useAuth();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<string>("all");
@@ -139,6 +140,14 @@ function LibraryPage() {
     },
     [playQueue, list],
   );
+
+  /* WP3: hydrate lần đầu (chưa data + chưa xong sync, kể cả frame
+   * "idle" đầu) → skeleton, KHÔNG empty-state "Thư viện trống" (chỉ đúng
+   * khi DB thật sự trả về rỗng). */
+  const isInitialHydrating = (status === "idle" || status === "syncing") && tracks.length === 0 && albums.length === 0;
+  if (isInitialHydrating) {
+    return <LibrarySkeleton />;
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-12">

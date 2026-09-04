@@ -13,6 +13,10 @@
   (bottom nav, mini-player, sheets, safe-areas), zero desktop regression,
   docs in `MOBILE_UI_CONTEXT_AUDIT / MOBILE_UI_ARCHITECTURE / MOBILE_UI_QA /
   MOBILE_RESPONSIVE_MATRIX / FINAL_MOBILE_UI_RELEASE_REPORT`.
+- **PERF/PLAYBACK/LYRICS/LOADING HARDENING PASS (2026-09-04): COMPLETE
+  in-repo** — WP1–WP7 theo feedback round (audio stall, lyrics jitter,
+  initial-load "khựng 2–3s", iOS PWA background, artwork perf). Chi tiết
+  AD-17/AD-18 trong ARCHITECTURE_DECISIONS.md.
 - Release-ready = **NO** — vẫn còn 3 external gates (live Supabase/rotation/S3).
 
 ## Environment
@@ -20,15 +24,38 @@
 - Node v24.16.0 · npm 11.13.0 · lockfileVersion 3
 - QA browser: Chrome 151 via CDP @ 360/375/390/412/430/768 + 1280/1440/1920
 
-## Gates (2026-08-31, working copy, sau mobile UI overhaul)
+## Gates (2026-09-04, working copy, sau perf/playback/lyrics/loading pass)
 
 | Gate | Kết quả |
 |---|---|
-| `npx tsc --noEmit` | PASS (0 errors — bao gồm fix 4 lỗi type có sẵn ở working copy này, xem AD-M6) |
-| `npx eslint .` | PASS (0 errors / 18 warnings pre-existing — giảm từ 19) |
-| `npm test` | **PASS 310/310 across 26 files** (0 failed, 0 skipped; +11 mobile-ui-shell) |
-| `npm run build` | PASS (Vite + Nitro/Vercel; client 1.22 MB gzip) |
-| `npm run scan:secrets` | CLEAN (70 client files) |
+| `npx tsc --noEmit` | PASS (0 errors) |
+| `npx eslint .` | PASS (0 errors / 22 warnings pre-existing) |
+| `npm test` | **PASS 363/363 across 30 files** (+13: library-loading-state ×7, playback-lyrics-hardening ×6) |
+| `npm run build` | PASS (Vite + Nitro/Vercel; client 1.25 MB gzip) |
+| `npm run scan:secrets` | CLEAN (74 client files) |
+
+## Perf/playback/lyrics/loading pass (2026-09-04) — thay đổi chính
+
+1. **WP3 Initial load**: `useLibrary` snapshot giờ expose `status`/`error`;
+   index/library/albums render **skeleton đúng geometry** (LibrarySkeleton.tsx,
+   không spinner/glow, giữ khung tránh CLS) khi hydrate lần đầu thay vì
+   empty-state onboarding sai nội dung rồi pop sang library. Hero cover
+   preload above-fold. KHÔNG artificial delay.
+2. **WP2 Lyrics jitter**: crossfade handover (cả timed + ended) giờ gọi
+   `setTime(0)` đồng bộ với `advanceWrapForHandover()` — trước đây timeRef
+   treo ở cuối bài cũ ~250ms làm LyricsTicker nhảy active line. LyricsPane
+   render frame đầu với active line đúng (usePlayerTimeSnapshot — đọc 1 lần,
+   không subscribe) — hết flash "toàn FUTURE" khi mở sheet giữa bài.
+3. **WP1 Audio stall**: stall soft-reload nới 8s→14s + gate readyState===0 +
+   cách cuối bài >30s (Agent-1) — pin bằng guard test chống rollback.
+4. **WP5 Artwork**: bỏ `layoutId` trên AlbumCard grid (vi phạm quy ước perf
+   2026-08-25, đo layout vô nghĩa trên phone); hero ambient blur giảm bậc
+   trên phone (blur-xl sm:blur-2xl md:blur-3xl) theo pattern NowPlaying.
+5. **WP4 iOS**: PWA meta (apple-mobile-web-app-capable + status-bar +
+   icons 192/512/maskable) — Safari tab iOS LUÔN ngắt web audio khi background
+   (platform policy, không phải bug Duckroom — đã audit code path: không có
+   pause theo visibilitychange/pagehide). Đường nghe nền đúng trên iPhone:
+   Add to Home Screen (standalone PWA).
 
 ## Localhost black-box (2026-08-31, vite dev @ :5173, CDP-driven)
 

@@ -101,6 +101,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: "twitter:image", content: "https://duckroom.vercel.app/og-image.jpg" },
       { name: "theme-color", content: "#09090b" },
+      /* iOS background playback (feedback: iPhone ra ngoài → nhạc tắt).
+       * iOS Safari/standalone TỰ ĐỌC các meta này để quyết định web-app có
+       * đáng giữ media session sống khi background hay không:
+       * - apple-mobile-web-app-capable: chế độ standalone (Add to Home
+       *   Screen) — iOS cấp background-audio cho PWA installed, KHÔNG cấp
+       *   cho tab Safari thường.
+       * - status-bar-style: đồng bộ màu với theme tối, không flash trắng.
+       * (Browser tab trên iOS sẽ luôn ngắt web audio khi vào background —
+       * đó là chính sách hệ điều hành, không phải bug app. PWA installed
+       * là đường đúng để nghe nền trên iPhone.) */
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "Duckroom" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -117,6 +131,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "alternate icon", href: "/favicon.ico" },
       { rel: "apple-touch-icon", href: "/og-image.jpg" },
       { rel: "manifest", href: "/site.webmanifest" },
+      /* Prefetch DNS sớm cho S3 — giảm cold-start ~100-300ms khi load
+       * artwork/audio lần đầu (feedback: "vô web phải đợi 2-3s"). */
+      { rel: "preconnect", href: "https://s3.pikamc.vn" },
+      { rel: "dns-prefetch", href: "https://s3.pikamc.vn" },
     ],
     scripts: [
       // Chặn FOUC theme: áp data-theme + accent vars TRƯỚC hydrate. Phải

@@ -76,6 +76,14 @@ const PlayerTimeCtx = createContext<{
   getTime: () => number;
 } | null>(null);
 
+/** Đọc thời gian phát HIỆN TẠI một lần (không subscribe) — cho render
+ *  đầu của danh sách lyric tránh flash FUTURE (WP2). KHÔNG dùng cho
+ *  component cần cập nhật theo tick — dùng usePlayerTime(). */
+export function usePlayerTimeSnapshot(): number {
+  const store = useContext(PlayerTimeCtx);
+  return store ? store.getTime() : 0;
+}
+
 export function usePlayerTime(): number {
   const store = useContext(PlayerTimeCtx);
   if (!store) throw new Error("usePlayerTime must be used inside PlayerProvider");
@@ -779,6 +787,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               return nextCh;
             });
             actions.advanceWrapForHandover();
+            // WP2 2026-09-04 (lyrics "chớp/dựt" khi crossfade): engine đã
+            // nhảy sang bài mới nhưng timeRef còn giữ ~duration bài CŨ cho
+            // đến timeupdate đầu của element mới (~250ms) — LyricsTicker
+            // trong khoảng đó tính active line theo timestamp cũ trên
+            // lines bài mới → highlight nhảy xuống cuối rồi cuộn ngược
+            // lên. Reset đồng bộ ngay tại handover, cùng语义 với
+            // next()/prev()/jumpTo().
+            setTime(0);
             el.pause();
             el.currentTime = 0;
             if (activeChannel === "A") {
@@ -839,6 +855,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return nextCh;
         });
         actions.advanceWrapForHandover();
+        // WP2: đồng bộ timeRef với bài mới (giống nhánh crossfade phía trên
+        // — ended-handover cũng từng để timeRef treo ở cuối bài cũ).
+        setTime(0);
         el.pause();
         el.currentTime = 0;
         if (activeChannel === "A") {
@@ -858,13 +877,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    // P5.5: stalled >8s while playing → one soft reload at same position.
+    // P5.5: stalled >14s while playing → one soft reload at same position.
+    // FIX (feedback "tiếng rè/ngắt trên mobile"): ngưỡng 8s cũ quá thấp —
+    // mobile 3G/4G nhấp nháy stalled/readiness liên tục trong khi buffer
+    // vẫn còn; soft-reload lúc đó cắt âm thanh giữa chừng TẠO ra tiếng
+    // ngắt. 14s + điều kiện readyState===0 (thật sự không có data) và
+    // cách cuối bài >30s (không reload khi sắp crossfade tự nhiên).
     const stallInfo = { timer: 0 as ReturnType<typeof setTimeout> | 0 };
     const onStalled = () => {
       if (!engineState.isPlaying || !current?.id) return;
       if (stalledReloadedRef.current.has(current.id)) return;
       stallInfo.timer = setTimeout(() => {
-        if (el.paused || el.readyState > 2) return;
+        if (el.paused || el.readyState > 0) return; // có data → không phải stall thật
+        const remaining = (el.duration || current.duration) - timeRef.current;
+        if (remaining < 30) return; // sắp hết → để tự nhiên kết thúc
         stalledReloadedRef.current.add(current.id);
         const savedPosition = timeRef.current;
         const src = el.src;
@@ -883,7 +909,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           { once: true },
         );
         el.load();
-      }, 8000);
+      }, 14000);
     };
     const onPlaying = () => {
       if (stallInfo.timer) {

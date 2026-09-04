@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Disc, Disc3, Music2, Pause, Pencil, Play, Shuffle, UploadCloud } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlbumCard } from "../components/AlbumCard";
+import { HomeSkeleton } from "../components/LibrarySkeleton";
 import { EditAlbumModal } from "../components/EditAlbumModal";
 import { TrackRow } from "../components/TrackRow";
 import { Visualizer } from "../components/Visualizer";
@@ -152,13 +153,37 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
 
 function Index() {
   const { playQueue, isPlaying } = usePlayer();
-  const { tracks, albums, videos } = useLibrary();
+  const { tracks, albums, videos, status } = useLibrary();
   const { isLoggedIn } = useAuth();
   const member = useMemberLibraryContext();
   const [editingHeroAlbum, setEditingHeroAlbum] = useState<Album | null>(null);
 
+  /* WP3 2026-09-04: lần hydrate ĐẦU TIÊN (chưa có dữ liệu, chưa xong sync)
+   * hiển thị skeleton đúng geometry — KHÔNG phải empty-state onboarding
+   * (vốn chỉ đúng khi thư viện thật sự trống). "idle" cũng tính (khoảng 1
+   * frame trước khi root effect bắt đầu sync) để không flash empty-state.
+   * Sync ngầm sau này (đã có data) không hiện skeleton. */
+  const isInitialHydrating =
+    (status === "idle" || status === "syncing") && tracks.length === 0 && albums.length === 0 && videos.length === 0;
+
   const hero = albums[0];
   const heroTracks = useMemo(() => (hero ? albumTracks(hero.id) : []), [hero]);
+
+  /* WP3: hero là above-the-fold — preload bìa ngay khi library về để
+   * ảnh không "mọc" muộn sau khi text đã hiện (reduce late LCP). Ảnh
+   * dưới fold giữ nguyên lazy. */
+  useEffect(() => {
+    if (!hero?.cover || typeof window === "undefined") return;
+    if (!hero.cover.startsWith("http") && !hero.cover.startsWith("data:")) return;
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = hero.cover;
+    document.head.appendChild(link);
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, [hero?.cover]);
 
   /* QoL A3: "Nghe gần đây" THẬT thay vì tracks.slice(0,5) giả.
    * - Member: playbackHistory từ server (mới nhất trước) → map ra Track,
@@ -200,6 +225,12 @@ function Index() {
     },
     [playQueue, recent],
   );
+
+  // Trước khi hydrate xong (chưa có data lần đầu) — skeleton giữ khung
+  // trang, không empty-state onboarding sai nội dung (WP3).
+  if (isInitialHydrating) {
+    return <HomeSkeleton />;
+  }
 
   if (!hero || albums.length === 0) {
     return (
@@ -284,7 +315,7 @@ function Index() {
               target.src = fallback;
             }
           }}
-          className="absolute inset-0 size-full scale-110 object-cover opacity-25 blur-3xl transition-opacity duration-700 ease-in-out animate-fade-in"
+          className="absolute inset-0 size-full scale-110 object-cover opacity-25 blur-xl sm:blur-2xl md:blur-3xl transition-opacity duration-700 ease-in-out animate-fade-in"
         />
         <div className="from-background relative inset-0 bg-gradient-to-t via-transparent to-transparent" />
         <div className="relative mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:px-6 sm:py-16 md:flex-row md:items-end md:gap-10 md:py-24">

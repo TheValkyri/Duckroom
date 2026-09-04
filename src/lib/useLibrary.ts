@@ -1,11 +1,14 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   albums,
+  librarySyncError,
+  librarySyncStatus,
   notifyLibrarySubscribers,
   subscribeLibrary,
   tracks,
   videos,
   type Album,
+  type LibrarySyncStatus,
   type Track,
   type Video,
 } from "../data/library";
@@ -14,6 +17,10 @@ type LibraryStoreState = {
   tracks: Track[];
   albums: Album[];
   videos: Video[];
+  /** Trạng thái hydrate canonical — dùng để phân biệt "đang tải" với
+   *  "thư viện thật sự trống" (WP3 2026-09-04). */
+  status: LibrarySyncStatus;
+  error: string | null;
   refresh: () => void;
 };
 
@@ -21,6 +28,8 @@ const initialSnapshot: LibraryStoreState = {
   tracks: [...tracks],
   albums: [...albums],
   videos: [...videos],
+  status: librarySyncStatus,
+  error: librarySyncError,
   refresh: notifyLibrarySubscribers,
 };
 
@@ -43,6 +52,8 @@ function getSnapshot(): LibraryStoreState {
       tracks: [...tracks],
       albums: [...albums],
       videos: [...videos],
+      status: librarySyncStatus,
+      error: librarySyncError,
       refresh: notifyLibrarySubscribers,
     };
   }

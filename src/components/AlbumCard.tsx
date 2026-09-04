@@ -90,8 +90,14 @@ export const AlbumCard = memo(function AlbumCard({
         <Link to="/albums/$albumId" params={{ albumId: album.id }} className="block">
           <div className="card-lift relative overflow-hidden rounded-xl bg-card/60">
             {!imgLoaded && <div className="skeleton-bone absolute inset-0" />}
+            {/* WP5 2026-09-04: bỏ layoutId={cover-...} — layoutId bắt framer
+             * đo layout của MỌI ảnh cùng id mỗi frame + hold ProjectionNode
+             * cho shared-element transition không tồn tại (không có trang
+             * đích nào khớp id này) → 4 album grid = chi phí đo vu vơ trên
+             * phone khi scroll. Quy ước perf 2026-08-25 (AppShell nav) đã
+             * loại layoutId; grid là chỗ còn sót. Ảnh giữ transition CSS
+             * thuần (transform/opacity) như cũ. */}
             <motion.img
-              layoutId={`cover-${album.id}`}
               src={
                 album.cover ||
                 "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='600' height='600' fill='%2318181b'/%3E%3C/svg%3E"

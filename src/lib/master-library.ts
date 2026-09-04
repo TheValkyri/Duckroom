@@ -221,6 +221,14 @@ export async function getPublicMasterLibraryInternal() {
   }
 
   const s3 = getS3ServerClient();
+
+  /* WP3 2026-09-04 audit note (feedback "vào web khựng 2–3s"): signing
+   * đã song song qua Promise.all per-row bên dưới — bottleneck đầu trang
+   * nằm ở CLIENT (không có trạng thái "đang hydrate" → trang hiển thị
+   * empty-state sai rồi pop sang library; xem AD-17). Không thêm scheduler
+   * ở đây: nó không cải thiện gì và thêm một lớp hàng đợi không cần thiết
+   * ("ít side effect" per Master Plan). Cache 15-min đứng trước mọi chữ ký
+   * nên warm load không ký lại. */
   const sign = async (key: string | null | undefined, inline = false) => {
     if (!key || typeof key !== "string" || !key.trim()) return undefined;
     const cleanKey = key.trim();

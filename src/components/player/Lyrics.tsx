@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { usePlayer, usePlayerTime } from "../../lib/player";
+import { usePlayer, usePlayerTime, usePlayerTimeSnapshot } from "../../lib/player";
 import { applyLyricsOffset } from "../../lib/lyrics-formatter";
 import { cn } from "../../lib/utils";
 import type { LyricLine } from "../../data/library";
@@ -112,8 +112,8 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   );
 
   // Active index KHÔNG nằm trong state của pane — ticker quản qua ref và
-  // class trực tiếp. Giá trị khởi tạo -1 (chưa có dòng nào active).
-  void 0;
+  // class trực tiếp. Giá trị khởi tạo -1 (chưa có dòng nào active);
+  // render đầu bù bằng initialActive (xem dưới) để không flash FUTURE.
 
   const handleUserScroll = () => {
     isUserScrollingRef.current = true;
@@ -142,6 +142,17 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
       if (el && el.dataset["base"]) el.className = `${el.dataset["base"]} ${i < prev ? LINE_PASSED : LINE_FUTURE}`;
     }
   }, [current?.id]);
+
+  /* WP2 2026-09-04 (feedback "lyric chớp chớp khi mở sheet giữa bài"):
+   * render đầu của DANH SÁCH sau khi track đổi (hoặc sau khi sheet mở lại)
+   * từng vẽ MỌI dòng ở FUTURE rồi chờ ticker tick kế tiếp mới tô ACTIVE
+   * → 1 frame "nhá" sai. Đọc time MỘT LẦN (snapshot, không subscribe —
+   * pane vẫn không re-render theo tick) và tính active-index ngay trong
+   * render để frame đầu tiên đã đúng trạng thái; ticker sau đó vẫn là
+   * nguồn chân giá trị theo tick — không đổi kiến trúc subscriber-riêng
+   * của pane. */
+  const timeNow = usePlayerTimeSnapshot();
+  const initialActive = activeIndexRef.current < 0 ? activeFromTime(lines, timeNow) : -2;
 
   const scrollActiveIntoView = (idx: number) => {
     const container = containerRef.current;
@@ -218,7 +229,10 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
               }}
               className={cn(
                 LINE_BASE,
-                lineClass(i, activeIndexRef.current),
+                // -2 = danh sách render lần sau (state settled) — giữ ref
+                // value (đã đúng); giá trị 0..n từ initialActive chỉ dùng ở
+                // frame đầu để tránh "flash FUTURE".
+                lineClass(i, initialActive === -2 ? activeIndexRef.current : initialActive),
                 compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
               )}
             >

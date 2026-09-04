@@ -418,3 +418,61 @@ and after adoption.
   would poison attribution of any new failure.
 - **Testing**: tsc 0 errors; full suite 310/310; no behavior change (types
   only). CURRENT_VERIFICATION.md updated accordingly.
+
+---
+
+# PERF/PLAYBACK/LYRICS/LOADING HARDENING PASS (2026-09-04) — AD-17/AD-18
+
+> Per Master Plan deviation policy. Scope: presentation/hydration timing +
+  playback-event hygiene only; engine semantics, queue, broadcast, MediaSession
+  handler registration, crossfade math, persistence — không đổi.
+
+## AD-17 — Library loading-state: expose sync status + geometry-preserving skeleton
+
+- **Problem (feedback: "vào web khựng 2–3s rồi mới load full album")**: client
+  cache khởi đầu rỗng; KHÔNG có trạng thái nào phân biệt "đang hydrate
+  canonical DB" với "thư viện thật sự trống" → trang chủ render empty-state
+  onboarding sai nội dung ~2-3s rồi pop đột ngột sang full library. (Signing
+  URL song song đã có sẵn qua Promise.all per-row — không phải bottleneck.)
+- **Alternatives**: (a) SSR library vào route loader — đổi data-flow lớn,
+  chạm mọi route, vi phạm "ít thay đổi kiến trúc"; (b) spinner toàn trang —
+  che đúng cái user chờ (dữ liệu thật vẫn phải về) và tạo flashing;
+  (c) skeleton giữ geometry.
+- **Chosen**: (c). `useLibrary` snapshot thêm `status: LibrarySyncStatus` +
+  `error` (đọc từ module state có sẵn `librarySyncStatus` — biến đã tồn tại
+  nhưng chưa bao giờ được expose); index/library/albums render skeleton
+  (LibrarySkeleton.tsx) khi `(idle|syncing) && chưa có data lần đầu`.
+  KHÔNG artificial delay. Hero cover preload above-fold.
+- **Skeleton quy ước visual (feedback "no AI slop")**: khối tĩnh
+  `.skeleton-bone` (shimmer sweep mảnh thuần transform), đúng grid/aspect
+  của layout thật (không CLS), `role="status"` cho SR, không spinner.
+- **Why superior**: người dùng thấy app "đã sống" ngay (shell + skeleton
+  đúng chỗ nội dung sẽ xuất hiện) thay vì trắng/khựng; empty-state onboarding
+  giờ chỉ hiện khi DB THẬT trả về rỗng (đúng ngữ nghĩa).
+- **Testing**: `library-loading-state.test.ts` (7 guard) — pin: useLibrary
+  expose status/error; 3 route render skeleton khi initial-hydrate; skeleton
+  không spinner/timeout; giữ geometry aspect-square.
+
+## AD-18 — Crossfade handover time-reset + lyrics first-frame active
+
+- **Problem 1 (feedback: "lyric chớp chớp dựt dựt")**: 2 nhánh handover
+  (`onTime` timed handover + `onEnded` handover) gọi
+  `actions.advanceWrapForHandover()` nhưng KHÔNG reset time store — timeRef
+  giữ ~duration bài cũ cho tới timeupdate đầu của element mới (~250ms) →
+  LyricsTicker tính active line theo timestamp bài cũ trên `lines` bài mới
+  → highlight nhảy xuống dòng cuối rồi cuộn ngược lên (dựt) mỗi lần crossfade.
+  Manual transports (next/prev/jumpTo/playQueue) đã reset từ trước.
+- **Problem 2 (feedback: "chớp khi mở lyrics giữa bài")**: render đầu của
+  danh sách sau khi track đổi luôn vẽ MỌI dòng ở FUTURE rồi chờ ticker tick
+  kế tiếp mới tô ACTIVE → 1 frame "nhá" sai.
+- **Chosen**: (1) `setTime(0)` đồng bộ ngay cạnh `advanceWrapForHandover()`
+  ở CẢ 2 nhánh — cùng ngữ nghĩa manual transports, 0 side-effect mới;
+  (2) `usePlayerTimeSnapshot()` — hook đọc time MỘT LẦN qua context store
+  (không subscribe) dùng trong render của LyricsPane để tính active-index
+  frame đầu; LyricsTicker vẫn là subscriber duy nhất theo tick (kiến trúc
+  PERF 2026-09-01 giữ nguyên).
+- **Rejected**: cho LyricsPane subscribe `usePlayerTime()` — sẽ re-render
+  54+ button mỗi tick, rollback đúng kiến trúc đã xây.
+- **Testing**: `playback-lyrics-hardening.test.ts` (6 guard) — pin cả 2
+  handover phải reset time, stall 14s contract (AD Agent-1), snapshot hook
+  tồn tại + pane không subscribe time + ticker vẫn subscribe.

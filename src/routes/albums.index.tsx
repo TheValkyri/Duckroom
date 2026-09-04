@@ -35,6 +35,7 @@ export const Route = createFileRoute("/albums/")({
 });
 
 import { AlbumCard } from "../components/AlbumCard";
+import { AlbumsSkeleton } from "../components/LibrarySkeleton";
 import { EditAlbumModal } from "../components/EditAlbumModal";
 import { useAuth } from "../lib/useAuth";
 
@@ -375,10 +376,17 @@ import { useLibrary } from "../lib/useLibrary";
 
 function AlbumsPage() {
   const { playQueue } = usePlayer();
-  const { albums } = useLibrary();
+  const { albums, status } = useLibrary();
   const { isLoggedIn } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
+
+  /* WP3: hydrate lần đầu (chưa data + chưa xong sync) → skeleton đúng
+   * grid, không empty-state sai. "idle" cũng tính để không flash. */
+  const isInitialHydrating = (status === "idle" || status === "syncing") && albums.length === 0;
+  if (isInitialHydrating) {
+    return <AlbumsSkeleton />;
+  }
 
   const handleDelete = async (id: string) => {
     if (!isLoggedIn) return;
