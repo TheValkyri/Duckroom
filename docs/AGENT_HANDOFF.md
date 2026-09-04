@@ -1,31 +1,33 @@
-# AGENT HANDOFF — current state (2026-09-04, perf/playback/lyrics/loading pass complete)
+# AGENT HANDOFF — current state (2026-09-04, edge-free chrome + defer-paint)
 
 ## Read first
 1. docs/DUCKROOM_MASTER_PLAN.md (authority)
 2. docs/audit/MOBILE_UI_CONTEXT_AUDIT.md (mobile gate audit — read trước khi đụng UI)
 3. docs/audit/CURRENT_VERIFICATION.md (current truth + verdicts)
 4. docs/audit/FINAL_MOBILE_UI_RELEASE_REPORT.md (+ MOBILE_UI_QA.md / MOBILE_RESPONSIVE_MATRIX.md)
-5. docs/audit/ARCHITECTURE_DECISIONS.md (AD-1..AD-18 + AD-M1..M6) — never deviate silently.
+5. docs/audit/ARCHITECTURE_DECISIONS.md (AD-1..AD-20 + AD-M1..M6) — never deviate silently.
 
 ## State after this round
-- PERF/PLAYBACK/LYRICS/LOADING HARDENING COMPLETE (feedback round:
-  audio ngắt/rè mobile, lyric chớp, initial-load khựng 2-3s, iOS
-  background, polish): AD-17 (loading skeleton + status expose),
-  AD-18 (crossfade handover time-reset + lyrics first-frame),
-  stall 14s hardening (Agent-1), PWA meta + icons (Agent-1),
-  AlbumCard bỏ layoutId, hero blur giảm bậc phone.
-- Tests: 363/363 (30 files) — up from 350 (+7 library-loading-state,
-  +6 playback-lyrics-hardening). tsc 0 · lint 0 errors/22 warnings ·
-  build 1.25 MB gzip · secret-scan clean (74 files).
-- iOS note (quan trọng, không phải bug): Safari tab iOS LUÔN ngắt web
-  audio khi background — OS policy. Đường nghe nền trên iPhone: Add to
-  Home Screen (standalone PWA — meta + icons đã sẵn). Dynamic Island/
-  MediaSession artwork đã hoạt động và được giữ nguyên.
-- Quy ước UTF-8 tái khẳng định (B7): KHÔNG bao giờ ghi file chứa tiếng
-  Việt bằng PowerShell Set-Content/regex. Dùng edit tool / node.
-- External gates for public release: KHÔNG ĐỔI (live Supabase migrations
-  20260819→20260904 + security matrix · credential rotation · live S3 ·
-  real-device perf §26.4 — harness CDP sẵn sàng).
+- PERF/PLAYBACK/LYRICS/LOADING HARDENING COMPLETE (commit 82c87cc):
+  AD-17 (loading skeleton + status expose), AD-18 (crossfade handover
+  time-reset + lyrics first-frame), stall 14s hardening, PWA meta + icons,
+  AlbumCard bỏ layoutId, hero blur giảm bậc phone, phone current-lyric
+  line center dọc.
+- EDGE-FREE CHROME REDESIGN + BELOW-FOLD PAINT COMPLETE (AD-19/AD-20):
+  mọi bề mặt docked (top bar, bottom nav, mini-player, desktop player
+  bar, sidebar, QueuePanel) bỏ border cứng → bóng mềm `edge-shadow-*`
+  đọc token (đồng bộ 2 theme); section divider trang bỏ border, tách
+  bằng spacing; `defer-paint` (content-visibility:auto) cho section dưới
+  fold; hero LCP fetchpriority=high. Card/input/modal GIỮ border (đúng
+  vai trò "đối tượng", không over-correct).
+- Tests: 363/363 (30 files). tsc 0 · lint 0 err/22 warn · build
+  1.25 MB gzip · secrets clean. Bundle CSS verify: edge-shadow/defer-
+  paint/content-visibility có mặt trong output.
+- iOS note (không phải bug): Safari tab iOS luôn ngắt web audio khi
+  background (OS policy). Nghe nền iPhone: Add to Home Screen (PWA
+  standalone). MediaSession/Dynamic Island hoạt động, giữ nguyên.
+- External gates for public release: KHÔNG ĐỔI (live Supabase + rotation
+  + live S3 + real-device perf).
 
 ## Deferred by decision (documented, not forgotten)
 - Lyrics provider fan-out → server-side proxy (P2; needs rate-limit/cache PR).

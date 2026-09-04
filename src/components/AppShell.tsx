@@ -162,10 +162,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
       </AnimatePresence>
 
-      {/* Desktop Animated Collapsible Sidebar */}
+      {/* Desktop Collapsible Sidebar — redesign 2026-09-04: bỏ border-r
+          (feedback "hạn chế kẻ dọc"), tách khỏi nội dung bằng bóng mềm; vẫn
+          giữ transition width CSS thuần (perf 2026-08-25). */}
       <aside
         style={{ width: collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED }}
-        className="border-border bg-sidebar/95 backdrop-blur-xl fixed inset-y-0 left-0 z-30 hidden flex-col border-r px-3 py-6 lg:flex overflow-hidden select-none transition-[width] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
+        className="bg-sidebar/95 edge-shadow-r fixed inset-y-0 left-0 z-30 hidden flex-col px-3 py-6 lg:flex overflow-hidden select-none transition-[width] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
       >
         <div className="flex items-center justify-between px-2 mb-8">
           <Link to="/" className="flex items-center gap-3 overflow-hidden">
@@ -261,7 +263,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             }}
             aria-label="Tùy chỉnh giao diện"
             title="Tùy chỉnh giao diện"
-            className="text-muted-foreground hover:text-primary hover:bg-primary/10 border-border/60 flex items-center gap-3.5 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors cursor-pointer"
+            className="text-muted-foreground hover:text-primary hover:bg-primary/10 flex items-center gap-3.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors cursor-pointer"
           >
             <Palette className="size-5 shrink-0 text-primary" />
             {!collapsed && <span className="whitespace-nowrap truncate">Giao diện</span>}
@@ -328,10 +330,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile Top Header (compact — nav lives in the bottom dock) */}
+      {/* Mobile Top Header (compact — nav lives in the bottom dock).
+          Redesign 2026-09-04 (feedback "hạn chế kẻ ngang/dọc, đồng bộ
+          bề mặt"): bỏ border-b — bề mặt glass tách khỏi nội dung bằng
+          bóng đổ mềm theo token (đã có sẵn), không còn đường kẻ cứng. */}
       <nav
         aria-label="Thanh trên"
-        className="glass border-border pt-safe fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b px-4 lg:hidden"
+        className="glass edge-shadow-b pt-safe fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between px-4 lg:hidden"
       >
         <Link to="/" className="flex items-center gap-2" aria-label="Duckroom — Trang chủ">
           <ModernDuckLogo className="size-7" />
@@ -416,7 +421,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           QueueSheet/TrackActionsSheet. */}
       <nav
         aria-label="Điều hướng chính"
-        className="glass border-border fixed inset-x-0 bottom-0 z-30 border-t pb-safe lg:hidden"
+        className="glass edge-shadow-t fixed inset-x-0 bottom-0 z-30 pb-safe lg:hidden"
       >
         <div className="grid grid-cols-5">
           {bottomNav.map(({ to, label, icon: Icon, match }) => {

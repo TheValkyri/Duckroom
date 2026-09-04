@@ -333,6 +333,24 @@
 }
 
 /* ---------------------------------------------------------------------------
+ * BELOW-FOLD DEFERRED PAINT (perf 2026-09-04 — feedback "load nhanh hơn").
+ * content-visibility: auto cho browser skip layout+paint hoàn toàn của
+ * các khối NGOÀI viewport; khối có contain-intrinsic-size để browser vẫn
+ * giữ đúng chỗ (scrollbar không nhảy). Chỉ đặt trên các CONTAINER section
+ * lớn dưới-fold (danh sách track, grid video) — KHÔNG đặt trên grid album
+ * đầu trang (above-fold). 1 dòng CSS, không JS, không thay đổi nội dung.
+ * Firefox <125 không hỗ trợ →Fallback tự nhiên: value không hợp lệ bị bỏ
+ * qua, hiển thị như cũ.
+ * ------------------------------------------------------------------------ */
+@utility defer-paint {
+  content-visibility: auto;
+  /* Xấp xỉ chiều cao section khi chưa đo được — chọn hơi THẤP hơn thực
+   * để scrollbar không "co giãn" khi cuộn tới; browser sửa lại ngay khi
+   * render thật. */
+  contain-intrinsic-size: auto 600px;
+}
+
+/* ---------------------------------------------------------------------------
  * THEME PICKER SLIDERS (2026-09-01)
  * Hue slider: track là vòng màu oklch thật — người dùng nhìn thẳng vào
  * chính dải màu mình đang chọn (độc đáo, không phải gradient trang trí).
@@ -448,6 +466,30 @@
   backdrop-filter: blur(12px) saturate(150%);
   /* Cô lập vùng repaint của lớp kính này khỏi phần còn lại của trang. */
   contain: paint;
+}
+
+/* ---------------------------------------------------------------------------
+ * EDGE SEPARATION (redesign 2026-09-04 — feedback "hạn chế kẻ ngang/dọc,
+ * đồng bộ bề mặt"): các bề mặt docked (top bar, bottom nav, mini-player,
+ * sidebar, player bar) KHÔNG còn border cứng — tách khỏi nội dung bằng
+ * BÓNG ĐỔ MỀM 1 lớp đọc từ token foreground (mực in ấn, không glow).
+ * Bóng chỉ chiếm 1 chiều đúng hướng cần tách → rẻ hơn box-shadow đầy đủ,
+ * và nhạt dần nên cảm giác "khối nổi" thay vì "đường kẻ".
+ * Hoạt động cả 2 theme tự động vì đọc --foreground.
+ * ------------------------------------------------------------------------ */
+@utility edge-shadow-t {
+  box-shadow: 0 -8px 24px -12px oklch(from var(--foreground) l c h / 0.35);
+}
+@utility edge-shadow-b {
+  box-shadow: 0 8px 24px -12px oklch(from var(--foreground) l c h / 0.35);
+}
+@utility edge-shadow-r {
+  /* Sidebar bên TRÁI tách nội dung về PHẢI → bóng đổ sang phải. */
+  box-shadow: 8px 0 24px -12px oklch(from var(--foreground) l c h / 0.3);
+}
+@utility edge-shadow-l {
+  /* Drawer/QueuePanel bên PHẢI tách nội dung về TRÁI. */
+  box-shadow: -8px 0 24px -12px oklch(from var(--foreground) l c h / 0.3);
 }
 
 /* Glass đậm dùng cho overlay cần ensured legibility (fullscreen player

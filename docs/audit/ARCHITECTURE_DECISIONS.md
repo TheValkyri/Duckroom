@@ -476,3 +476,49 @@ and after adoption.
 - **Testing**: `playback-lyrics-hardening.test.ts` (6 guard) — pin cả 2
   handover phải reset time, stall 14s contract (AD Agent-1), snapshot hook
   tồn tại + pane không subscribe time + ticker vẫn subscribe.
+
+## AD-19 — Edge-free chrome: docked surfaces tách khối bằng bóng mềm, bỏ border cứng
+
+- **Problem (feedback: "nav với mini-player bị kẻ ngang 1 đường giữa, sidebar
+  và nhiều nơi cũng vậy — đồng bộ, hạn chế kẻ")**: mọi bề mặt docked dùng
+  `border` token để tách khỏi nội dung — trên bề mặt glass, border hiện
+  thành ĐƯỜNG KẺ cứng chạy ngang/dọc toàn màn, khác hẳn cảm giác "khối nổi"
+  mà glass hứa hẹn; không đồng bộ vì mỗi chỗ một độ đậm.
+- **Alternatives**: (a) chỉ làm mờ border đi (border-white/5) — vẫn là kẻ,
+  chỉ nhạt hơn; (b) gradient mask mép (fade-to-transparent) — đắt hơn và
+  khó đồng bộ giữa các theme; (c) bóng đổ mềm 1 lớp đọc token.
+- **Chosen**: (c). `@utility edge-shadow-t/b/l/r` — box-shadow MỘT lớp,
+  offset 8px/spread 24px/-12px, màu `oklch(from var(--foreground) l c h / α)`
+  → tự đồng bộ light/dark và mọi accent; áp cho: mobile top bar, bottom
+  nav, phone mini-player, desktop player bar, sidebar (edge-shadow-r),
+  QueuePanel (edge-shadow-l). Section divider TRANG (SectionHead, page
+  headers) bỏ border hoàn toàn, tách bằng spacing. Card/input/modal giữ
+  border (chúng là "đối tượng" cần viền, không phải bề mặt chrome —
+  không over-correct theo kiểu bỏ hết).
+- **Why superior**: bóng nhạt dần = cảm giác vật lý đúng ("khối nổi trên
+  nền") thay vì "khung vẽ"; 1 nguồn sự thật màu; chi phí paint rẻ hơn
+  border + blur vì browser có fast-path box-shadow tĩnh; sửa 1 token đổi
+  toàn app.
+- **Testing**: guard mobile-ui-shell cập nhật — pin bottom nav KHÔNG còn
+  border-t, mini-player KHÔNG còn border-t, cả hai phải có edge-shadow;
+  bundle CSS production verify có utility (content-visibility +
+  edge-shadow có mặt trong output).
+
+## AD-20 — Below-fold deferred paint (`content-visibility: auto`)
+
+- **Problem (feedback: "load web nhanh hơn")**: first paint còn phải
+  layout+paint cả section dưới fold (recent tracks 5 TrackRow, video grid,
+  và đặc biệt library 76+ rows full-height ngay từ frame đầu).
+- **Chosen**: `@utility defer-paint { content-visibility: auto;
+  contain-intrinsic-size: auto 600px }` đặt trên CONTAINER section dưới
+  fold (index: recent + videos; library: list container). Browser skip
+  layout/paint khối ngoài viewport, chỉ giữ placeholder theo intrinsic
+  size (scrollbar ổn định); render thật khi cuộn tới. 1 dòng CSS, không
+  JS, không đổi nội dung. Firefox cũ bỏ qua value → hiển thị như cũ
+  (graceful). KHÔNG đặt trên grid album/hero (above-fold) để tránh
+  dual-render cost.
+- **Hero LCP**: bìa hero `fetchPriority="high" + loading="eager"` —
+  không xếp hàng sau ảnh lazy; ambient blur giữ async (không phải LCP).
+- **Testing**: bundle CSS production verified chứa `content-visibility:
+  auto` + `contain-intrinsic-size`; full suite 363/363 (không thay đổi
+  hành vi quan sát được từ JS).

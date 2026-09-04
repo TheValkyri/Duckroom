@@ -17,9 +17,12 @@ export function QueuePanel() {
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 380, opacity: 0 }}
       transition={springGentle}
-      className="glass border-border fixed top-0 right-0 bottom-[73px] z-40 flex w-[360px] max-w-[88vw] flex-col border-l"
+      className="glass edge-shadow-l fixed top-0 right-0 bottom-[73px] z-40 flex w-[360px] max-w-[88vw] flex-col"
     >
-      <header className="border-border flex items-center justify-between border-b px-5 py-4">
+      {/* Redesign 2026-09-04: bỏ border-l + border-b header (feedback
+          "hạn chế kẻ") — khối kính tách nội dung bằng bóng mềm trái,
+          header tách list bằng khoảng trống + tracking tự nhiên. */}
+      <header className="flex items-center justify-between px-5 pb-2 pt-4">
         <div>
           <h2 className="font-display text-xl">Hàng đợi</h2>
           <p className="text-muted-foreground text-xs">

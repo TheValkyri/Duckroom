@@ -80,12 +80,17 @@ export function PlayerBar() {
       {/* ============ MINI PLAYER (phone <md) — stacked dock, safe-area ============
           Dock nằm TRÊN bottom nav: bottom = nav (3.5rem) + gesture bar
           (safe-area). Không dùng bottom-safe ở đây vì utility đó ghi đè
-          thuộc tính `bottom` (bắt được bằng QA overlap-check thực tế). */}
+          thuộc tính `bottom` (bắt được bằng QA overlap-check thực tế).
+          Redesign 2026-09-04 (feedback "nav với mini-player bị kẻ ngang
+          giữa"): bỏ border-t — 2 bề mặt glass cùng họ nano笼 liền mạch, tách
+          khối bằng bóng mềm xuống dưới; giữa mini-player và nav là
+          CHIẾC KHUYÊT nhẹ (nội dung cuộn lóe qua) thay vì đường kẻ —
+          cùng ngôn ngữ "khối nổi không viền" toàn app. */}
       <motion.footer
         initial={{ y: 90 }}
         animate={{ y: 0 }}
         transition={springGentle}
-        className="glass border-border fixed inset-x-0 bottom-[calc(3.5rem+var(--safe-bottom))] z-40 border-t lg:hidden"
+        className="glass edge-shadow-b fixed inset-x-0 bottom-[calc(3.5rem+var(--safe-bottom))] z-40 lg:hidden"
         aria-label="Trình phát thu nhỏ"
       >
         {/* Read-only progress strip — seek đầy đủ ở player mở rộng, tránh
@@ -192,12 +197,13 @@ export function PlayerBar() {
         </div>
       </motion.footer>
 
-      {/* ============ DESKTOP PLAYER BAR (>=lg) — giữ nguyên cấu trúc ============ */}
+      {/* ============ DESKTOP PLAYER BAR (>=lg) — giữ nguyên cấu trúc, bỏ
+          border-t (redesign 2026-09-04: bóng mềm thay kẻ ngang) ============ */}
       <motion.footer
         initial={{ y: 90 }}
         animate={{ y: 0 }}
         transition={springGentle}
-        className="glass border-border fixed inset-x-0 bottom-0 z-40 hidden border-t lg:block"
+        className="glass edge-shadow-b fixed inset-x-0 bottom-0 z-40 hidden lg:block"
       >
         <div className="w-full grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 sm:px-8 py-3">
           {/* Left: Track Info & Cover (Stretched to far left) */}

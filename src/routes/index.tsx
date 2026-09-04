@@ -326,6 +326,11 @@ function Index() {
             }
             alt={`Bìa album ${hero.title}`}
             decoding="async"
+            // Perf 2026-09-04: bìa hero là LCP element — fetchpriority=high
+            // để browser không xếp hàng sau ảnh lazy khác, eager (không lazy
+            // vì above-fold), decoding sync-đủ-để-đo-early.
+            fetchPriority="high"
+            loading="eager"
             onError={(e) => {
               const target = e.currentTarget;
               const fallback =
@@ -417,8 +422,9 @@ function Index() {
         </section>
       )}
 
-      {/* Recent Tracks Section */}
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-10 sm:pb-14">
+      {/* Recent Tracks Section — defer-paint (dưới fold): browser skip
+          layout/paint cho tới khi cuộn tới, first paint nhẹ hơn. */}
+      <section className="defer-paint mx-auto max-w-6xl px-4 sm:px-6 pb-10 sm:pb-14">
         <SectionHead title="Nghe gần đây" to="/library" />
         <motion.div variants={listContainerVariants} initial="hidden" animate="show" className="mt-6 sm:mt-6">
           {recent.map((t, i) => (
@@ -429,9 +435,9 @@ function Index() {
         </motion.div>
       </section>
 
-      {/* Videos Section */}
+      {/* Videos Section — defer-paint (cuối trang). */}
       {videos.length > 0 && (
-        <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-16 sm:pb-24">
+        <section className="defer-paint mx-auto max-w-6xl px-4 sm:px-6 pb-16 sm:pb-24">
           <SectionHead title="MV Bản Gốc" to="/videos" />
           <motion.div
             variants={listContainerVariants}
@@ -484,7 +490,9 @@ function SectionHead({
   badge?: string;
 }) {
   return (
-    <div className="border-border flex items-baseline justify-between gap-2 border-b pb-3">
+    // Redesign 2026-09-04: bỏ border-b divider (feedback "hạn chế kẻ") —
+    // section head tách khỏi nội dung bằng khoảng trống tự nhiên.
+    <div className="flex items-baseline justify-between gap-2 pb-1">
       <div className="flex items-center gap-3">
         <h2 className="font-display text-2xl font-bold sm:text-3xl">{title}</h2>
         {badge && (

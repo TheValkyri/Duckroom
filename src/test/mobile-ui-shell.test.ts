@@ -53,8 +53,11 @@ describe("mobile shell: bottom navigation contract", () => {
 
   it("bottom nav is hidden on desktop (lg:hidden) and reserves the gesture bar", () => {
     const shell = read("components/AppShell.tsx");
-    // flush to screen bottom; internal padding absorbs safe-area (pb-safe)
-    expect(shell).toMatch(/fixed inset-x-0 bottom-0 z-30 border-t pb-safe lg:hidden/);
+    // flush to screen bottom; internal padding absorbs safe-area (pb-safe).
+    // Redesign 2026-09-04: border-t cứng → edge-shadow-t (bóng mềm tách
+    // khối — feedback "hạn chế kẻ ngang").
+    expect(shell).toMatch(/fixed inset-x-0 bottom-0 z-30 pb-safe lg:hidden/);
+    expect(shell).toMatch(/edge-shadow-t/);
   });
 });
 
@@ -65,6 +68,11 @@ describe("mobile shell: player surfaces respect safe areas", () => {
     expect(bar).toMatch(/bottom-\[calc\(3\.5rem\+var\(--safe-bottom\)\)\]/);
     // play/next hit areas are size-11 (44px)
     expect(bar).toMatch(/grid size-11 shrink-0 place-items-center rounded-full/);
+    // Redesign 2026-09-04: mini-player không còn border-t giữa nó và nav
+    // (feedback "2 bề mặt bị kẻ ngang") — tách khối bằng bóng mềm.
+    expect(bar).toMatch(
+      /glass edge-shadow-b fixed inset-x-0 bottom-\[calc\(3\.5rem\+var\(--safe-bottom\)\)\] z-40 lg:hidden/,
+    );
   });
 
   it("fullscreen player pads the top notch (pt-safe) and the home bar (pb-safe)", () => {

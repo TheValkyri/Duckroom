@@ -151,7 +151,7 @@ function LibraryPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-12">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 pb-6 border-b border-border/60">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 pb-6">
         <div>
           <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground">
             Thư viện
@@ -318,7 +318,10 @@ function LibraryPage() {
           - Giữ nguyên: empty-state / no-result (không phải danh sách).
           - Đã xác minh: 76 rows hiển thị hoàn toàn khi load trang (lần
             đầu) vẫn có page-fade của container. */}
-      <div className="mt-6 space-y-1">
+      {/* defer-paint: khối list 76+ hàng — browser chỉ layout/paint phần
+          trong viewport, cuộn tới đâu render tới đó (perf 2026-09-04).
+          contain-intrinsic-size giữ scrollbar ổn định. */}
+      <div className="defer-paint mt-6 space-y-1">
         {list.map((t, i) => (
           <TrackRow
             key={t.id}

@@ -17,6 +17,14 @@
   in-repo** — WP1–WP7 theo feedback round (audio stall, lyrics jitter,
   initial-load "khựng 2–3s", iOS PWA background, artwork perf). Chi tiết
   AD-17/AD-18 trong ARCHITECTURE_DECISIONS.md.
+- **EDGE-FREE CHROME REDESIGN + BELOW-FOLD PAINT (2026-09-04, commit 2):
+  COMPLETE in-repo** — bỏ đường kẻ cứng (border) trên toàn bộ bề mặt
+  docked (top bar, bottom nav, mini-player, desktop player bar, sidebar,
+  QueuePanel) thay bằng bóng mềm 1 lớp đọc token (`edge-shadow-t/b/l/r`
+  — AD-19); section divider trang content chuyển sang spacing tự nhiên;
+  `defer-paint` (content-visibility:auto + contain-intrinsic-size) cho
+  section dưới fold (recent tracks, videos, library list 76+ rows);
+  hero LCP ảnh `fetchpriority=high + loading=eager`.
 - Release-ready = **NO** — vẫn còn 3 external gates (live Supabase/rotation/S3).
 
 ## Environment
@@ -24,14 +32,14 @@
 - Node v24.16.0 · npm 11.13.0 · lockfileVersion 3
 - QA browser: Chrome 151 via CDP @ 360/375/390/412/430/768 + 1280/1440/1920
 
-## Gates (2026-09-04, working copy, sau perf/playback/lyrics/loading pass)
+## Gates (2026-09-04, working copy, sau chrome-redesign + defer-paint)
 
 | Gate | Kết quả |
 |---|---|
 | `npx tsc --noEmit` | PASS (0 errors) |
 | `npx eslint .` | PASS (0 errors / 22 warnings pre-existing) |
-| `npm test` | **PASS 363/363 across 30 files** (+13: library-loading-state ×7, playback-lyrics-hardening ×6) |
-| `npm run build` | PASS (Vite + Nitro/Vercel; client 1.25 MB gzip) |
+| `npm test` | **PASS 363/363 across 30 files** (guard mobile-ui-shell cập nhật theo contract mới: dock borderless + edge-shadow) |
+| `npm run build` | PASS (1.25 MB gzip; bundle CSS chứa edge-shadow-*/defer-paint/content-visibility — đã verify output) |
 | `npm run scan:secrets` | CLEAN (74 client files) |
 
 ## Perf/playback/lyrics/loading pass (2026-09-04) — thay đổi chính
