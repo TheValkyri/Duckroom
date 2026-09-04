@@ -15,6 +15,7 @@ import { Route as LibraryRouteImport } from './routes/library'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MyLibraryRouteImport } from './routes/my-library'
 import { Route as SinglesRouteImport } from './routes/singles'
+import { Route as StatsRouteImport } from './routes/stats'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as AlbumsIndexRouteImport } from './routes/albums.index'
 import { Route as AlbumsAlbumIdRouteImport } from './routes/albums.$albumId'
@@ -50,6 +51,11 @@ const MyLibraryRoute = MyLibraryRouteImport.update({
 const SinglesRoute = SinglesRouteImport.update({
   id: '/singles',
   path: '/singles',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatsRoute = StatsRouteImport.update({
+  id: '/stats',
+  path: '/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UploadRoute = UploadRouteImport.update({
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/my-library': typeof MyLibraryRoute
   '/singles': typeof SinglesRoute
+  '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/albums/$albumId': typeof AlbumsAlbumIdRoute
   '/s/$token': typeof STokenRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/my-library': typeof MyLibraryRoute
   '/singles': typeof SinglesRoute
+  '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/albums/$albumId': typeof AlbumsAlbumIdRoute
   '/s/$token': typeof STokenRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/my-library': typeof MyLibraryRoute
   '/singles': typeof SinglesRoute
+  '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/albums/$albumId': typeof AlbumsAlbumIdRoute
   '/s/$token': typeof STokenRoute
@@ -135,6 +144,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/my-library'
     | '/singles'
+    | '/stats'
     | '/upload'
     | '/albums/$albumId'
     | '/s/$token'
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/my-library'
     | '/singles'
+    | '/stats'
     | '/upload'
     | '/albums/$albumId'
     | '/s/$token'
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/my-library'
     | '/singles'
+    | '/stats'
     | '/upload'
     | '/albums/$albumId'
     | '/s/$token'
@@ -178,6 +190,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MyLibraryRoute: typeof MyLibraryRoute
   SinglesRoute: typeof SinglesRoute
+  StatsRoute: typeof StatsRoute
   UploadRoute: typeof UploadRoute
   AlbumsAlbumIdRoute: typeof AlbumsAlbumIdRoute
   STokenRoute: typeof STokenRoute
@@ -228,6 +241,13 @@ declare module '@tanstack/react-router' {
       path: '/singles'
       fullPath: '/singles'
       preLoaderRoute: typeof SinglesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stats': {
+      id: '/stats'
+      path: '/stats'
+      fullPath: '/stats'
+      preLoaderRoute: typeof StatsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/upload': {
@@ -282,6 +302,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MyLibraryRoute: MyLibraryRoute,
   SinglesRoute: SinglesRoute,
+  StatsRoute: StatsRoute,
   UploadRoute: UploadRoute,
   AlbumsAlbumIdRoute: AlbumsAlbumIdRoute,
   STokenRoute: STokenRoute,

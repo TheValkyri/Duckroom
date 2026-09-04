@@ -61,8 +61,8 @@ Duckroom là kho nhạc & MV cá nhân — **lossless-first** (giữ nguyên fil
 ### Trình phát toàn màn hình
 
 - **Đĩa than xoay** khi phát; dừng đĩa khi tạm dừng
-- **Thanh tua** — kéo để tua; thời gian hiện 2 đầu
-- **Trộn bài (S)** — trộn ngẫu nhiên thứ tự hàng đợi (bài đang phát giữ vị trí đầu)
+- **Waveform Seekbar** — thanh tua là **sóng âm thật của bài** (96 cột peak): đã phát màu accent, chưa phát mờ. Chạm/kéo lên sóng để tua đến chính xác đoạn đó; ←/→ nhảy 5s. Sóng decode 1 lần rồi cache theo bài — lần sau mở là có ngay. (Chưa có sóng thì hiện thanh mảnh — không bao giờ hiển thị sóng giả.)
+- **Trộn bài (S)** — trộn **thông minh rải nghệ sĩ** (xem mục 5): không 2 bài cùng nghệ sĩ kề nhau khi tránh được
 - **Lặp lại (R)** — Tắt → Lặp tất cả → Lặp một bài
 - **Hàng đợi** — xem/sắp lại thứ tự; trên điện thoại là sheet kéo-lên với nút ↑/↓ từng bài
 - **Hẹn giờ tắt nhạc 🌙** (một bên tiêu đề) — chọn 15/30/45/60/90 phút:
@@ -96,12 +96,34 @@ Mở nhiều tab cùng Duckroom: hệ thống tự bầu ra **một tab làm "tr
 
 ---
 
-## 5. Tìm kiếm
+## 5. Tìm kiếm & Bảng lệnh
+
+### Tìm trong Thư viện
 
 - Vào **Thư viện**, gõ tên bài hoặc nghệ sĩ — kết quả lọc tức thì khi gõ
+- **Gõ không dấu vẫn ra**: gõ `dam cuoi` tìm thấy "Đám Cưới", `trai tim` ra "Trái Tim" — chuẩn hóa tiếng Việt tự động cả 2 phía (gõ có dấu vẫn match như cũ)
 - Nhấn **Enter** để lưu từ khóa vào **lịch sử tìm kiếm**
 - Chạm vào ô tìm kiếm (để trống) → hiện **5 từ khóa gần nhất**; chạm để tìm lại, ✕ để xóa từng mục hoặc "Xóa hết"
 - Lọc theo album bằng các nút tròn bên cạnh (Tất cả / Đĩa đơn / từng album)
+
+### Bảng lệnh (Command Palette)
+
+- **Máy tính**: nhấn **Ctrl + K** (Cmd + K trên Mac) ở bất kỳ đâu
+- **Điện thoại**: nút 🔍 trên thanh trên cùng (bên trái nút tùy chỉnh giao diện)
+- Gõ tên bài → **Enter phát ngay** (toàn kho làm hàng đợi); gõ tên thao tác ("phát", "trộn bài") hoặc trang ("thống kê", "albums") để chạy/nhảy
+- ↑↓ di chuyển, Enter chạy, Esc đóng — không cần chuột
+- Kết quả palette cũng tìm được **không dấu** (dùng chung bộ chuẩn hóa với Thư viện)
+
+### Trộn bài thông minh (Smart Shuffle)
+
+- Bật nút Shuffle như bình thường — Duckroom tự động **rải các nghệ sĩ đều nhau**: không còn 2 bài cùng nghệ sĩ chơi liền nhau (khi tránh được)
+- Nếu một nghệ sĩ chiếm quá nửa kho, mọi bài không thể tách hết — thuật toán giảm tối đa số cặp kề (cận dưới pigeonhole), không "fake" đều
+
+### Thống kê nghe nhạc
+
+- Vào **Thống kê** (sidebar máy tính / sheet "Xem thêm" trên điện thoại)
+- Xem: tổng thời gian nghe thật, tỷ lệ nghe hết bài, top nghệ sĩ (bar theo tỷ lệ), top 10 bài, thời gian theo từng định dạng (FLAC/WAV…)
+- Yêu cầu đăng nhập (tính từ playback_history thật của bạn, không phóng đại)
 
 ---
 

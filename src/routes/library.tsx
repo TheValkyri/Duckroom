@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TrackRow } from "../components/TrackRow";
 import { LibrarySkeleton } from "../components/LibrarySkeleton";
+import { viFold } from "../lib/vi-search";
 import {
   clearSearchHistory,
   pushSearchHistory,
@@ -102,7 +103,23 @@ function LibraryPage() {
   }, [albums]);
 
   const list = useMemo(() => {
-    const qLower = q.trim().toLowerCase();
+    // F1 2026-09-04: tìm KHÔNG CẦN DẤU — "dam cuoi" ra "Đám Cưới".
+    // viFold 2 phía (query + field); gõ CÓ dấu vẫn match vì fold("Đám") ⊃
+    // fold("đám"). Title/artist/album đều match. Cache folded-title theo
+    // albumId để không fold lại 76 lần mỗi keystroke.
+    const folded = viFold(q);
+    const albumTitleCache = new Map<string, string>();
+    const foldedAlbumTitle = (albumId: string | null | undefined): string => {
+      if (!albumId) return "";
+      let v = albumTitleCache.get(albumId);
+      if (v === undefined) {
+        const a = albums.find((x) => x.id === albumId || x.title.toLowerCase() === albumId.toLowerCase());
+        v = a ? viFold(a.title) : "";
+        albumTitleCache.set(albumId, v);
+      }
+      return v;
+    };
+
     const filtered = tracks.filter((t) => {
       let matchesFilter = true;
       if (filter === "singles") {
@@ -111,11 +128,15 @@ function LibraryPage() {
       } else if (filter !== "all") {
         matchesFilter = t.albumId === filter;
       }
-
-      const matchesSearch =
-        !qLower || t.title.toLowerCase().includes(qLower) || t.artist.toLowerCase().includes(qLower);
-
-      return matchesFilter && matchesSearch;
+      if (!matchesFilter) return false;
+      if (!folded) return true;
+      // Title/artist fold mỗi track MỖI keystroke — 76 track × ~30 ký tự là
+      // rẻ (map lookup per char); không cần cache per-track.
+      return (
+        viFold(t.title).includes(folded) ||
+        viFold(t.artist).includes(folded) ||
+        foldedAlbumTitle(t.albumId).includes(folded)
+      );
     });
 
     return sortTracksDeterministically(filtered, albums);

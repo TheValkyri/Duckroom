@@ -969,29 +969,36 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       console.info(`[Duckroom Audio] Self-healing URL for track "${current.title}"`);
       try {
-        const freshSignedUrl = await fetchTrackPlaybackUrl(current.id);
-        if (freshSignedUrl && el) {
-          // Fresh URL succeeded → reset the cap (P5.5 §8).
-          retriedTracksRef.current.delete(trackId);
-          const savedPosition = timeRef.current;
-          el.src = freshSignedUrl;
-          const onLoaded = () => {
-            try {
-              if (savedPosition > 0 && Number.isFinite(savedPosition)) {
-                el.currentTime = savedPosition;
-              }
-            } catch {
-              // ignore
+        const freshSignedUrl = await fetchTrackPlaybackUrl(trackId);
+        // FIX 2026-09-04 (HTTP2 stream drop — ERR_HTTP2_PROTOCOL_ERROR trên
+        // S3): fetch URL mới xong mà track ĐÃ ĐỔI trong lúc chờ (user bấm
+        // next) thì KHÔNG được áp src+seek vào element nữa — src cũ sẽ
+        // chống lại việc effect gắn src mới cho bài mới, và savedPosition
+        // của bài cũ sẽ seek SAI bài mới. Guard bằng current id + state
+        // render hiện tại.
+        if (!freshSignedUrl || !el) return;
+        if (transportRef.current.current?.id !== trackId) return;
+        const savedPosition = timeRef.current;
+        el.src = freshSignedUrl;
+        const onLoaded = () => {
+          // Guard lần 2 tại thời điểm metadata về (async) — bài có thể đã
+          // đổi trong lúc download header.
+          if (transportRef.current.current?.id !== trackId) return;
+          try {
+            if (savedPosition > 0 && Number.isFinite(savedPosition)) {
+              el.currentTime = savedPosition;
             }
-            if (engineState.isPlaying) {
-              void el
-                .play()
-                .catch((err) => console.warn("[Duckroom Audio] Playback auto-resume after healing failed:", err));
-            }
-          };
-          el.addEventListener("loadedmetadata", onLoaded, { once: true });
-          el.load();
-        }
+          } catch {
+            // ignore
+          }
+          if (engineState.isPlaying) {
+            void el
+              .play()
+              .catch((err) => console.warn("[Duckroom Audio] Playback auto-resume after healing failed:", err));
+          }
+        };
+        el.addEventListener("loadedmetadata", onLoaded, { once: true });
+        el.load();
       } catch (err) {
         console.error("Self-healing playback URL refresh error:", err);
       }

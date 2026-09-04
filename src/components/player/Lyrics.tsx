@@ -38,17 +38,34 @@ function readStoredOffset(trackId: string | undefined): number {
  * Tự chạy bằng requestAnimationFrame cho phép hủy/nối animation đang chạy dở
  * mượt mà (interrupt-safe), đồng thời dùng chung easing "duck glide" với
  * toàn bộ app (xem lib/motion.ts -> easeDuck).
+ *
+ * MOTION v2 (2026-09-04 — feedback "animation lyric không smooth, muốn ease
+ * vật lý hơn"): 2 thay đổi về CHẤT vật lý, không thêm hiệu ứng:
+ * 1. Easing: cubic-out (đổ dốc nhanh, chậm đều ở cuối) → EXPO-OUT
+ *    1 - 2^(-10t) đúng họ với easeDuck [0.16,1,0.3,1] nhưng tính s�� bằng
+ *    SIMD-free math nên mỗi frame rẻ hơn. Quan trọng nhất: expo-out có
+ *    ĐẦU VẬN TỐC CAO (vào chuyển động NGAY — 20% đầu đi ~50% quãng) rồi
+ *    hãm dần rất muộn — đúng cảm giác "vật nặng trôi theo quán tính",
+ *    hết cảm giác cubic-out "chùng" ở nửa sau.
+ * 2. Duration THÍCH ỨNG quãng đường (400–640ms): cuộn xa chậm hơn chút,
+ *    cuộn gần nhanh hơn — cùng một gia tốc cảm nhận (perceptual
+ *    uniformity) thay vì 520ms cứng cho mọi quãng → dòng lyric sát nhau
+ *    (bài nhanh) không trôi lười, dòng cách xa vẫn kịp.
  */
-function animateScrollTo(el: HTMLElement, target: number, duration = 520) {
+function animateScrollTo(el: HTMLElement, target: number, maxDuration = 640) {
   const start = el.scrollTop;
   const distance = target - start;
   if (Math.abs(distance) < 1) return () => {};
 
+  // Duration theo quãng: 400ms cho ~120px (1 dòng), vèo tối đa 640ms cho
+  // cuộn xa (seek). Sensory scaling sqrt — cảm giác tuyến tính cho mắt.
+  const duration = Math.min(maxDuration, 400 + Math.sqrt(Math.abs(distance)) * 12);
   const startTime = performance.now();
   let raf = 0;
 
-  // ease-out cubic — khớp với "duck glide" easeDuck dùng trong lib/motion.ts
-  const ease = (t: number) => 1 - Math.pow(1 - t, 3);
+  // EXPO-OUT — "duck glide" vật lý: khởi động dứt khoát, hãm mềm muộn.
+  // Phân mảnh an toàn cho t lớn (2^-10 lớn hơn mọi số double dương).
+  const ease = (t: number) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));
 
   const tick = (now: number) => {
     const elapsed = now - startTime;
@@ -68,9 +85,15 @@ function animateScrollTo(el: HTMLElement, target: number, duration = 520) {
  * cha KHÔNG subscribe time; một <LyricsTicker> nhỏ duy nhất subscribe và
  * cập nhật classList trực tiếp trên 2 node cũ/mới — không React re-render
  * nào trong lúc bài chạy. 0 layout thrash, scroll vẫn auto-center.
+ *
+ * MOTION v2 2026-09-04: transition-ALL → transition đúng 3 thứ thực sự
+ * đổi trạng thái ([color,opacity,transform]). `all` khiến browser theo
+ * dõi mọi property (kể cả layout-adjacent) mỗi frame — trên phone đó là
+ * style-recalc thừa mỗi dòng active đổi. Ease expo [0.16,1,0.3,1] =
+ * easeDuck app-wide + duration 340ms khớp nhịp scroll mới.
  * ------------------------------------------------------------------------ */
 const LINE_BASE =
-  "text-left font-sans font-bold tracking-tight leading-snug md:leading-normal transition-all duration-300 transform-gpu cursor-pointer group block w-full outline-none antialiased [text-wrap:balance] [text-wrap:pretty] break-words [word-break:keep-all]";
+  "text-left font-sans font-bold tracking-tight leading-snug md:leading-normal [transition:color_340ms_cubic-bezier(0.16,1,0.3,1),opacity_340ms_cubic-bezier(0.16,1,0.3,1),transform_340ms_cubic-bezier(0.16,1,0.3,1)] transform-gpu cursor-pointer group block w-full outline-none antialiased [text-wrap:balance] [text-wrap:pretty] break-words [word-break:keep-all]";
 const LINE_ACTIVE = "text-white opacity-100 scale-[1.02] origin-left";
 const LINE_PASSED = "text-white/45 opacity-45 hover:text-white/85 hover:opacity-85 hover:scale-[1.01] origin-left";
 const LINE_FUTURE = "text-white/20 opacity-25 hover:text-white/80 hover:opacity-80 hover:scale-[1.01] origin-left";
@@ -203,7 +226,9 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
         key={current?.id || "lyrics-pane"}
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, ease: "easeOut" }}
+        // MOTION v2: easeDuck expo thay easeOut generic — cùng họ đường cong
+        // với scroll + line transitions mới (đồng bộ "nhịp" toàn pane).
+        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
         className="h-full w-full"
       >
         <div
@@ -236,7 +261,9 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
                 compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
               )}
             >
-              <span className="inline-block transition-all duration-300">{line.text}</span>
+              {/* Span con: KHÔNG transition-all (feedback "nhồi hiệu ứng");
+                  inherit transition từ cha là đủ — text chỉ đổi màu. */}
+              <span className="inline-block">{line.text}</span>
             </button>
           ))}
         </div>

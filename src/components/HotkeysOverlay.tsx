@@ -6,10 +6,11 @@ import { useEffect, useState } from "react";
  * Không render gì trên phone (không bàn phím).
  */
 const KEYS: ReadonlyArray<{ keys: string; label: string }> = [
+  { keys: "Ctrl K", label: "Bảng lệnh — tìm bài & thao tác nhanh" },
   { keys: "Space", label: "Phát / Tạm dừng" },
   { keys: "Shift + →", label: "Bài kế tiếp" },
   { keys: "Shift + ←", label: "Bài trước (hoặc tua lại từ đầu)" },
-  { keys: "S", label: "Trộn bài" },
+  { keys: "S", label: "Trộn bài (rải nghệ sĩ)" },
   { keys: "R", label: "Lặp lại: Tắt → Tất cả → Một bài" },
   { keys: "L", label: "Bật/tắt lời bài hát" },
   { keys: "Esc", label: "Thu nhỏ trình phát" },

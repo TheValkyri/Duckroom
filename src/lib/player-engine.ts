@@ -4,7 +4,7 @@ import {
   computeIndexAfterMove,
   decideNext,
   decidePrev,
-  shuffled,
+  smartShuffled,
   type RepeatMode,
 } from "./player-queue";
 import type { Track } from "../data/library";
@@ -118,7 +118,7 @@ export function createPlayerEngine(initial?: Partial<PlayerEngineState>): Player
         return;
       }
       const currentTrack = state.queue[state.index];
-      const queue = state.shuffle && currentTrack ? shuffled(tracks, currentTrack) : tracks;
+      const queue = state.shuffle && currentTrack ? smartShuffled(tracks, (t) => t.artist, currentTrack) : tracks;
       const index = clampIndexToQueue(
         // Keep pointing at the same track when it still exists.
         Math.max(
@@ -134,7 +134,8 @@ export function createPlayerEngine(initial?: Partial<PlayerEngineState>): Player
       if (!list || list.length === 0) return;
       const start = list[startIndex];
       const useShuffle = shuffleNow ?? state.shuffle;
-      const queue = useShuffle && start ? shuffled(list, start) : list;
+      // F2 2026-09-04: shuffle = SMART — rải nghệ sĩ thay random thuần.
+      const queue = useShuffle && start ? smartShuffled(list, (t) => t.artist, start) : list;
       const index = clampIndexToQueue(useShuffle ? 0 : startIndex, queue.length);
       set({
         baseQueue: list,
@@ -226,7 +227,12 @@ export function createPlayerEngine(initial?: Partial<PlayerEngineState>): Player
       const on = !state.shuffle;
       const cur = state.queue[state.index];
       if (on && cur) {
-        set({ shuffle: true, queue: shuffled(state.baseQueue.length ? state.baseQueue : state.queue, cur), index: 0 });
+        // F2: smart shuffle — rải nghệ sĩ, current giữ đầu.
+        set({
+          shuffle: true,
+          queue: smartShuffled(state.baseQueue.length ? state.baseQueue : state.queue, (t) => t.artist, cur),
+          index: 0,
+        });
       } else if (cur) {
         const base = state.baseQueue.length ? state.baseQueue : state.queue;
         const restoredIndex = Math.max(

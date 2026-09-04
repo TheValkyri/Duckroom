@@ -43,6 +43,13 @@ Kiến trúc: **PostgreSQL (Supabase)** là canonical metadata source-of-truth d
 - **Hẹn tắt nhạc** — 15/30/45/60/90 phút; 30 giây cuối **tự hạ âm lượng êm dần rồi mới pause** (không bao giờ cắt đột ngột); badge đếm ngược trên icon.
 - **MediaSession đầy đủ** — phím media bàn phím + màn hình khóa: play/pause/next/prev/seek/stop.
 - **Sóng nhạc VU-analog** — 3 lớp mỗi thanh (gradient + lõi sáng + mặt sóng), **đổi màu theo accent theme bạn chọn**, phân tích phổ tần số thật (bass giữa, treble mép).
+- **Waveform Seekbar** (mở trình phát toàn màn hình) — thanh tiến trình là **sóng âm thật của bài** (96 peak bars decode client-side, cache theo bài): phần đã phát màu accent, chưa phát mờ, click/kéo lên đỉnh sóng để seek; keyboard ←/→ nhảy 5s. Nếu peaks chưa sẵn sàng (đang decode/decode lỗi) tự về thanh mảnh — không bao giờ fake sóng giả.
+- **Smart Shuffle** — trộn nhưng **rải nghệ sĩ**: thuật toán round-robin có trọng số + greedy tránh kề (đạt cận dưới pigeonhole khi một nghệ sĩ chiếm đa số); không còn 2 bài cùng người chơi liền nhau khi tránh được. Bật như nút Shuffle thường.
+
+### 🔍 Tìm kiếm & Command Palette
+
+- **Tìm không cần dấu** (thư viện + palette): gõ `dam cuoi` vẫn ra "Đám Cưới" — chuẩn hóa tiếng Việt 2 phía (map thủ công 7 dấu, nhanh hơn NFD mỗi keystroke). Gõ có dấu vẫn match như cũ.
+- **Bảng lệnh Ctrl+K** (desktop) / nút 🔍 trên thanh điện thoại — tìm bài (Enter phát ngay với toàn kho làm queue), chạy thao tác (play/pause/next/shuffle), nhảy trang (Thống kê/Kho của tôi/Albums/MV). ↑↓ di chuyển, Enter chạy, Esc đóng.
 
 ### 🎬 Video archive
 
@@ -95,6 +102,15 @@ Kiến trúc: **PostgreSQL (Supabase)** là canonical metadata source-of-truth d
 - **Xóa playlist có Hoàn tác** — toast 6 giây khôi phục lại toàn bộ playlist + thứ tự gốc.
 - "Nghe gần đây" trên trang chủ dùng **playbackHistory thật** (dedupe theo bài), không còn dữ liệu giả.
 
+### 📊 Thống kê nghe nhạc (`/stats`)
+
+Mọi con số tính từ **playback_history thật** (ghi mỗi khi hết bài) — không phóng đại:
+- 4 thẻ tổng: thời gian nghe, tỷ lệ hoàn thành, nghệ sĩ top, bài nghe nhiều nhất.
+- **Top 5 nghệ sĩ** — thanh ngang theo tỷ lệ giờ nghe thật.
+- **Top 10 bài** — grid 2 cột kèm số lần phát.
+- **Chất lượng nghe** — thời gian theo định dạng gốc (FLAC/WAV/…): "lossless-first" có bằng chứng số liệu.
+- Member-only (Guest thấy auth-gate); desktop lẫn mobile; vào từ sidebar desktop / sheet "Xem thêm" trên điện thoại.
+
 ### 📦 Ingestion pipeline
 
 - Phân tích binary thật: magic-byte dispatch, Xing/VBRI, ISOBMFF moov-tail fallback.
@@ -104,7 +120,9 @@ Kiến trúc: **PostgreSQL (Supabase)** là canonical metadata source-of-truth d
 
 ### ⌨️ Phím tắt (desktop)
 
-Nhấn `?` bất kỳ đâu để mở bảng hướng dẫn: `Space` play/pause · `Shift+→/←` next/prev · `S` shuffle · `R` repeat · `L` lyrics · `Esc` thu nhỏ.
+Nhấn `?` bất kỳ đâu để mở bảng hướng dẫn: `Space` play/pause · `Shift+→/←` next/prev · `S` shuffle (smart) · `R` repeat · `L` lyrics · `Ctrl+K` bảng lệnh · `Esc` thu nhỏ/đóng.
+
+> 📱 **Trên điện thoại**: mọi phím tắt đều có nút tương đương — 🔍 trên thanh trên mở bảng lệnh, nút Shuffle trong trình phát, menu ⋯ cho thao tác bài hát.
 
 ### 🔗 Share & Spotify bridge
 
@@ -123,7 +141,7 @@ Nhấn `?` bất kỳ đâu để mở bảng hướng dẫn: `Space` play/pause
 | Media Storage    | Pikamc S3 + @aws-sdk/client-s3 | Binary masters + presigned URLs     |
 | Canonical DB     | Supabase PostgreSQL + RLS      | Metadata định danh, phân quyền      |
 | Styling & Motion | Tailwind CSS v4 + Motion       | Design system, reduced-motion aware |
-| Testing          | Vitest 4 + ESLint 9 + Prettier | 350+ test, secret-scan gate         |
+| Testing          | Vitest 4 + ESLint 9 + Prettier | 374 test, secret-scan gate       |
 
 ---
 

@@ -1,5 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import {
+  BarChart3,
   CheckCircle2,
   Disc,
   Disc3,
@@ -14,6 +15,7 @@ import {
   Palette,
   PanelLeftClose,
   PanelLeftOpen,
+  Search,
   ShieldCheck,
   UploadCloud,
   User,
@@ -29,6 +31,7 @@ import { cn } from "../lib/utils";
 import { useScrollLock } from "../hooks/use-scroll-lock";
 import { HotkeysOverlay } from "./HotkeysOverlay";
 import { ThemePicker } from "./ThemePicker";
+import { CommandPalette } from "./CommandPalette";
 import { ensureThemeApplied } from "../lib/theme";
 import { NowPlaying } from "./player/NowPlaying";
 import { PlayerBar } from "./player/PlayerBar";
@@ -45,6 +48,7 @@ const nav = [
   { to: "/", label: "Trang chủ", icon: Home },
   { to: "/library", label: "Thư viện", icon: ListMusic },
   { to: "/my-library", label: "Kho của tôi", icon: Heart },
+  { to: "/stats", label: "Thống kê", icon: BarChart3 },
   { to: "/albums", label: "Albums", icon: Disc3 },
   { to: "/singles", label: "Đĩa đơn", icon: Disc },
   { to: "/videos", label: "MV", icon: Film },
@@ -105,6 +109,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   useScrollLock(moreOpen);
   const [themeOpen, setThemeOpen] = useState(false);
   const [themeOrigin, setThemeOrigin] = useState<{ x: number; y: number } | null>(null);
+  // F4: Command Palette — Ctrl+K (desktop) / nút 🔍 (mobile header).
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Ctrl+K / Cmd+K — mở palette từ bất kỳ đâu (không đụng input đang gõ:
+  // browser default của Ctrl+K là search bar — preventDefault chiếm lại).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Belt-and-suspenders: đảm bảo inline vars khớp store sau khi hydrate
   // (init-script đã chạy trước trong <head>; gọi lại 1 lần vô hại).
@@ -124,6 +143,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isMoreActive =
     location.pathname.startsWith("/albums") ||
     location.pathname.startsWith("/singles") ||
+    location.pathname.startsWith("/stats") ||
     location.pathname === "/upload" ||
     location.pathname === "/admin";
 
@@ -345,6 +365,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
         </Link>
         <div className="flex items-center gap-1">
+          {/* F4: Palette trên mobile — Ctrl+K không tồn tại trên phone nên
+              đây là cửa vào chính (44px, cùng modal như desktop). */}
+          <motion.button
+            type="button"
+            whileTap={tapScale}
+            transition={springSnappy}
+            onClick={() => setPaletteOpen(true)}
+            aria-label="Tìm nhanh trong Duckroom"
+            title="Tìm nhanh (Ctrl K)"
+            className="text-muted-foreground hover:text-primary grid size-11 place-items-center rounded-full transition-colors hover:bg-accent/50 cursor-pointer"
+          >
+            <Search className="size-5" />
+          </motion.button>
           <motion.button
             type="button"
             whileTap={tapScale}
@@ -511,6 +544,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               {[
                 { to: "/albums", label: "Albums", icon: Disc3, desc: "Bộ sưu tập đĩa" },
                 { to: "/singles", label: "Đĩa đơn", icon: Disc, desc: "Single & EP" },
+                { to: "/stats", label: "Thống kê", icon: BarChart3, desc: "Số liệu nghe của bạn" },
                 ...(isOwner
                   ? [
                       { to: "/upload", label: "Tải lên", icon: UploadCloud, desc: "Trung tâm tiếp nhận" },
@@ -580,6 +614,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <AnimatePresence>
         {themeOpen && <ThemePicker open={themeOpen} onClose={() => setThemeOpen(false)} triggerOrigin={themeOrigin} />}
       </AnimatePresence>
+      {/* F4: Command Palette — Ctrl+K desktop, nút 🔍 mobile header. */}
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );
 }

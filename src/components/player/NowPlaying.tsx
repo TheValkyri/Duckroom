@@ -8,7 +8,8 @@ import { springGentle, springSmooth, springSnappy, tapScale, tweenBase } from ".
 import { usePlayer, usePlayerTime } from "../../lib/player";
 import { cn } from "../../lib/utils";
 import { Visualizer } from "../Visualizer";
-import { SeekBar, TransportControls } from "./Controls";
+import { TransportControls } from "./Controls";
+import { WaveformSeekBar } from "./WaveformSeekBar";
 import { LyricsPane } from "./Lyrics";
 import { SleepTimerMenu } from "./SleepTimerMenu";
 import { useIsPhoneLayout } from "../../hooks/use-media-query";
@@ -562,7 +563,11 @@ export function NowPlaying() {
                   {isPhone && <Visualizer playing={isPlaying} bars={28} height={16} className="mt-2 opacity-70" />}
 
                   <div className="mt-2">
-                    <SeekBar />
+                    {/* F5 2026-09-04: WAVEFORM SEEKBAR — sóng THẬT của bài
+                        (decode client-side, cache per-track) thay thanh
+                        trơn. Fallback trung thực về thanh mảnh nếu peaks
+                        chưa sẵn (đang fetch/decode lỗi) — không fake. */}
+                    <WaveformSeekBar height={isPhone ? 40 : 52} />
                     <NowPlayingTimeLabel duration={current.duration} />
                   </div>
 
@@ -658,7 +663,10 @@ function PhoneCurrentLyricLine() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          // MOTION v2 2026-09-04: easeDuck expo ([0.16,1,0.3,1]) — dòng chữ
+          // "đáp" lên dứt khoát rồi hãm mềm, cùng nhịp vật lý với lyrics
+          // pane + scroll (feedback "làm ease vật lý, mượt hơn").
+          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           className="line-clamp-2 px-3 text-center text-[13px] font-medium leading-4 tracking-tight text-foreground/85"
         >
           {activeIdx >= 0 && line?.text ? line.text : "· · ·"}
