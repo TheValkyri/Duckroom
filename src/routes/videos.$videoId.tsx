@@ -2,7 +2,7 @@ import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-ro
 import { ArrowLeft, Maximize2, Minimize2, Pause, Play, Trash2, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { deleteVideo, formatTime, videoById } from "../data/library";
-import { useAuth } from "../lib/useAuth";
+import { useDuckroomRole } from "../lib/useRole";
 import { ShareMenu } from "../components/ShareMenu";
 import { useLibrary } from "../lib/useLibrary";
 import { usePlayerActions } from "../lib/player";
@@ -36,7 +36,7 @@ function VideoPage() {
   const { video: loadedVideo, videoId: paramVideoId } = Route.useLoaderData();
   const { videos } = useLibrary();
   const { pause: pauseAudioPlayer } = usePlayerActions();
-  const { isLoggedIn } = useAuth();
+  const { isOwner } = useDuckroomRole();
   const navigate = useNavigate();
 
   const video = loadedVideo || videoById(paramVideoId);
@@ -96,7 +96,7 @@ function VideoPage() {
   }, []);
 
   const handleDeleteVideo = async () => {
-    if (!isLoggedIn) return;
+    if (!isOwner) return;
     if (confirm(`Bạn có chắc chắn muốn xóa MV "${video.title}" khỏi Pikamc S3 không?`)) {
       await deleteVideo(video.id);
       void navigate({ to: "/videos" });
@@ -137,7 +137,7 @@ function VideoPage() {
         </Link>
         <div className="flex items-center gap-2.5">
           <ShareMenu compact resourceType="video" resourceId={video.id} title={video.title} />
-          {isLoggedIn && (
+          {isOwner && (
             <button
               type="button"
               onClick={handleDeleteVideo}

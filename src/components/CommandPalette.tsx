@@ -99,6 +99,10 @@ const ROUTE_OF_ACTION: Record<string, string> = {
 };
 
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return <AnimatePresence>{open && <CommandPaletteModal onClose={onClose} />}</AnimatePresence>;
+}
+
+function CommandPaletteModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const { tracks } = useLibrary();
   const player = usePlayer();
@@ -107,16 +111,11 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const inputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
-  // Reset mỗi lần mở — tìm mới là phiên mới.
+  // Autofocus sau khi mount animation frame đầu (tránh iOS scroll-jump khi focus input trong fixed overlay).
   useEffect(() => {
-    if (!open) return;
-    setQ("");
-    setSel(0);
-    // Autofocus sau khi mount animation frame đầu (tránh iOS scroll-jump
-    // khi focus input trong fixed overlay).
     const t = setTimeout(() => inputRef.current?.focus(), 60);
     return () => clearTimeout(t);
-  }, [open]);
+  }, []);
 
   // Đóng bằng Esc — xử lý ở input keydown để không đụng hotkeys toàn cục.
   const items = useMemo<CommandItem[]>(() => {
@@ -134,8 +133,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       .slice(0, 8)
       .map((t): CommandItem => ({ kind: "track", track: t }));
     return [...quick.slice(0, 3), ...matchedTracks];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, tracks, player.isPlaying, player]);
+  }, [q, tracks, player]);
 
   useEffect(() => setSel(0), [q]);
 
@@ -176,74 +174,70 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   }, [sel]);
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.14 }}
-          className="fixed inset-0 z-[90] flex items-start justify-center bg-black/60 p-4 pt-[12vh] backdrop-blur-sm"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) onClose();
-          }}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Bảng lệnh Duckroom"
-        >
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.985 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.99 }}
-            transition={{ type: "spring", stiffness: 420, damping: 34 }}
-            className="bg-card border-border edge-shadow-b w-full max-w-xl overflow-hidden rounded-2xl border shadow-2xl"
-            onKeyDown={onKeyDown}
-          >
-            <div className="flex items-center gap-3 px-4 pt-3.5 pb-2">
-              <Search className="text-muted-foreground size-5 shrink-0" />
-              <input
-                ref={inputRef}
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Tìm bài hát, thao tác… (gõ không dấu cũng ra)"
-                aria-label="Tìm trong Duckroom"
-                autoComplete="off"
-                spellCheck={false}
-                className="placeholder:text-muted-foreground/60 min-w-0 flex-1 bg-transparent text-[15px] outline-none"
-              />
-              <kbd className="border-border text-muted-foreground hidden shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px] sm:block">
-                ESC
-              </kbd>
-            </div>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.14 }}
+      className="fixed inset-0 z-[90] flex items-start justify-center bg-black/60 p-4 pt-[12vh] backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Bảng lệnh Duckroom"
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 10, scale: 0.985 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 6, scale: 0.99 }}
+        transition={{ type: "spring", stiffness: 420, damping: 34 }}
+        className="bg-card border-border edge-shadow-b w-full max-w-xl overflow-hidden rounded-2xl border shadow-2xl"
+        onKeyDown={onKeyDown}
+      >
+        <div className="flex items-center gap-3 px-4 pt-3.5 pb-2">
+          <Search className="text-muted-foreground size-5 shrink-0" />
+          <input
+            ref={inputRef}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Tìm bài hát, thao tác… (gõ không dấu cũng ra)"
+            aria-label="Tìm trong Duckroom"
+            autoComplete="off"
+            spellCheck={false}
+            className="placeholder:text-muted-foreground/60 min-w-0 flex-1 bg-transparent text-[15px] outline-none"
+          />
+          <kbd className="border-border text-muted-foreground hidden shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px] sm:block">
+            ESC
+          </kbd>
+        </div>
 
-            <div ref={listRef} className="max-h-[52vh] overflow-y-auto px-2 pb-2">
-              {items.length === 0 && (
-                <p className="text-muted-foreground px-3 py-6 text-center text-sm">Không tìm thấy gì cho "{q}".</p>
-              )}
-              {items.map((item, i) => (
-                <PaletteRow
-                  key={item.kind === "track" ? item.track.id : item.kind === "action" ? item.id : String(i)}
-                  item={item}
-                  idx={i}
-                  selected={i === sel}
-                  onHover={() => setSel(i)}
-                  onRun={() => runItem(item)}
-                />
-              ))}
-            </div>
+        <div ref={listRef} className="max-h-[52vh] overflow-y-auto px-2 pb-2">
+          {items.length === 0 && (
+            <p className="text-muted-foreground px-3 py-6 text-center text-sm">Không tìm thấy gì cho "{q}".</p>
+          )}
+          {items.map((item, i) => (
+            <PaletteRow
+              key={item.kind === "track" ? item.track.id : item.kind === "action" ? item.id : String(i)}
+              item={item}
+              idx={i}
+              selected={i === sel}
+              onHover={() => setSel(i)}
+              onRun={() => runItem(item)}
+            />
+          ))}
+        </div>
 
-            <div className="border-border/60 text-muted-foreground flex items-center gap-4 border-t px-4 py-2 text-[11px]">
-              <span className="flex items-center gap-1.5">
-                <Command className="size-3" /> Ctrl K
-              </span>
-              <span>↑↓ di chuyển</span>
-              <span>Enter chạy</span>
-              <span className="ml-auto hidden sm:block">Tìm không dấu được — "dam cuoi" → Đám Cưới</span>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        <div className="border-border/60 text-muted-foreground flex items-center gap-4 border-t px-4 py-2 text-[11px]">
+          <span className="flex items-center gap-1.5">
+            <Command className="size-3" /> Ctrl K
+          </span>
+          <span>↑↓ di chuyển</span>
+          <span>Enter chạy</span>
+          <span className="ml-auto hidden sm:block">Tìm không dấu được — "dam cuoi" → Đám Cưới</span>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

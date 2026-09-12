@@ -35,11 +35,11 @@ the brand DNA (Master Plan §17).
 
 Three roles (§1.3, §7.2):
 
-| Capability | Guest | Member | Owner |
-|---|:-:|:-:|:-:|
-| Browse/play public library, lyrics, artwork, share | ✅ | ✅ | ✅ |
-| Persistent favorites / playlists / history / continue-listening | ❌ | ✅ | ✅ |
-| Upload master, edit metadata, trash, admin/storage tools | ❌ | ❌ | ✅ |
+| Capability                                                      | Guest | Member | Owner |
+| --------------------------------------------------------------- | :---: | :----: | :---: |
+| Browse/play public library, lyrics, artwork, share              |  ✅   |   ✅   |  ✅   |
+| Persistent favorites / playlists / history / continue-listening |  ❌   |   ✅   |  ✅   |
+| Upload master, edit metadata, trash, admin/storage tools        |  ❌   |   ❌   |  ✅   |
 
 Terminology in the UI is Vietnamese and MUST be preserved: "Trang chủ",
 "Thư viện", "Kho của tôi", "Albums", "Đĩa đơn", "MV", "Tải lên", "Hàng đợi",
@@ -215,7 +215,7 @@ do not adopt new deps; we already have vaul (drawer) + Radix available).
   primary amber/gold oklch(0.76 0.14 66) ("duck gold"), accent, sidebar
   tokens; radius scale from `--radius: 0.5rem`.
 - Fonts: `--font-display: "Playfair Display"` (headings), `--font-sans:
-  "Sora"`.
+"Sora"`.
 - Utilities: `glass` (blur 20px + contain:paint), `grain` (noise overlay),
   `animate-shimmer`.
 - Motion: `lib/motion.ts` tokens (springSnappy/Smooth/Gentle/Pill, easeDuck,
@@ -228,7 +228,7 @@ do not adopt new deps; we already have vaul (drawer) + Radix available).
 
 ## 12. Current responsive strategy
 
-There is none as a *system* — desktop is the primary layout with scattered
+There is none as a _system_ — desktop is the primary layout with scattered
 Tailwind `sm:/md:/lg:` overrides (breakpoints 640/768/1024px). `lg` (1024)
 gates sidebar vs top-bar. PlayerBar's `w-[38vw] min-w-[280px]` center
 column and QueuePanel `w-[360px]` are desktop-first dimensions. No

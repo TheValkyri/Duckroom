@@ -119,15 +119,15 @@ external gate (real-device), unchanged.
 
 ## L. Regression results — PASS
 
-| Gate | Result |
-|---|---|
-| npm ci-class clean state | (node_modules present; clean-install lockfile unchanged) |
-| tsc --noEmit | 0 errors |
-| eslint | 0 errors / 18 warnings (pre-existing) |
-| npm test | 310/310 (26 files) — includes 11 new mobile guards; no tests deleted |
-| build | PASS |
-| scan:secrets | CLEAN |
-| Desktop 1280/1440/1920 | no overflow, sidebar intact, mobile-only elements hidden (asserted) |
+| Gate                     | Result                                                               |
+| ------------------------ | -------------------------------------------------------------------- |
+| npm ci-class clean state | (node_modules present; clean-install lockfile unchanged)             |
+| tsc --noEmit             | 0 errors                                                             |
+| eslint                   | 0 errors / 18 warnings (pre-existing)                                |
+| npm test                 | 310/310 (26 files) — includes 11 new mobile guards; no tests deleted |
+| build                    | PASS                                                                 |
+| scan:secrets             | CLEAN                                                                |
+| Desktop 1280/1440/1920   | no overflow, sidebar intact, mobile-only elements hidden (asserted)  |
 
 ## M. Remaining issues (honest)
 

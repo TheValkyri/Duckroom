@@ -24,7 +24,8 @@ import { cn } from "../../lib/utils";
 export function WaveformSeekBar({ height = 44 }: { height?: number }) {
   const { current, seek } = usePlayer();
   const time = usePlayerTime();
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const unplayedCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const playedCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [peaks, setPeaks] = useState<Uint8Array | null>(null);
   const [dragTime, setDragTime] = useState<number | null>(null);
   const trackId = current?.id;
@@ -48,55 +49,57 @@ export function WaveformSeekBar({ height = 44 }: { height?: number }) {
   const displayTime = dragTime ?? time;
   const pct = Math.min(100, Math.max(0, (displayTime / duration) * 100));
 
-  // Vẽ canvas khi peaks/size/theme đổi (không phải mỗi tick).
+  // Vẽ canvas khi peaks/size/theme đổi (KHÔNG vẽ lại mỗi tick — tiến trình cập nhật bằng CSS clipPath).
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !peaks) return;
+    const unplayedCanvas = unplayedCanvasRef.current;
+    const playedCanvas = playedCanvasRef.current;
+    if (!unplayedCanvas || !playedCanvas || !peaks) return;
+
     const draw = () => {
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
       const dpr = window.devicePixelRatio || 1;
-      const w = canvas.clientWidth;
-      const h = canvas.clientHeight;
+      const w = unplayedCanvas.clientWidth;
+      const h = unplayedCanvas.clientHeight;
       if (w === 0 || h === 0) return;
-      if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
-        canvas.width = w * dpr;
-        canvas.height = h * dpr;
-      }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, w, h);
 
-      const s = accentCssVars(getThemeState());
-      // Màu played = accent; unplayed = foreground alpha thấp — bar
-      // played/unplayed vẽ TRONG 1 pass, progress overlay là CSS.
-      // Vẽ unplayed trước (toàn bộ), played đè lên theo pct — CSS mask
-      // đắt hơn; canvas vẽ 2 lớp vẫn 1 lần khi đổi peaks.
-      const gap = w / WAVEFORM_BARS > 3 ? 1 : 0.5; // khe co lại khi hẹp
+      const gap = w / WAVEFORM_BARS > 3 ? 1 : 0.5;
       const bw = Math.max(1.5, w / WAVEFORM_BARS - gap);
-      const playedBars = Math.floor((pct / 100) * WAVEFORM_BARS);
+      const s = accentCssVars(getThemeState());
 
-      for (let i = 0; i < peaks.length; i++) {
-        const v = peaks[i]! / 255;
-        // Nhân thêm ~0.25 để bar thấp (intro im lặng) vẫn thấy được —
-        // không phóng đại peak, chỉ đảm bảo hiển thị tối thiểu.
-        const bh = Math.max(2, v * (h - 4) * 0.92 + 1.5);
-        const x = i * (bw + gap);
-        const y = (h - bh) / 2;
-        ctx.fillStyle = i <= playedBars ? s.primary : "oklch(from var(--foreground) l c h / 0.22)";
-        ctx.beginPath();
-        ctx.roundRect(x, y, bw, bh, bw / 2);
-        ctx.fill();
-      }
+      const renderLayer = (cvs: HTMLCanvasElement, fillStyle: string) => {
+        const ctx = cvs.getContext("2d");
+        if (!ctx) return;
+        if (cvs.width !== w * dpr || cvs.height !== h * dpr) {
+          cvs.width = w * dpr;
+          cvs.height = h * dpr;
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = fillStyle;
+
+        for (let i = 0; i < peaks.length; i++) {
+          const v = peaks[i]! / 255;
+          const bh = Math.max(2, v * (h - 4) * 0.92 + 1.5);
+          const x = i * (bw + gap);
+          const y = (h - bh) / 2;
+          ctx.beginPath();
+          ctx.roundRect(x, y, bw, bh, bw / 2);
+          ctx.fill();
+        }
+      };
+
+      renderLayer(unplayedCanvas, "oklch(from var(--foreground) l c h / 0.22)");
+      renderLayer(playedCanvas, s.primary);
     };
+
     draw();
     const unsub = subscribeTheme(draw);
     const ro = new ResizeObserver(draw);
-    ro.observe(canvas);
+    ro.observe(unplayedCanvas);
     return () => {
       unsub();
       ro.disconnect();
     };
-  }, [peaks, pct]);
+  }, [peaks]);
 
   // Tính thời gian theo vị trí pointer — dùng cho cả click + drag.
   const timeFromPointer = (clientX: number, el: HTMLElement) => {
@@ -139,8 +142,15 @@ export function WaveformSeekBar({ height = 44 }: { height?: number }) {
       }}
       onPointerCancel={() => setDragTime(null)}
     >
-      <canvas ref={canvasRef} className="absolute inset-0 size-full" aria-hidden />
-      {/* Peak null → fallback thanh trơn (như SeekBar cũ) — không fake. */}
+      {/* Unplayed layer (toàn bộ các thanh màu mờ) */}
+      <canvas ref={unplayedCanvasRef} className="absolute inset-0 size-full" aria-hidden />
+      {/* Played layer (các thanh màu accent được clip theo tiến độ pct bằng CSS GPU) */}
+      <canvas
+        ref={playedCanvasRef}
+        className="pointer-events-none absolute inset-0 size-full"
+        style={{ clipPath: `inset(0 calc(100% - ${pct}%) 0 0)` }}
+        aria-hidden
+      />
       {!peaks && (
         <div className="pointer-events-none absolute inset-0 grid items-center">
           <div className="bg-muted relative h-1.5 w-full overflow-hidden rounded-full">

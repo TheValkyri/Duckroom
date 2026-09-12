@@ -25,7 +25,7 @@ import {
   tapScale,
   tweenBase,
 } from "../lib/motion";
-import { useAuth } from "../lib/useAuth";
+import { useDuckroomRole } from "../lib/useRole";
 import { ShareMenu } from "../components/ShareMenu";
 import { useLibrary } from "../lib/useLibrary";
 import { usePlayerActions } from "../lib/player";
@@ -66,12 +66,15 @@ function AddTracksModal({
   onClose: () => void;
   onAdded: () => void;
 }) {
+  const { isOwner } = useDuckroomRole();
   const { tracks: libraryTracks } = useLibrary();
   const available = useMemo(
     () => libraryTracks.filter((t) => !currentTrackIds.has(t.id)),
     [libraryTracks, currentTrackIds],
   );
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  if (!isOwner) return null;
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -182,7 +185,7 @@ function AlbumPage() {
   const { album: loadedAlbum, albumId: paramAlbumId } = Route.useLoaderData();
   const { tracks, albums, refresh } = useLibrary();
   const { playQueue } = usePlayerActions();
-  const { isLoggedIn } = useAuth();
+  const { isOwner } = useDuckroomRole();
   const navigate = useNavigate();
   const [showAddTracks, setShowAddTracks] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -199,29 +202,29 @@ function AlbumPage() {
   const currentIds = new Set(list.map((t) => t.id));
 
   const handleDeleteAlbum = useCallback(async () => {
-    if (!isLoggedIn) return;
+    if (!isOwner) return;
     if (confirm(`Chuyển album "${album.title}" vào thùng rác?`)) {
       await deleteAlbum(album.id);
       void navigate({ to: "/albums" });
     }
-  }, [isLoggedIn, album.title, album.id, navigate]);
+  }, [isOwner, album.title, album.id, navigate]);
 
   const handleRemoveFromAlbum = useCallback(
     async (trackId: string) => {
-      if (!isLoggedIn) return;
+      if (!isOwner) return;
       await removeTrackFromAlbum(trackId);
       refresh();
     },
-    [isLoggedIn, refresh],
+    [isOwner, refresh],
   );
 
   const handleDeleteTrack = useCallback(
     async (trackId: string) => {
-      if (!isLoggedIn) return;
+      if (!isOwner) return;
       await deleteTrack(trackId);
       refresh();
     },
-    [isLoggedIn, refresh],
+    [isOwner, refresh],
   );
 
   const handlePlayTrack = useCallback(
@@ -246,7 +249,7 @@ function AlbumPage() {
           >
             <ArrowLeft className="size-4" /> Tất cả Album
           </Link>
-          {isLoggedIn && (
+          {isOwner && (
             <div className="flex items-center gap-2.5">
               <motion.button
                 onClick={() => setShowEditModal(true)}
@@ -305,7 +308,7 @@ function AlbumPage() {
             <p className="text-muted-foreground text-xs tracking-[0.3em] uppercase">Album</p>
             <div className="flex items-center justify-center gap-3 mt-2 md:justify-start">
               <h1 className="font-display text-3xl sm:text-5xl md:text-6xl leading-none">{album.title}</h1>
-              {isLoggedIn && (
+              {isOwner && (
                 <motion.button
                   onClick={() => setShowEditModal(true)}
                   whileTap={tapScale}
@@ -343,7 +346,7 @@ function AlbumPage() {
                 <Shuffle className="size-4" /> Trộn bài
               </motion.button>
               <ShareMenu resourceType="album" resourceId={album.id} title={album.title} />
-              {isLoggedIn && (
+              {isOwner && (
                 <motion.button
                   onClick={() => setShowAddTracks(true)}
                   whileTap={tapScale}
@@ -363,7 +366,7 @@ function AlbumPage() {
           {list.length === 0 ? (
             <div className="border-border bg-card/30 flex flex-col items-center gap-3 rounded-xl border p-12 text-center">
               <p className="text-muted-foreground text-sm">Album này chưa có bài hát nào.</p>
-              {isLoggedIn && (
+              {isOwner && (
                 <motion.button
                   onClick={() => setShowAddTracks(true)}
                   whileTap={tapScale}
@@ -383,18 +386,20 @@ function AlbumPage() {
                   index={i}
                   showAlbum={false}
                   onPlayTrack={handlePlayTrack}
-                  onDelete={() => handleDeleteTrack(t.id)}
+                  onDelete={isOwner ? () => handleDeleteTrack(t.id) : undefined}
                   extraActions={
-                    <motion.button
-                      onClick={() => handleRemoveFromAlbum(t.id)}
-                      whileTap={tapScale}
-                      transition={springSnappy}
-                      title="Gỡ khỏi album (giữ lại bài hát)"
-                      className="text-muted-foreground hover:text-foreground transition-colors p-1.5 cursor-pointer"
-                      aria-label="Gỡ khỏi album"
-                    >
-                      <X className="size-3.5" />
-                    </motion.button>
+                    isOwner ? (
+                      <motion.button
+                        onClick={() => handleRemoveFromAlbum(t.id)}
+                        whileTap={tapScale}
+                        transition={springSnappy}
+                        title="Gỡ khỏi album (giữ lại bài hát)"
+                        className="text-muted-foreground hover:text-foreground transition-colors p-1.5 cursor-pointer"
+                        aria-label="Gỡ khỏi album"
+                      >
+                        <X className="size-3.5" />
+                      </motion.button>
+                    ) : undefined
                   }
                 />
               </motion.div>

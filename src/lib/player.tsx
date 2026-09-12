@@ -464,12 +464,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    const currentTabId = tabIdRef.current;
     // Join the mesh: announce, wait out the window, claim if nobody answers.
-    broadcastSend({ type: "HELLO", tabId: tabIdRef.current, ts: Date.now() });
+    broadcastSend({ type: "HELLO", tabId: currentTabId, ts: Date.now() });
     electionRef.current = {
       ...electionRef.current,
       pendingElectionSince: Date.now(),
-      claimedIds: [tabIdRef.current], // self counts in the deterministic tie-break
+      claimedIds: [currentTabId], // self counts in the deterministic tie-break
     };
     heartbeatTimer = setInterval(sendLeaderHeartbeat, LEADER_HEARTBEAT_MS);
     tickTimer = setInterval(() => {
@@ -487,7 +488,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => {
       if (heartbeatTimer) clearInterval(heartbeatTimer);
       if (tickTimer) clearInterval(tickTimer);
-      broadcastSend({ type: "BYE", tabId: tabIdRef.current, ts: Date.now() });
+      broadcastSend({ type: "BYE", tabId: currentTabId, ts: Date.now() });
       try {
         chan.close();
       } catch {
@@ -756,7 +757,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => {
       isCancelled = true;
     };
-  }, [current?.id, engineState.isPlaying, activeChannel, primaryAudioRef, effectiveVolume, isFollower]);
+  }, [current, engineState.isPlaying, activeChannel, primaryAudioRef, effectiveVolume, isFollower]);
 
   // ---- Crossfade listener / ended / history -------------------------------
   useEffect(() => {
@@ -1086,6 +1087,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [primaryAudioRef]);
 
   // ---- Transport callbacks (context API) -----------------------------------
+  const resetSecondaryNow = useCallback(() => {
+    const secEl = secondaryAudioRef.current;
+    if (secEl) {
+      secEl.pause();
+      secEl.src = "";
+    }
+    if (activeChannel === "A") channelTrackIdB.current = null;
+    else channelTrackIdA.current = null;
+    const el = primaryAudioRef.current;
+    if (el) el.currentTime = 0;
+  }, [secondaryAudioRef, activeChannel, primaryAudioRef]);
+
   const next = useCallback(
     (manual = false) => {
       if (tabRoleRef.current === "follower") {
@@ -1108,7 +1121,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [current?.src, primaryAudioRef, actions, broadcastSend, flushPersistence],
+    [current?.src, primaryAudioRef, actions, broadcastSend, flushPersistence, resetSecondaryNow],
   );
 
   const prev = useCallback(() => {
@@ -1127,7 +1140,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       // index already moved inside engine; element resync handled by effect.
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [primaryAudioRef, actions, broadcastSend]);
+  }, [primaryAudioRef, actions, broadcastSend, resetSecondaryNow]);
 
   const toggle = useCallback(() => {
     if (tabRoleRef.current === "follower") {
@@ -1177,23 +1190,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
       persisterRef.current.notify({ trackId: transportRef.current.current?.id ?? null, positionSeconds: t });
     },
-    [primaryAudioRef, secondaryAudioRef, effectiveVolume, broadcastSend],
+    [primaryAudioRef, secondaryAudioRef, effectiveVolume, broadcastSend, setTime],
   );
 
   // Stable indirection so COMMAND routing reaches the latest seek.
   seekRef.current = seek;
-
-  function resetSecondaryNow() {
-    const secEl = secondaryAudioRef.current;
-    if (secEl) {
-      secEl.pause();
-      secEl.src = "";
-    }
-    if (activeChannel === "A") channelTrackIdB.current = null;
-    else channelTrackIdA.current = null;
-    const el = primaryAudioRef.current;
-    if (el) el.currentTime = 0;
-  }
 
   const jumpTo = useCallback(
     (i: number) => {
@@ -1210,7 +1211,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setTime(0);
       resetSecondaryNow();
     },
-    [actions, broadcastSend],
+    [actions, broadcastSend, resetSecondaryNow, setTime],
   );
 
   const moveInQueue = useCallback(
@@ -1237,7 +1238,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       pendingSeekRef.current = null;
       setResumeHint(null);
     },
-    [actions],
+    [actions, resetSecondaryNow, setTime],
   );
 
   const setVolume = useCallback((v: number) => actions.setVolume(v), [actions]);

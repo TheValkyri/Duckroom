@@ -1,4 +1,5 @@
 ﻿# DUCKROOM ARTWORK METADATA & MIME NON-FABRICATION VERIFICATION
+
 ## Blocker D Resolution: Dynamic MIME Detection, Magic Bytes Verification, Spoofing Rejection
 
 ---
@@ -8,6 +9,7 @@
 In earlier RPC drafts, artwork insertion used hardcoded `'image/jpeg'` for all cover keys. This resulted in false MIME claims for `.png`, `.webp`, `.avif`, `.gif`, `.svg`, or custom asset storage keys.
 
 **Invariant Established:**
+
 > "Do NOT blindly assume JPEG. The source of MIME must be explicit."
 > "Server/binary truth must win."
 
@@ -16,7 +18,9 @@ In earlier RPC drafts, artwork insertion used hardcoded `'image/jpeg'` for all c
 ## 2. Technical Implementation
 
 ### A. Authoritative Server Binary Image Analyzer
+
 In `src/services/media-analysis/image-analyzer.ts`:
+
 - Inspects magic bytes directly from the binary buffer:
   - **JPEG:** `FF D8 FF` -> `image/jpeg`
   - **PNG:** `89 50 4E 47 0D 0A 1A 0A` -> `image/png`
@@ -28,7 +32,9 @@ In `src/services/media-analysis/image-analyzer.ts`:
 - Rejects spoofed extensions where binary magic bytes do not match declared extension.
 
 ### B. Dynamic Fallback in RPC & Manifest Reconciliation
+
 In `replace_master_library_atomic` and `src/lib/manifest-migration.ts`:
+
 ```sql
 CASE
   WHEN lower(cover_key) ~ '\.(jpg|jpeg)$' THEN 'image/jpeg'
@@ -40,7 +46,9 @@ CASE
   ELSE NULL -- Explicit NULL for unverified/unknown format
 END
 ```
+
 On conflict, preserves already verified MIME types:
+
 ```sql
 ON CONFLICT (master_storage_key) DO UPDATE SET
   mime_type = COALESCE(public.artwork_assets.mime_type, EXCLUDED.mime_type);
@@ -51,6 +59,7 @@ ON CONFLICT (master_storage_key) DO UPDATE SET
 ## 3. Automated Test Suite
 
 Implemented in `src/test/artwork-metadata.test.ts` (9 tests):
+
 1. Genuine JPEG binary detection (`FF D8 FF`).
 2. Genuine PNG binary detection (`89 50 4E 47 ...`).
 3. Genuine WebP binary detection (`RIFF....WEBP`).

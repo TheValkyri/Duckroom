@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
   Check,
   ChevronDown,
@@ -291,7 +291,7 @@ export function LrcLiveSyncModal({ isOpen, onClose, audioFile, initialLyrics, on
   }, [currentIndex]);
 
   // Stamp current line with current audio time and advance
-  const handleStampCurrentLine = () => {
+  const handleStampCurrentLine = useCallback(() => {
     if (!audioRef.current || currentIndex >= lines.length) return;
     const stampSec = audioRef.current.currentTime;
 
@@ -300,7 +300,7 @@ export function LrcLiveSyncModal({ isOpen, onClose, audioFile, initialLyrics, on
     if (currentIndex < lines.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     }
-  };
+  }, [currentIndex, lines.length]);
 
   // Fine-tune Nudge
   const handleNudgeTime = (index: number, deltaSeconds: number) => {
@@ -373,7 +373,7 @@ export function LrcLiveSyncModal({ isOpen, onClose, audioFile, initialLyrics, on
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, isPlaying, currentIndex, lines.length, duration]);
+  }, [isOpen, isPlaying, currentIndex, lines.length, duration, handleStampCurrentLine]);
 
   // Handle Save
   const handleCompleteAndSave = () => {

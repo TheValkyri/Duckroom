@@ -8,7 +8,7 @@ import { ArtworkCropModal } from "./ArtworkCropModal";
 import { compressAndResizeImageFile, cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import { modalOverlayVariants, modalPanelVariants, springSnappy, tapScale } from "../lib/motion";
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
-import { useAuth } from "../lib/useAuth";
+import { useDuckroomRole } from "../lib/useRole";
 import { cn } from "../lib/utils";
 
 interface EditAlbumModalProps {
@@ -18,7 +18,7 @@ interface EditAlbumModalProps {
 }
 
 export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProps) {
-  const { isLoggedIn, isLoading } = useAuth();
+  const { isOwner, loading: roleLoading } = useDuckroomRole();
   const [title, setTitle] = useState(album.title);
   const [artist, setArtist] = useState(album.artist);
   const [year, setYear] = useState(album.year ? album.year.toString() : new Date().getFullYear().toString());
@@ -57,12 +57,12 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
   }, [album.id, artworkPreview, isAlbumCoverValid]);
 
   useEffect(() => {
-    if (!isLoading && !isLoggedIn) {
+    if (!roleLoading && !isOwner) {
       onClose();
     }
-  }, [isLoading, isLoggedIn, onClose]);
+  }, [roleLoading, isOwner, onClose]);
 
-  if (isLoading || !isLoggedIn) {
+  if (roleLoading || !isOwner) {
     return null;
   }
 
@@ -76,8 +76,8 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
     e.preventDefault();
     if (!title.trim() || isSaving) return;
 
-    if (!isLoggedIn) {
-      setErrorMsg("Bạn cần đăng nhập tài khoản thành viên để chỉnh sửa album.");
+    if (!isOwner) {
+      setErrorMsg("Chỉ quản trị viên (Owner) mới có quyền chỉnh sửa album.");
       return;
     }
 

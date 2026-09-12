@@ -58,14 +58,14 @@ export const TrackRow = memo(function TrackRow({
 }: {
   track: Track;
   n: number;
-  index?: number;
-  onPlay?: () => void;
-  onPlayTrack?: (track: Track, index: number) => void;
-  onDelete?: () => void;
-  onDeleteTrack?: (trackId: string) => void;
-  onUpdate?: () => void;
-  extraActions?: React.ReactNode;
-  showAlbum?: boolean;
+  index?: number | undefined;
+  onPlay?: (() => void) | undefined;
+  onPlayTrack?: ((track: Track, index: number) => void) | undefined;
+  onDelete?: (() => void | Promise<void>) | undefined;
+  onDeleteTrack?: ((trackId: string) => void | Promise<void>) | undefined;
+  onUpdate?: (() => void) | undefined;
+  extraActions?: React.ReactNode | undefined;
+  showAlbum?: boolean | undefined;
 }) {
   const isCurrent = usePlayerIsCurrent(track.id);
   const isPlaying = usePlayerIsPlaying();
@@ -108,26 +108,16 @@ export const TrackRow = memo(function TrackRow({
     if (shareBusy) return;
     setShareBusy(true);
     try {
-      if (isLoggedIn) {
-        await createAndShareLink({ resourceType: "track", resourceId: track.id, title: track.title });
-      } else {
-        // Guest chia sẻ chính trang hiện tại (§1.3 — share không cần link capability riêng).
-        const url = window.location.href;
-        if (navigator.share) {
-          await navigator.share({ title: `${track.title} — ${track.artist}`, url });
-        } else if (navigator.clipboard) {
-          await navigator.clipboard.writeText(url);
-          toast.success("Đã sao chép liên kết!");
-        }
-      }
+      await createAndShareLink({ resourceType: "track", resourceId: track.id, title: track.title });
     } catch (err) {
       console.warn("Share link error:", err);
+      toast.error("Không tạo được liên kết chia sẻ.");
     } finally {
       setShareBusy(false);
     }
-  }, [shareBusy, isLoggedIn, track.id, track.title, track.artist]);
+  }, [shareBusy, track.id, track.title]);
 
-  const hasDelete = Boolean(onDelete || onDeleteTrack);
+  const hasDelete = isOwner && Boolean(onDelete || onDeleteTrack);
 
   return (
     <>

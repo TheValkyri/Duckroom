@@ -1,7 +1,8 @@
 [
   { "navigate": "/library", "settle": 4000 },
   {
-    "eval": "(() => { const fs = window.__dr_findLyrics = () => null; return 'probe'; })()" },
+    "eval": "(() => { const fs = window.__dr_findLyrics = () => null; return 'probe'; })()"
+  },
   {
     "eval": "fetch('/api/trpc/x').catch(()=>null); 'skip'",
     "name": "noop"

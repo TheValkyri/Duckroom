@@ -5,7 +5,7 @@ import { memo, useState } from "react";
 import { albumTracks, type Album } from "../data/library";
 import { springSnappy, tapScale } from "../lib/motion";
 import { usePlayerActions } from "../lib/player";
-import { useAuth } from "../lib/useAuth";
+import { useDuckroomRole } from "../lib/useRole";
 import { cn } from "../lib/utils";
 import { EditAlbumModal } from "./EditAlbumModal";
 
@@ -21,7 +21,7 @@ export const AlbumCard = memo(function AlbumCard({
   onPlay?: () => void;
 }) {
   const { playQueue } = usePlayerActions();
-  const { isLoggedIn } = useAuth();
+  const { isOwner } = useDuckroomRole();
   const [showLocalEdit, setShowLocalEdit] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
 
@@ -56,8 +56,8 @@ export const AlbumCard = memo(function AlbumCard({
   return (
     <>
       <motion.div whileHover={{ y: -6 }} transition={springSnappy} className="relative group">
-        {/* Member Action Buttons on Card Top-Right */}
-        {isLoggedIn && (
+        {/* Owner Action Buttons on Card Top-Right */}
+        {isOwner && (
           <div
             className="absolute top-2.5 right-2.5 z-30 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
             style={{ pointerEvents: "auto" }}
@@ -140,7 +140,7 @@ export const AlbumCard = memo(function AlbumCard({
                 {album.year} · {albumTracks(album.id).length} bài
               </p>
             </div>
-            {isLoggedIn && (
+            {isOwner && (
               <motion.button
                 type="button"
                 onClick={handleEditClick}

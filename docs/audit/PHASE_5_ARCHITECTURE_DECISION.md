@@ -50,4 +50,5 @@ Every deviation below is EXPLICIT. Requirement satisfied is stated per item.
 - Requirement satisfied: planned explicitly; no silent deferral.
 
 ## Non-deviations reaffirmed
+
 player-queue.ts untouched going forward (template status). Dual-channel gapless kept. Server-authoritative media facts kept everywhere.

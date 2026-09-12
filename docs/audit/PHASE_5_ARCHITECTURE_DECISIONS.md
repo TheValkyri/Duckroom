@@ -1,6 +1,5 @@
 # PHASE 5 ARCHITECTURE DECISIONS (implementation record, 2026-08-24)
 
-
 > ℹ️ **POINT-IN-TIME EVIDENCE**: test counts trong tài liệu này là snapshot lịch sử. Current truth duy nhất: docs/audit/CURRENT_VERIFICATION.md.
 
 Build contract: docs/PHASE_5_ARCHITECTURE.md (P5.1..P5.6). All steps shipped

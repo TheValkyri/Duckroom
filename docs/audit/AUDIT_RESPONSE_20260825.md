@@ -4,24 +4,23 @@
 > (phiên bản trước). Mỗi finding được đối chiếu, xử lý hoặc ghi nhận rõ trạng
 > thái. Evidence = file/function/test case cụ thể.
 
-
 > ℹ️ **POINT-IN-TIME EVIDENCE**: test counts trong tài liệu này là snapshot lịch sử. Current truth duy nhất: docs/audit/CURRENT_VERIFICATION.md.
 
 ## Tóm tắt xử lý
 
-| # | Finding | Mức | Xử lý |
-|---|---|---|---|
-| 1 | `user_preferences` có DB nhưng Player vẫn dùng localStorage/session state | 🔴 P1 | ✅ **FIXED** — `player-preferences-sync.ts` + wiring trong `PlayerProvider` |
-| 6 | Playlist reorder tuần tự → partial-write risk | 🔴 P1 | ✅ **FIXED** — atomic SQL RPC `reorder_playlist_tracks` (migration 20260903) |
-| 7 | Playback history không idempotent | 🟠 P1 | ✅ **FIXED** — `client_event_id` unique + upsert-ignore (migration 20260904) |
-| 8 | Leader election có dual-leader window | 🟠 P1 | ✅ **FIXED** — CLAIM phase + monotonic lowest-id acceptance |
-| 9 | Guest position làm tròn số nguyên | 🟡 P2 | ✅ FIXED — giữ 3 chữ số thập phân |
-| 5 | ZIP thiếu docs/ (Master Plan, audits…) | 🔴 P2 | ✅ FIXED — package mới chứa toàn bộ `docs/` |
-| 3/2 | README overclaim + `plan.md` stale Phase 0–3 | 🟡 P2 | ✅ FIXED — README tách 4 mức verification; plan.md gắn banner HISTORICAL |
-| 14 | Migration dates "tương lai" | 🟡 P2 | ✅ Documented — convention ngày giả lập thể hiện THỨ TỰ, không phải lịch (ghi trong README + plan.md + handoff) |
-| 10 | Lyrics search gọi provider trực tiếp từ client | 🟡 P2 | ⏸ DEFERRED (lý do bên dưới) |
-| 12 | `listUserLibraryInternal` scalability | 🟡 P2 | ⏸ DEFERRED (lý do bên dưới) |
-| 15 | Chưa chạy độc lập 293 tests vì npm ci timeout | 🟡 P2 | Hướng dẫn chạy kèm bên dưới |
+| #   | Finding                                                                   | Mức   | Xử lý                                                                                                           |
+| --- | ------------------------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------- |
+| 1   | `user_preferences` có DB nhưng Player vẫn dùng localStorage/session state | 🔴 P1 | ✅ **FIXED** — `player-preferences-sync.ts` + wiring trong `PlayerProvider`                                     |
+| 6   | Playlist reorder tuần tự → partial-write risk                             | 🔴 P1 | ✅ **FIXED** — atomic SQL RPC `reorder_playlist_tracks` (migration 20260903)                                    |
+| 7   | Playback history không idempotent                                         | 🟠 P1 | ✅ **FIXED** — `client_event_id` unique + upsert-ignore (migration 20260904)                                    |
+| 8   | Leader election có dual-leader window                                     | 🟠 P1 | ✅ **FIXED** — CLAIM phase + monotonic lowest-id acceptance                                                     |
+| 9   | Guest position làm tròn số nguyên                                         | 🟡 P2 | ✅ FIXED — giữ 3 chữ số thập phân                                                                               |
+| 5   | ZIP thiếu docs/ (Master Plan, audits…)                                    | 🔴 P2 | ✅ FIXED — package mới chứa toàn bộ `docs/`                                                                     |
+| 3/2 | README overclaim + `plan.md` stale Phase 0–3                              | 🟡 P2 | ✅ FIXED — README tách 4 mức verification; plan.md gắn banner HISTORICAL                                        |
+| 14  | Migration dates "tương lai"                                               | 🟡 P2 | ✅ Documented — convention ngày giả lập thể hiện THỨ TỰ, không phải lịch (ghi trong README + plan.md + handoff) |
+| 10  | Lyrics search gọi provider trực tiếp từ client                            | 🟡 P2 | ⏸ DEFERRED (lý do bên dưới)                                                                                     |
+| 12  | `listUserLibraryInternal` scalability                                     | 🟡 P2 | ⏸ DEFERRED (lý do bên dưới)                                                                                     |
+| 15  | Chưa chạy độc lập 293 tests vì npm ci timeout                             | 🟡 P2 | Hướng dẫn chạy kèm bên dưới                                                                                     |
 
 ---
 
@@ -45,6 +44,7 @@ logout ─→ cancel() + reset gate (login sau hydrate lại từ server)
 ```
 
 An toàn:
+
 - **Không echo-write**: trước khi hydrate thành công, mọi `report()` bị bỏ qua
   — tránh việc ghi đè defaults bịa lên row thật khi mạng lỗi.
 - Guest hoàn toàn không đi vào đường này.
@@ -96,12 +96,14 @@ cùng event → 1 row. Tests: 2 cases mới trong `member-data.test.ts`.
 ### Fix #8 — Leader election hardening
 
 Hai lỗi thật trong reducer cũ:
+
 1. Timeout path tự xưng leader KHÔNG so sánh tabId (hai tab cùng electing → cả
    hai activate).
 2. LEADER handler bỏ qua challenger thấp hơn khi `previousLeader === myTabId`
    — dual-leader không tự lành.
 
 Protocol mới (`player-broadcast.ts`):
+
 - Thêm message **CLAIM**: trả lời ELECT để initiator biết mình tham gia.
 - State thêm `claimedIds`; **activation chỉ xảy ra khi window đóng**:
   `winner = min(self ∪ claims)` → nếu winner là mình mới `becameLeader=true`;

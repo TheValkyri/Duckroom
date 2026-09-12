@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "../lib/utils";
 
 interface SmoothImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
@@ -16,6 +16,11 @@ export function SmoothImage({
 }: SmoothImageProps) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoaded(false);
+    setError(false);
+  }, [src]);
 
   const finalSrc = error ? fallbackSrc : src || fallbackSrc;
 

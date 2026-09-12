@@ -1,6 +1,7 @@
 # AGENT HANDOFF — current state (2026-09-04, edge-free chrome + defer-paint)
 
 ## Read first
+
 1. docs/DUCKROOM_MASTER_PLAN.md (authority)
 2. docs/audit/MOBILE_UI_CONTEXT_AUDIT.md (mobile gate audit — read trước khi đụng UI)
 3. docs/audit/CURRENT_VERIFICATION.md (current truth + verdicts)
@@ -8,6 +9,7 @@
 5. docs/audit/ARCHITECTURE_DECISIONS.md (AD-1..AD-20 + AD-M1..M6) — never deviate silently.
 
 ## State after this round
+
 - PERF/PLAYBACK/LYRICS/LOADING HARDENING COMPLETE (commit 82c87cc):
   AD-17 (loading skeleton + status expose), AD-18 (crossfade handover
   time-reset + lyrics first-frame), stall 14s hardening, PWA meta + icons,
@@ -27,9 +29,10 @@
   background (OS policy). Nghe nền iPhone: Add to Home Screen (PWA
   standalone). MediaSession/Dynamic Island hoạt động, giữ nguyên.
 - External gates for public release: KHÔNG ĐỔI (live Supabase + rotation
-  + live S3 + real-device perf).
+  - live S3 + real-device perf).
 
 ## Deferred by decision (documented, not forgotten)
+
 - Lyrics provider fan-out → server-side proxy (P2; needs rate-limit/cache PR).
 - listUserLibrary pagination (scale debt; <1000-track scale today).
 - Sheet full focus-trap loop (basic autoFocus+Escape today) — P3 polish.
@@ -38,6 +41,7 @@
   thật — code path đã audit sạch: không pause theo visibility).
 
 ## Non-negotiable rules (unchanged, plus:)
+
 - Any new destructive op needs CAS guard + audit_logs + cleanup-debt + test.
 - Multi-row mutations that CAN be single-statement MUST be (see 20260903).
 - external_identities/user_preferences: RLS enforced; server paths keep
@@ -48,6 +52,7 @@
   (idle/syncing + chưa data) — sync ngầm sau khi có data KHÔNG hiện lại.
 
 ## Immediate next actions
+
 1. EXTERNAL GATES (blocking public release):
    a. Apply migrations 20260819 → 20260904 to live Supabase + security matrix.
    b. Rotate historically exposed credentials. c. Live S3 verification.
@@ -55,4 +60,3 @@
    plans on device/CDP) · real-device iOS PWA background-audio test ·
    lyrics server fan-out · library pagination · subtitle system §15.3 ·
    restore tooling per AD-9.
-

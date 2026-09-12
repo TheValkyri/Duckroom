@@ -8,11 +8,11 @@
 
 ## 1. Breakpoint & safe-area strategy
 
-| Tier | Widths | Treatment |
-|---|---|---|
-| Primary phones | 360 / 375 / 390 / 393 / 412 | Base layout (`base` + `xs` tuning) |
-| Large phones | 430 / 768 | Same structure, more breathing room |
-| Desktop | ≥768 (`md`) / ≥1024 (`lg`) | Existing desktop layouts preserved |
+| Tier           | Widths                      | Treatment                           |
+| -------------- | --------------------------- | ----------------------------------- |
+| Primary phones | 360 / 375 / 390 / 393 / 412 | Base layout (`base` + `xs` tuning)  |
+| Large phones   | 430 / 768                   | Same structure, more breathing room |
+| Desktop        | ≥768 (`md`) / ≥1024 (`lg`)  | Existing desktop layouts preserved  |
 
 - Viewport meta gains `viewport-fit=cover` (required for safe-area insets).
 - Global utilities (styles.css):
@@ -41,6 +41,7 @@ state = primary-colored icon + dot indicator (CSS only, no layoutId —
 matches 2026-08-25 perf convention).
 
 Secondary destinations reachable but not in the dock:
+
 - Albums & Đĩa đơn: linked from Home sections + Thư viện filter pills
   (they are views of the same library data; demoting them from primary nav
   reduces dock to 4 — deliberate IA decision, recorded in ADR-M2).
@@ -53,7 +54,7 @@ Desktop ≥lg: unchanged sidebar.
 
 **Z-index contract (mobile)**: content 0 → bottom nav z-30 → mini-player
 z-40 → sheets/dialogs z-50 → fullscreen player z-[60] → upload banner
-z-50. Mini-player sits *above* bottom nav visually (stacked dock), never
+z-50. Mini-player sits _above_ bottom nav visually (stacked dock), never
 covering it.
 
 ## 3. Player on mobile

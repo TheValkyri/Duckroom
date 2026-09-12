@@ -31,7 +31,7 @@ import {
   tweenBase,
 } from "../lib/motion";
 import { usePlayer, usePlayerActions, usePlayerIsCurrent, usePlayerIsPlaying } from "../lib/player";
-import { useAuth } from "../lib/useAuth";
+import { useDuckroomRole } from "../lib/useRole";
 import { useLibrary } from "../lib/useLibrary";
 import { cn } from "../lib/utils";
 
@@ -68,7 +68,7 @@ function SingleCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const { isLoggedIn } = useAuth();
+  const { isOwner } = useDuckroomRole();
   const isCurrentTrack = usePlayerIsCurrent(track.id);
   const isPlaying = usePlayerIsPlaying();
   const isThisPlaying = isCurrentTrack && isPlaying;
@@ -88,8 +88,8 @@ function SingleCard({
       onMouseLeave={() => setHover(false)}
       className="relative group flex flex-col"
     >
-      {/* Member Actions — rendered OUTSIDE the overflow-hidden cover container to guarantee clickability */}
-      {isLoggedIn && (
+      {/* Owner Actions — rendered OUTSIDE the overflow-hidden cover container to guarantee clickability */}
+      {isOwner && (
         <div
           className="absolute top-5.5 right-5.5 z-50 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
           style={{ pointerEvents: "auto" }}
@@ -219,7 +219,7 @@ function SingleCard({
           >
             {track.title}
           </h3>
-          {isLoggedIn && (
+          {isOwner && (
             <motion.button
               type="button"
               onClick={(e) => {
@@ -249,7 +249,7 @@ function SingleCard({
 function SinglesPage() {
   const { playQueue } = usePlayerActions();
   const { tracks } = useLibrary();
-  const { isLoggedIn } = useAuth();
+  const { isOwner } = useDuckroomRole();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
@@ -273,7 +273,7 @@ function SinglesPage() {
   const totalSizeMB = useMemo(() => singles.reduce((acc, t) => acc + (t.sizeMB || 0), 0), [singles]);
 
   const handleSyncS3 = async () => {
-    if (!isLoggedIn) return;
+    if (!isOwner) return;
     setIsSyncing(true);
     try {
       await syncLibraryWithS3(true);
@@ -286,12 +286,12 @@ function SinglesPage() {
 
   const handleDelete = useCallback(
     (id: string) => {
-      if (!isLoggedIn) return;
+      if (!isOwner) return;
       if (confirm("Bạn có chắc muốn xóa đĩa đơn này khỏi kho nhạc không?")) {
         void deleteTrack(id);
       }
     },
-    [isLoggedIn],
+    [isOwner],
   );
 
   const handlePlayTrack = useCallback(
@@ -343,7 +343,7 @@ function SinglesPage() {
             </>
           )}
 
-          {isLoggedIn && (
+          {isOwner && (
             <motion.button
               onClick={handleSyncS3}
               disabled={isSyncing}
@@ -357,12 +357,14 @@ function SinglesPage() {
             </motion.button>
           )}
 
-          <Link
-            to="/upload"
-            className="border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary inline-flex items-center gap-1.5 rounded-full px-4 py-2.5 text-xs font-semibold transition-all cursor-pointer"
-          >
-            <Plus className="size-3.5" /> Đăng Đĩa đơn
-          </Link>
+          {isOwner && (
+            <Link
+              to="/upload"
+              className="border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary inline-flex items-center gap-1.5 rounded-full px-4 py-2.5 text-xs font-semibold transition-all cursor-pointer"
+            >
+              <Plus className="size-3.5" /> Đăng Đĩa đơn
+            </Link>
+          )}
         </div>
       </div>
 
@@ -483,17 +485,19 @@ function SinglesPage() {
                         n={i + 1}
                         index={i}
                         onPlayTrack={handlePlayTrack}
-                        onDeleteTrack={handleDelete}
+                        onDeleteTrack={isOwner ? handleDelete : undefined}
                         extraActions={
-                          <motion.button
-                            onClick={() => setEditingTrack(track)}
-                            whileTap={tapScale}
-                            transition={springSnappy}
-                            title="Sửa thông tin / Lời bài hát"
-                            className="text-muted-foreground hover:text-primary p-1.5 transition-colors cursor-pointer"
-                          >
-                            <Edit className="size-3.5" />
-                          </motion.button>
+                          isOwner ? (
+                            <motion.button
+                              onClick={() => setEditingTrack(track)}
+                              whileTap={tapScale}
+                              transition={springSnappy}
+                              title="Sửa thông tin / Lời bài hát"
+                              className="text-muted-foreground hover:text-primary p-1.5 transition-colors cursor-pointer"
+                            >
+                              <Edit className="size-3.5" />
+                            </motion.button>
+                          ) : undefined
                         }
                       />
                     </motion.div>
@@ -513,14 +517,16 @@ function SinglesPage() {
               Bạn có thể đăng tải các bài hát phát hành đơn lẻ (Singles) mà không cần tạo Album. Mỗi bài Single sẽ có
               ảnh bìa Artwork và tệp lời LRC riêng biệt.
             </p>
-            <motion.div whileTap={tapScale} transition={springSnappy}>
-              <Link
-                to="/upload"
-                className="bg-primary text-primary-foreground mt-2 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold shadow-lg cursor-pointer"
-              >
-                <UploadCloud className="size-4" /> Đăng Đĩa đơn đầu tiên
-              </Link>
-            </motion.div>
+            {isOwner && (
+              <motion.div whileTap={tapScale} transition={springSnappy}>
+                <Link
+                  to="/upload"
+                  className="bg-primary text-primary-foreground mt-2 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold shadow-lg cursor-pointer"
+                >
+                  <UploadCloud className="size-4" /> Đăng Đĩa đơn đầu tiên
+                </Link>
+              </motion.div>
+            )}
           </div>
         ) : (
           <p className="text-muted-foreground py-16 text-center text-sm">

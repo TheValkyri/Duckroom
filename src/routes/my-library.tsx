@@ -26,7 +26,7 @@ import { usePlayerActions } from "../lib/player";
 import { springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { cn } from "../lib/utils";
 import type { MemberPlaylist } from "../lib/useMemberLibrary";
-import { albums, formatTime, type Track } from "../data/library";
+import { formatTime, type Track } from "../data/library";
 
 export const Route = createFileRoute("/my-library")({
   head: () => ({
@@ -54,7 +54,7 @@ const tabItems: TabItem[] = [
 function MyLibraryPage() {
   const navigate = useNavigate();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
-  const { tracks } = useLibrary();
+  const { tracks, albums } = useLibrary();
   const { playQueue } = usePlayerActions();
   const member = useMemberLibraryContext();
   const [tab, setTab] = useState<"favorites" | "albums" | "playlists" | "history">("favorites");
@@ -88,9 +88,7 @@ function MyLibraryPage() {
       .filter((a) => a.status !== "trash" && (countByAlbum.get(a.id) ?? 0) > 0)
       .map((album) => ({ album, favCount: countByAlbum.get(album.id) ?? 0 }))
       .sort((a, b) => b.favCount - a.favCount);
-    // `albums`/`tracks` là array module-level được hydration reassign —
-    // chỉ cần re-run khi favorites/library snapshot đổi.
-  }, [member.favorites, tracks]);
+  }, [member.favorites, tracks, albums]);
 
   /* Continue-listening: bài dở gần nhất (server playbackState cho Member).
    * Tồn tại → hero card "Nghe tiếp" nổi bật với vị trí đã lưu. */

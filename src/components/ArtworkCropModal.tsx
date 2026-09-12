@@ -1,6 +1,6 @@
 import { Check, Move, RotateCcw, Scissors, Sparkles, X, ZoomIn } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import { modalOverlayVariants, modalPanelVariants, springPill, springSnappy, tapScale } from "../lib/motion";
 
@@ -22,23 +22,7 @@ export function ArtworkCropModal({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
-  // Load image object
-  useEffect(() => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      imgRef.current = img;
-      drawPreview();
-    };
-    img.src = imageSrc;
-  }, [imageSrc]);
-
-  // Redraw canvas whenever zoom, offset, or mode changes
-  useEffect(() => {
-    drawPreview();
-  }, [zoom, offsetX, offsetY, aspectMode]);
-
-  const drawPreview = () => {
+  const drawPreview = useCallback(() => {
     const canvas = canvasRef.current;
     const img = imgRef.current;
     if (!canvas || !img) return;
@@ -68,7 +52,23 @@ export function ArtworkCropModal({
     const centerY = (targetHeight - drawH) / 2 + offsetY;
 
     ctx.drawImage(img, centerX, centerY, drawW, drawH);
-  };
+  }, [aspectMode, zoom, offsetX, offsetY]);
+
+  // Load image object
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      imgRef.current = img;
+      drawPreview();
+    };
+    img.src = imageSrc;
+  }, [imageSrc, drawPreview]);
+
+  // Redraw canvas whenever drawPreview changes
+  useEffect(() => {
+    drawPreview();
+  }, [drawPreview]);
 
   const handleAutoCropBlackBars = async () => {
     setIsProcessing(true);

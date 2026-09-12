@@ -1,9 +1,14 @@
 [
   { "viewport": [844, 390, 3] },
   { "navigate": "/library", "settle": 3500 },
-  { "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; rows[5].querySelector('button').click(); return 'play'; })()" },
+  {
+    "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; rows[5].querySelector('button').click(); return 'play'; })()"
+  },
   { "wait": 1200 },
-  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); if (d) { d.querySelector('[role=button]').click(); return 'expanded'; } const bar = [...document.querySelectorAll('footer')].find(f => f.offsetHeight > 0); const lyr = [...bar.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Lời bài hát'); if (lyr) { lyr.click(); return 'landscape-desktop-bar-lyrics'; } return 'neither'; })()", "name": "landscape-route" },
+  {
+    "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); if (d) { d.querySelector('[role=button]').click(); return 'expanded'; } const bar = [...document.querySelectorAll('footer')].find(f => f.offsetHeight > 0); const lyr = [...bar.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Lời bài hát'); if (lyr) { lyr.click(); return 'landscape-desktop-bar-lyrics'; } return 'neither'; })()",
+    "name": "landscape-route"
+  },
   { "wait": 1200 },
   {
     "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); if (!fs) return 'no-fs'; const pane = [...fs.querySelectorAll('div')].find(c => String(c.className).includes('lg:w-1/2')); return pane ? 'desktop-lyrics-pane@landscape:OK' : 'pane:MISSING (w=844 → desktop layout expected)'; })()",

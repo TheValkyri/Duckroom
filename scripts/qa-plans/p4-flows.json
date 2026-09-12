@@ -17,12 +17,24 @@
     "eval": "(() => { const b = [...document.querySelectorAll('footer button')].filter(b => ['Phát','Tạm dừng','Bài sau'].includes(b.getAttribute('aria-label'))); return b.map(x => { const r = x.getBoundingClientRect(); return x.getAttribute('aria-label') + '=' + Math.round(r.width) + 'x' + Math.round(r.height); }).join(', '); })()",
     "name": "mini-targets"
   },
-  { "eval": "(() => { const p = [...document.querySelectorAll('footer button')].find(b => ['Phát','Tạm dừng'].includes(b.getAttribute('aria-label'))); if (p) { p.click(); return 'toggle-clicked:' + p.getAttribute('aria-label'); } return 'no-toggle'; })()", "name": "pause" },
+  {
+    "eval": "(() => { const p = [...document.querySelectorAll('footer button')].find(b => ['Phát','Tạm dừng'].includes(b.getAttribute('aria-label'))); if (p) { p.click(); return 'toggle-clicked:' + p.getAttribute('aria-label'); } return 'no-toggle'; })()",
+    "name": "pause"
+  },
   { "wait": 500 },
-  { "eval": "(() => { const p = [...document.querySelectorAll('footer button')].find(b => ['Phát','Tạm dừng'].includes(b.getAttribute('aria-label'))); return 'state-now:' + (p ? p.getAttribute('aria-label') : 'gone'); })()", "name": "paused-state" },
-  { "eval": "(() => { const p = [...document.querySelectorAll('footer button')].find(b => b.getAttribute('aria-label') === 'Phát'); if (p) { p.click(); return 'resumed'; } return 'no-play'; })()", "name": "resume" },
+  {
+    "eval": "(() => { const p = [...document.querySelectorAll('footer button')].find(b => ['Phát','Tạm dừng'].includes(b.getAttribute('aria-label'))); return 'state-now:' + (p ? p.getAttribute('aria-label') : 'gone'); })()",
+    "name": "paused-state"
+  },
+  {
+    "eval": "(() => { const p = [...document.querySelectorAll('footer button')].find(b => b.getAttribute('aria-label') === 'Phát'); if (p) { p.click(); return 'resumed'; } return 'no-play'; })()",
+    "name": "resume"
+  },
   { "wait": 800 },
-  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.click(); return 'dock-clicked'; })()", "name": "expand" },
+  {
+    "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.click(); return 'dock-clicked'; })()",
+    "name": "expand"
+  },
   { "wait": 1500 },
   {
     "eval": "(() => { const fs = [...document.querySelectorAll('.grain.fixed.inset-0')][0]; if (!fs) return 'fullscreen:MISSING'; const btns = [...fs.querySelectorAll('button')].map(b => b.getAttribute('aria-label')).filter(Boolean); return JSON.stringify({ hasCollapse: btns.includes('Thu nhỏ trình phát'), hasLyrics: btns.some(b => (b||'').includes('lời bài hát')), hasQueue: btns.includes('Hàng đợi'), btnCount: btns.length }); })()",
@@ -46,7 +58,10 @@
     "eval": "(() => { const sheet = [...document.querySelectorAll('[role=dialog][aria-modal=true]')].find(d => (d.getAttribute('aria-label')||'') === 'Hàng đợi'); const rows = [...sheet.querySelectorAll('li')]; return 'after-reorder first=' + rows[0].querySelector('.block.truncate').textContent + ' | second=' + rows[1].querySelector('.block.truncate').textContent; })()",
     "name": "queue-reorder-result"
   },
-  { "eval": "(() => { const sheet = [...document.querySelectorAll('[role=dialog][aria-modal=true]')].find(d => (d.getAttribute('aria-label')||'') === 'Hàng đợi'); const close = [...sheet.querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.includes('Đóng')); close.click(); return 'queue-closed'; })()", "name": "close-queue" },
+  {
+    "eval": "(() => { const sheet = [...document.querySelectorAll('[role=dialog][aria-modal=true]')].find(d => (d.getAttribute('aria-label')||'') === 'Hàng đợi'); const close = [...sheet.querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.includes('Đóng')); close.click(); return 'queue-closed'; })()",
+    "name": "close-queue"
+  },
   { "wait": 600 },
   {
     "eval": "(() => { const fs = [...document.querySelectorAll('.grain.fixed.inset-0')][0]; const lyr = [...fs.querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('lời bài hát')); if (!lyr) return 'no-lyrics-btn'; lyr.click(); return 'lyrics-opened'; })()",

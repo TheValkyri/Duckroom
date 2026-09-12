@@ -10,7 +10,7 @@ import { modalOverlayVariants, modalPanelVariants, springSnappy, tapScale } from
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
 import { beautifyLrcString, parseLrc, shiftLrcTime } from "../lib/lyrics-formatter";
 import { autoTimePacingLyrics } from "../lib/metadata";
-import { useAuth } from "../lib/useAuth";
+import { useDuckroomRole } from "../lib/useRole";
 import { useScrollLock } from "../hooks/use-scroll-lock";
 import { cn } from "../lib/utils";
 
@@ -31,7 +31,7 @@ export function EditTrackModal({
   onClose: () => void;
   onUpdated: () => void;
 }) {
-  const { isLoggedIn, isLoading } = useAuth();
+  const { isOwner, loading: roleLoading } = useDuckroomRole();
   const currentAlbum = albums.find((a) => a.id === track.albumId);
   const [title, setTitle] = useState(track.title);
   // QoL: khoá scroll nền khi modal mở (cùng pattern MobileSheet).
@@ -80,20 +80,20 @@ export function EditTrackModal({
     return undefined;
   }, [track.id, artworkPreview]);
 
-  // Close modal if user is confirmed not logged in (deferred to avoid setState-during-render)
+  // Close modal if user is confirmed not owner (deferred to avoid setState-during-render)
   useEffect(() => {
-    if (!isLoading && !isLoggedIn) {
+    if (!roleLoading && !isOwner) {
       onClose();
     }
-  }, [isLoading, isLoggedIn, onClose]);
+  }, [roleLoading, isOwner, onClose]);
 
-  if (isLoading || !isLoggedIn) {
+  if (roleLoading || !isOwner) {
     return null;
   }
 
   const handleSave = async () => {
-    if (!isLoggedIn) {
-      setErrorMsg("Bạn cần đăng nhập để thực hiện thay đổi.");
+    if (!isOwner) {
+      setErrorMsg("Chỉ quản trị viên (Owner) mới có quyền chỉnh sửa bài hát.");
       return;
     }
     if (!title.trim()) {

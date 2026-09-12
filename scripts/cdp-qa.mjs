@@ -41,15 +41,22 @@ async function main() {
     } else if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") {
       consoleErrors.push(msg.params.args.map((a) => a.value ?? a.description).join(" "));
     } else if (msg.method === "Runtime.exceptionThrown") {
-      consoleErrors.push("EXCEPTION: " + (msg.params.exceptionDetails?.text ?? "") +
-        " " + (msg.params.exceptionDetails?.exception?.description ?? ""));
+      consoleErrors.push(
+        "EXCEPTION: " +
+          (msg.params.exceptionDetails?.text ?? "") +
+          " " +
+          (msg.params.exceptionDetails?.exception?.description ?? ""),
+      );
     }
   };
 
   await send("Runtime.enable");
   await send("Page.enable");
   await send("Emulation.setDeviceMetricsOverride", {
-    width: 390, height: 844, deviceScaleFactor: 3, mobile: true,
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 3,
+    mobile: true,
   });
   // KHÔNG bật touch emulation: nó nuốt click chuột synthetic của CDP ở
   // một số build Chrome → harness tự khoá mình. Viewport mobile là đủ.
@@ -58,8 +65,10 @@ async function main() {
     try {
       if (step.viewport) {
         await send("Emulation.setDeviceMetricsOverride", {
-          width: step.viewport[0], height: step.viewport[1],
-          deviceScaleFactor: step.viewport[2] ?? 2, mobile: step.viewport[0] < 768,
+          width: step.viewport[0],
+          height: step.viewport[1],
+          deviceScaleFactor: step.viewport[2] ?? 2,
+          mobile: step.viewport[0] < 768,
         });
         log(`[viewport] ${step.viewport[0]}x${step.viewport[1]}`);
       }
@@ -93,10 +102,18 @@ async function main() {
           log(`[tapSelector] MISSING ${step.tapSelector}`);
         } else {
           await send("Input.dispatchMouseEvent", {
-            type: "mousePressed", x: coords[0], y: coords[1], button: "left", clickCount: 1,
+            type: "mousePressed",
+            x: coords[0],
+            y: coords[1],
+            button: "left",
+            clickCount: 1,
           });
           await send("Input.dispatchMouseEvent", {
-            type: "mouseReleased", x: coords[0], y: coords[1], button: "left", clickCount: 1,
+            type: "mouseReleased",
+            x: coords[0],
+            y: coords[1],
+            button: "left",
+            clickCount: 1,
           });
           log(`[tapSelector] ${step.tapSelector} @ ${coords.join(",")}`);
           await new Promise((res) => setTimeout(res, step.settle ?? 800));

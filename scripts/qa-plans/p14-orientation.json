@@ -11,7 +11,10 @@
   },
   { "viewport": [844, 390, 3] },
   { "navigate": "/", "settle": 2500 },
-  { "eval": "document.documentElement.scrollWidth + ' vs ' + document.documentElement.clientWidth + ' landscape-overflow:' + (document.documentElement.scrollWidth > document.documentElement.clientWidth)", "name": "landscape-overflow" },
+  {
+    "eval": "document.documentElement.scrollWidth + ' vs ' + document.documentElement.clientWidth + ' landscape-overflow:' + (document.documentElement.scrollWidth > document.documentElement.clientWidth)",
+    "name": "landscape-overflow"
+  },
   {
     "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; if (rows.length) { rows[0].querySelector('button').click(); return 'played-in-landscape'; } return 'no-rows'; })()",
     "name": "landscape-play"
@@ -21,7 +24,10 @@
     "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); if (!d) return 'dock:MISSING-in-landscape'; const r = d.getBoundingClientRect(); return JSON.stringify({ dockY: Math.round(r.y), dockH: Math.round(r.height), inViewport: r.bottom <= window.innerHeight && r.top >= 0 }); })()",
     "name": "landscape-dock"
   },
-  { "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.querySelector('[role=button]').click(); return 'expanded'; })()", "name": "landscape-expand" },
+  {
+    "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); d.querySelector('[role=button]').click(); return 'expanded'; })()",
+    "name": "landscape-expand"
+  },
   { "wait": 1200 },
   {
     "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); if (!fs) return 'fs:MISSING'; const art = fs.querySelector('.aspect-square'); const r = art.getBoundingClientRect(); const overflowY = r.bottom > window.innerHeight; return JSON.stringify({ artworkW: Math.round(r.width), artworkBottom: Math.round(r.bottom), viewportH: window.innerHeight, clipped: overflowY }); })()",
@@ -38,5 +44,8 @@
   },
   { "viewport": [390, 844, 3] },
   { "wait": 800 },
-  { "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); if (!fs) return 'portrait-fs-gone'; const r = fs.querySelector('.aspect-square')?.getBoundingClientRect(); return 'portrait-restored, artwork ' + (r ? Math.round(r.width) + 'px' : 'n/a'); })()", "name": "portrait-restore" }
+  {
+    "eval": "(() => { const fs = [...document.querySelectorAll('div')].find(e => String(e.className).includes('fixed inset-0 z-50')); if (!fs) return 'portrait-fs-gone'; const r = fs.querySelector('.aspect-square')?.getBoundingClientRect(); return 'portrait-restored, artwork ' + (r ? Math.round(r.width) + 'px' : 'n/a'); })()",
+    "name": "portrait-restore"
+  }
 ]

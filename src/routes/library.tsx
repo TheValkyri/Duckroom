@@ -19,7 +19,7 @@ import {
   type Track,
 } from "../data/library";
 import { springPill, springSnappy, tapScale } from "../lib/motion";
-import { useAuth } from "../lib/useAuth";
+import { useDuckroomRole } from "../lib/useRole";
 import { useLibrary } from "../lib/useLibrary";
 import { usePlayerActions } from "../lib/player";
 import { cn } from "../lib/utils";
@@ -48,7 +48,7 @@ export const Route = createFileRoute("/library")({
 function LibraryPage() {
   const { playQueue } = usePlayerActions();
   const { tracks, albums, status } = useLibrary();
-  const { isLoggedIn } = useAuth();
+  const { isOwner } = useDuckroomRole();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<string>("all");
   // QoL A7: lịch sử tìm kiếm (5 từ gần nhất, localStorage per scope).
@@ -57,7 +57,7 @@ function LibraryPage() {
   const [isSyncing, setIsSyncing] = useState(false);
 
   const handleSyncS3 = async () => {
-    if (!isLoggedIn) return;
+    if (!isOwner) return;
     setIsSyncing(true);
     try {
       await syncLibraryWithS3(true);
@@ -69,7 +69,7 @@ function LibraryPage() {
   };
 
   const handleClearAll = async () => {
-    if (!isLoggedIn) return;
+    if (!isOwner) return;
     if (
       confirm(
         "Xóa sạch danh sách bài hát và album trong BỘ NHỚ TRÌNH DUYỆT (cache)?\n\nDữ liệu trên PostgreSQL và Pikamc S3 KHÔNG bị xóa. Tải lại trang sẽ đồng bộ lại từ canonical DB.",
@@ -81,12 +81,12 @@ function LibraryPage() {
 
   const handleDelete = useCallback(
     async (id: string) => {
-      if (!isLoggedIn) return;
+      if (!isOwner) return;
       if (confirm("Xóa bài hát này khỏi thư viện?")) {
         await deleteTrack(id);
       }
     },
-    [isLoggedIn],
+    [isOwner],
   );
 
   const hasSingles = useMemo(() => {
@@ -180,7 +180,7 @@ function LibraryPage() {
             {tracks.length} bản thu · tổng {totalSizeGB} GB · chất lượng gốc không nén lại
           </p>
         </div>
-        {isLoggedIn && (
+        {isOwner && (
           <div className="flex items-center gap-2 shrink-0">
             <motion.button
               type="button"
@@ -349,7 +349,7 @@ function LibraryPage() {
             n={i + 1}
             index={i}
             onPlayTrack={handlePlayTrack}
-            onDeleteTrack={handleDelete}
+            onDeleteTrack={isOwner ? handleDelete : undefined}
           />
         ))}
         {tracks.length === 0 ? (
@@ -359,12 +359,14 @@ function LibraryPage() {
             <p className="text-muted-foreground max-w-md text-sm">
               Chưa có bài hát nào trong Duckroom. Bạn có thể tải lên các file nhạc FLAC, WAV bản gốc của bạn.
             </p>
-            <Link
-              to="/upload"
-              className="bg-primary text-primary-foreground mt-2 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium transition-transform hover:scale-105"
-            >
-              <UploadCloud className="size-4" /> Tải lên nhạc ngay
-            </Link>
+            {isOwner && (
+              <Link
+                to="/upload"
+                className="bg-primary text-primary-foreground mt-2 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium transition-transform hover:scale-105"
+              >
+                <UploadCloud className="size-4" /> Tải lên nhạc ngay
+              </Link>
+            )}
           </div>
         ) : !list.length ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">

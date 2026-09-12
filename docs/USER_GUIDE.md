@@ -24,11 +24,11 @@
 
 Duckroom là kho nhạc & MV cá nhân — **lossless-first** (giữ nguyên file gốc, không transcode) và **lyrics-first** (lời đồng bộ là tính năng hạng nhất).
 
-| Vai trò | Có thể làm |
-|---|---|
-| **Khách (Guest)** | Nghe toàn bộ kho công khai, xem lời, chia sẻ link, đổi theme |
+| Vai trò                 | Có thể làm                                                                             |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| **Khách (Guest)**       | Nghe toàn bộ kho công khai, xem lời, chia sẻ link, đổi theme                           |
 | **Thành viên (Member)** | Như Khách + Yêu thích, Playlists, Lịch sử nghe, Tiếp tục nghe dở, đồng bộ mọi thiết bị |
-| **Chủ kho (Owner)** | Như Member + Upload/sửa/xóa media, quản trị hệ thống |
+| **Chủ kho (Owner)**     | Như Member + Upload/sửa/xóa media, quản trị hệ thống                                   |
 
 Đăng nhập: **/login** (Email + mật khẩu hoặc Google). Mọi dữ liệu cá nhân chỉ bạn thấy — bảo mật theo chính sách RLS của Supabase.
 
@@ -138,12 +138,12 @@ Mở nhiều tab cùng Duckroom: hệ thống tự bầu ra **một tab làm "tr
 
 ### 4 tab
 
-| Tab | Nội dung |
-|---|---|
-| **Yêu thích** | Toàn bộ bài đã heart; nút "Phát tất cả" |
-| **Album yêu thích** | Lưới album có ≥1 bài được yêu thích — badge ♥ số bài trên mỗi album cho biết độ "thâm niên"; sắp theo nhiều bài thích nhất trước |
-| **Playlists** | Tạo (nhập tên → Tạo), phát, mở rộng, đổi tên (✏️), sắp thứ tự (↑/↓ từng bài), thêm bài (nút "+ playlist" trong menu bài hát), xóa — **xóa có Hoàn tác trong 6 giây** |
-| **Lịch sử** | 50 lượt nghe gần nhất |
+| Tab                 | Nội dung                                                                                                                                                             |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Yêu thích**       | Toàn bộ bài đã heart; nút "Phát tất cả"                                                                                                                              |
+| **Album yêu thích** | Lưới album có ≥1 bài được yêu thích — badge ♥ số bài trên mỗi album cho biết độ "thâm niên"; sắp theo nhiều bài thích nhất trước                                     |
+| **Playlists**       | Tạo (nhập tên → Tạo), phát, mở rộng, đổi tên (✏️), sắp thứ tự (↑/↓ từng bài), thêm bài (nút "+ playlist" trong menu bài hát), xóa — **xóa có Hoàn tác trong 6 giây** |
+| **Lịch sử**         | 50 lượt nghe gần nhất                                                                                                                                                |
 
 ### Yêu thích bài hát
 
@@ -219,33 +219,33 @@ Trang **Admin** (chỉ Owner) — theo dõi sức khỏe kho:
 
 Trên máy tính, nhấn **`?`** (hoặc **Shift + /**) bất kỳ đâu để mở bảng phím tắt:
 
-| Phím | Chức năng |
-|---|---|
-| `Space` | Phát / Tạm dừng |
-| `Shift + →` | Bài kế tiếp |
+| Phím        | Chức năng                                            |
+| ----------- | ---------------------------------------------------- |
+| `Space`     | Phát / Tạm dừng                                      |
+| `Shift + →` | Bài kế tiếp                                          |
 | `Shift + ←` | Bài trước (hoặc tua lại từ đầu nếu đã phát > 3 giây) |
-| `S` | Bật/tắt trộn bài |
-| `R` | Lặp lại: Tắt → Tất cả → Một bài |
-| `L` | Bật/tắt lời bài hát |
-| `Esc` | Thu nhỏ trình phát |
-| `?` | Bảng phím tắt này |
+| `S`         | Bật/tắt trộn bài                                     |
+| `R`         | Lặp lại: Tắt → Tất cả → Một bài                      |
+| `L`         | Bật/tắt lời bài hát                                  |
+| `Esc`       | Thu nhỏ trình phát                                   |
+| `?`         | Bảng phím tắt này                                    |
 
-*(Các phím trên cũng hoạt động trên màn hình khóa / media keys của bàn phím nhờ MediaSession.)*
+_(Các phím trên cũng hoạt động trên màn hình khóa / media keys của bàn phím nhờ MediaSession.)_
 
 ---
 
 ## 13. Mẹo & xử lý sự cố
 
-| Hiện tượng | Cách xử lý |
-|---|---|
-| Bài không phát được | Link ký số hết hạn — player tự làm mới; nếu vẫn lỗi, kéo thanh tua một chút để kích hoạt tự chữa |
-| Ảnh bìa không hiện | Player tự thử lại từ server;MV chưa có ảnh sẽ tự chụp khung hình đầu |
-| Lời lệch nhịp | Lời chỉ hiển thị, không sửa được từ app — báo Owner chỉnh bằng Đồng bộ thủ công lúc upload |
-| Đổi thiết bị, quên vị trí nghe | Member: mở Kho của tôi → thẻ "Nghe tiếp" — tự lưu mọi thiết bị |
-| Web chậm | Thử thu gọn sidebar (desktop) / tắt trình duyệt tab khác đang phát — chỉ một tab nên làm "trình phát chính" |
-| Theme bị reset | Theme lưu theo **thiết bị** (localStorage) — mỗi máy đặt riêng là chủ ý |
-| Lỗi 403 khi mở link share | Link đã thu hồi hoặc hết hạn — xin người gửi tạo link mới |
+| Hiện tượng                     | Cách xử lý                                                                                                  |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| Bài không phát được            | Link ký số hết hạn — player tự làm mới; nếu vẫn lỗi, kéo thanh tua một chút để kích hoạt tự chữa            |
+| Ảnh bìa không hiện             | Player tự thử lại từ server;MV chưa có ảnh sẽ tự chụp khung hình đầu                                        |
+| Lời lệch nhịp                  | Lời chỉ hiển thị, không sửa được từ app — báo Owner chỉnh bằng Đồng bộ thủ công lúc upload                  |
+| Đổi thiết bị, quên vị trí nghe | Member: mở Kho của tôi → thẻ "Nghe tiếp" — tự lưu mọi thiết bị                                              |
+| Web chậm                       | Thử thu gọn sidebar (desktop) / tắt trình duyệt tab khác đang phát — chỉ một tab nên làm "trình phát chính" |
+| Theme bị reset                 | Theme lưu theo **thiết bị** (localStorage) — mỗi máy đặt riêng là chủ ý                                     |
+| Lỗi 403 khi mở link share      | Link đã thu hồi hoặc hết hạn — xin người gửi tạo link mới                                                   |
 
 ---
 
-*Bản hướng dẫn này đi kèm mã nguồn tại `docs/USER_GUIDE.md` — mọi tính năng có bằng kiểm chứng tự động trong bộ 350+ test.*
+_Bản hướng dẫn này đi kèm mã nguồn tại `docs/USER_GUIDE.md` — mọi tính năng có bằng kiểm chứng tự động trong bộ 350+ test._

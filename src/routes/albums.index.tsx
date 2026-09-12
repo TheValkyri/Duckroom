@@ -37,10 +37,10 @@ export const Route = createFileRoute("/albums/")({
 import { AlbumCard } from "../components/AlbumCard";
 import { AlbumsSkeleton } from "../components/LibrarySkeleton";
 import { EditAlbumModal } from "../components/EditAlbumModal";
-import { useAuth } from "../lib/useAuth";
+import { useDuckroomRole } from "../lib/useRole";
 
 function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreated?: () => void }) {
-  const { isLoggedIn } = useAuth();
+  const { isOwner } = useDuckroomRole();
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [year, setYear] = useState(new Date().getFullYear().toString());
@@ -55,6 +55,8 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
   const [coverPreviewError, setCoverPreviewError] = useState(false);
   const navigate = useNavigate();
 
+  if (!isOwner) return null;
+
   const previewSrc =
     artworkPreview ||
     coverUrl.trim() ||
@@ -64,8 +66,8 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
     e.preventDefault();
     if (!title.trim() || isUploading) return;
 
-    if (artworkFile && !isLoggedIn) {
-      setErrorMsg("Bạn cần đăng nhập tài khoản thành viên để tải ảnh lên Pikamc S3.");
+    if (artworkFile && !isOwner) {
+      setErrorMsg("Chỉ quản trị viên (Owner) mới có quyền tải ảnh lên Pikamc S3.");
       return;
     }
 
@@ -163,15 +165,6 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
             </div>
           )}
 
-          {!isLoggedIn && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-300 flex items-center justify-between gap-3 mt-3">
-              <span>💡 Bạn chưa đăng nhập. Để tải ảnh bìa lên Pikamc S3, vui lòng đăng nhập tài khoản.</span>
-              <Link to="/login" className="underline font-semibold hover:text-white shrink-0">
-                Đăng nhập
-              </Link>
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 space-y-4 py-3 pr-1">
             {/* Cover upload & preview */}
             <div className="border border-border/80 rounded-xl p-4 bg-accent/20">
@@ -198,12 +191,7 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <label
-                      htmlFor={isLoggedIn ? "album-cover-upload" : undefined}
-                      onClick={() => {
-                        if (!isLoggedIn) {
-                          setErrorMsg("Vui lòng đăng nhập tài khoản thành viên để tải ảnh lên Pikamc S3.");
-                        }
-                      }}
+                      htmlFor="album-cover-upload"
                       className={cn(
                         "inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-all cursor-pointer",
                         isUploading && "opacity-50 cursor-not-allowed",
@@ -377,7 +365,7 @@ import { useLibrary } from "../lib/useLibrary";
 function AlbumsPage() {
   const { playQueue } = usePlayerActions();
   const { albums, status } = useLibrary();
-  const { isLoggedIn } = useAuth();
+  const { isOwner } = useDuckroomRole();
   const [showCreate, setShowCreate] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
 
@@ -389,7 +377,7 @@ function AlbumsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!isLoggedIn) return;
+    if (!isOwner) return;
     await deleteAlbum(id);
   };
 
@@ -404,7 +392,7 @@ function AlbumsPage() {
           <h1 className="font-display text-4xl sm:text-5xl font-bold tracking-tight text-foreground">Albums</h1>
           <p className="text-muted-foreground mt-2 text-sm">{albums.length} album đã lưu trữ · Master nguyên gốc</p>
         </div>
-        {isLoggedIn && (
+        {isOwner && (
           <motion.button
             onClick={() => setShowCreate(true)}
             whileTap={tapScale}
@@ -443,22 +431,24 @@ function AlbumsPage() {
           <p className="text-muted-foreground max-w-md text-sm">
             Bạn có thể tạo album mới và thêm bài hát vào, hoặc tải lên bài hát mới.
           </p>
-          <div className="flex gap-3">
-            <motion.button
-              onClick={() => setShowCreate(true)}
-              whileTap={tapScale}
-              transition={springSnappy}
-              className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium cursor-pointer"
-            >
-              <Plus className="size-4" /> Tạo Album
-            </motion.button>
-            <Link
-              to="/upload"
-              className="border-border inline-flex items-center gap-2 rounded-full border px-6 py-2.5 text-sm transition-colors hover:bg-accent"
-            >
-              <UploadCloud className="size-4" /> Tải lên bài hát
-            </Link>
-          </div>
+          {isOwner && (
+            <div className="flex gap-3">
+              <motion.button
+                onClick={() => setShowCreate(true)}
+                whileTap={tapScale}
+                transition={springSnappy}
+                className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium cursor-pointer"
+              >
+                <Plus className="size-4" /> Tạo Album
+              </motion.button>
+              <Link
+                to="/upload"
+                className="border-border inline-flex items-center gap-2 rounded-full border px-6 py-2.5 text-sm transition-colors hover:bg-accent"
+              >
+                <UploadCloud className="size-4" /> Tải lên bài hát
+              </Link>
+            </div>
+          )}
         </div>
       )}
 

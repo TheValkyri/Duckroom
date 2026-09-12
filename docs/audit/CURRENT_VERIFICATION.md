@@ -12,7 +12,7 @@
 - **MOBILE UI OVERRUN (2026-08-31): COMPLETE in-repo** — mobile-first shell
   (bottom nav, mini-player, sheets, safe-areas), zero desktop regression,
   docs in `MOBILE_UI_CONTEXT_AUDIT / MOBILE_UI_ARCHITECTURE / MOBILE_UI_QA /
-  MOBILE_RESPONSIVE_MATRIX / FINAL_MOBILE_UI_RELEASE_REPORT`.
+MOBILE_RESPONSIVE_MATRIX / FINAL_MOBILE_UI_RELEASE_REPORT`.
 - **PERF/PLAYBACK/LYRICS/LOADING HARDENING PASS (2026-09-04): COMPLETE
   in-repo** — WP1–WP7 theo feedback round (audio stall, lyrics jitter,
   initial-load "khựng 2–3s", iOS PWA background, artwork perf). Chi tiết
@@ -34,13 +34,13 @@
 
 ## Gates (2026-09-04, working copy, sau chrome-redesign + defer-paint)
 
-| Gate | Kết quả |
-|---|---|
-| `npx tsc --noEmit` | PASS (0 errors) |
-| `npx eslint .` | PASS (0 errors / 22 warnings pre-existing) |
-| `npm test` | **PASS 363/363 across 30 files** (guard mobile-ui-shell cập nhật theo contract mới: dock borderless + edge-shadow) |
-| `npm run build` | PASS (1.25 MB gzip; bundle CSS chứa edge-shadow-*/defer-paint/content-visibility — đã verify output) |
-| `npm run scan:secrets` | CLEAN (74 client files) |
+| Gate                   | Kết quả                                                                                                            |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `npx tsc --noEmit`     | PASS (0 errors)                                                                                                    |
+| `npx eslint .`         | PASS (0 errors / 22 warnings pre-existing)                                                                         |
+| `npm test`             | **PASS 363/363 across 30 files** (guard mobile-ui-shell cập nhật theo contract mới: dock borderless + edge-shadow) |
+| `npm run build`        | PASS (1.25 MB gzip; bundle CSS chứa edge-shadow-*/defer-paint/content-visibility — đã verify output)               |
+| `npm run scan:secrets` | CLEAN (74 client files)                                                                                            |
 
 ## Perf/playback/lyrics/loading pass (2026-09-04) — thay đổi chính
 

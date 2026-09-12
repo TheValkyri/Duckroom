@@ -1,6 +1,7 @@
 # HISTORY
 
 ## 2026-08-24 (run 2) — PHASE 0–4 CLEAN + PHASE 5/6/7 EXECUTION
+
 - Phase 0: all gates re-run green on this copy (npm ci 0-vuln, tsc, lint 0
   errors, tests, build 1.18 MB gzip, secret scan). Explicit vitest.config.ts
   adopted (AD-7). schema.sql coverage-boundary header added (was silently
@@ -25,6 +26,7 @@
   render friendly page; missing-config failure injection behaves fail-closed.
 
 ## 2026-08-24 (run 1) — RED-TEAM CLOSURE (Phase 0–4) + Phase 5 preparation
+
 - Full first-principles re-audit (media pipeline, migrations/lyrics,
   storage/CAS/destructive ops, player architecture).
 - P0/P1 fixes: artwork binary-authority path, transport SHA mismatch gate,
@@ -35,11 +37,12 @@
 - SQL 20260830 redteam hardening authored. Verdict: enter Phase 5 = YES.
 
 ## 2026-08-21 (historical context)
+
 - Canonical integrity closure package. Superseded details archived under docs/archive/.
 
 ## Earlier phases
-See docs/archive/.
 
+See docs/archive/.
 
 ---
 

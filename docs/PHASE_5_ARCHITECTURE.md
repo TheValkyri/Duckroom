@@ -7,10 +7,10 @@ Status: ARCHITECTURE ONLY. No Phase 5 implementation claimed. This document is t
 Single engine store (plain object + useSyncExternalStore), generalizing the proven time-store pattern:
 
 engine = {
-  queue, baseQueue, index, isPlaying, volume, muted, shuffle, repeat,
-  crossfade, direction, expanded, lyricsOpen, queueOpen,
-  channels: { active: A|B, trackIdA, trackIdB, handingOver },
-  time: separate fine-grained store (unchanged),
+queue, baseQueue, index, isPlaying, volume, muted, shuffle, repeat,
+crossfade, direction, expanded, lyricsOpen, queueOpen,
+channels: { active: A|B, trackIdA, trackIdB, handingOver },
+time: separate fine-grained store (unchanged),
 }
 
 - All transport mutations go through player-queue.ts pure decisions.
@@ -24,7 +24,7 @@ One <PlayerProvider> mounted in __root (GlobalPlayer). <audio> A/B elements rend
 ## 3. Queue model
 
 - queue/baseQueue arrays of Track (immutable updates); identity-based replace with clampIndexToQueue on every library sync.
-- >500 tracks: virtualize QueuePanel; shuffled() already O(n).
+- > 500 tracks: virtualize QueuePanel; shuffled() already O(n).
 
 ## 4. Playback persistence (backend exists; client wires it)
 
@@ -39,6 +39,7 @@ One <PlayerProvider> mounted in __root (GlobalPlayer). <audio> A/B elements rend
 Channel name: duckroom-player-v1 (versioned).
 Messages: {type: HELLO|ELECT|LEADER|STATE_SYNC|COMMAND, tabId, ts, payload}
 Rules:
+
 - On start: send HELLO; existing leader answers LEADER within 150ms; else ELECT; lowest random tabId wins, broadcasts LEADER.
 - Only leader owns live <audio> playback. Followers render UI from STATE_SYNC (throttled 1s: trackId,index,isPlaying,position coarse) and keep their audio elements muted/paused.
 - Commands from follower (play/pause/next/prev/seek): sent as COMMAND; leader executes and re-syncs.

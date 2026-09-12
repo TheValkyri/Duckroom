@@ -32,7 +32,10 @@
     "eval": "(() => { const txt = document.body.textContent; const hasNoResult = txt.includes('Không tìm thấy'); const hasClearFilter = [...document.querySelectorAll('button')].some(b => b.textContent.includes('Xóa bộ lọc')); return JSON.stringify({ noResultMsg: hasNoResult, clearFilterCTA: hasClearFilter }); })()",
     "name": "noresult-state"
   },
-  { "eval": "document.documentElement.scrollWidth + ' vs ' + document.documentElement.clientWidth + ' overflow:' + (document.documentElement.scrollWidth > document.documentElement.clientWidth)", "name": "overflow-360" },
+  {
+    "eval": "document.documentElement.scrollWidth + ' vs ' + document.documentElement.clientWidth + ' overflow:' + (document.documentElement.scrollWidth > document.documentElement.clientWidth)",
+    "name": "overflow-360"
+  },
   {
     "eval": "(() => { const rows = [...document.querySelectorAll('main .group')].filter(r => r.offsetHeight > 0); const more = [...rows[0].querySelectorAll('button')].find(b => (b.getAttribute('aria-label')||'').includes('Thao tác với bài')); const r = more.getBoundingClientRect(); return 'more-btn@360: ' + Math.round(r.width) + 'x' + Math.round(r.height); })()",
     "name": "more-size-360"

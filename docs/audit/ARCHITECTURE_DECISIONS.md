@@ -268,7 +268,7 @@ and after adoption.
   that change actual playback behavior. `default_view`/`reduced_motion` are
   deliberately NOT columns yet: default_view has no consumer feature, and OS
   reduced-motion is already honored globally via `MotionConfig
-  reducedMotion="user"` (§18) — persisting it would create two competing
+reducedMotion="user"` (§18) — persisting it would create two competing
   sources of truth for the same signal.
 - **Non-fabrication**: absence of a row returns documented client defaults;
   reads clamp/normalize stored values defensively (tested).
@@ -375,11 +375,11 @@ and after adoption.
   cannot fit 360px; several controls (lyrics/queue/volume) were
   `hidden md:flex` — phone users lost queue/lyrics entry from the bar.
 - **Chosen**: dedicated phone dock (<md, `lg:hidden`): 48px cover + titles
-  + play/next (44px) + 2px read-only progress strip (isolated
-  `<MiniProgressStrip>` subscriber — same time-isolation pattern as
-  PlayerBarElapsedLabel); tap expands. Full seek/lyrics/queue live in the
-  expanded player (queue button added to phone fullscreen header since the
-  mini is intentionally minimal).
+  - play/next (44px) + 2px read-only progress strip (isolated
+    `<MiniProgressStrip>` subscriber — same time-isolation pattern as
+    PlayerBarElapsedLabel); tap expands. Full seek/lyrics/queue live in the
+    expanded player (queue button added to phone fullscreen header since the
+    mini is intentionally minimal).
 - **Why superior**: honest 44px targets instead of a squeezed grid; zero
   timeupdate re-render cost for the whole dock.
 - **Bug caught by QA**: `bottom-safe` utility + `bottom-14` collided on the
@@ -394,8 +394,8 @@ and after adoption.
 - **Problem**: no `env(safe-area-inset-*)` usage anywhere; `viewport-fit`
   was not set → notch/Dynamic Island/gesture bars overlap docked UI.
 - **Chosen**: `viewport-fit=cover` in __root meta + `--safe-top/bottom/
-  left/right` tokens (`max(env(...), 0px)`) + utilities `pt-safe/pb-safe/
-  px-safe` + explicit `calc()` offsets where a numeric offset is needed
+left/right` tokens (`max(env(...), 0px)`) + utilities `pt-safe/pb-safe/
+px-safe` + explicit `calc()` offsets where a numeric offset is needed
   (AD-M4). Applied to: bottom nav, mini dock, fullscreen player (top+bottom),
   MobileSheet, upload sticky bar, top header.
 - **Why superior**: single source of truth, zero JS, no magic numbers;
@@ -424,8 +424,8 @@ and after adoption.
 # PERF/PLAYBACK/LYRICS/LOADING HARDENING PASS (2026-09-04) — AD-17/AD-18
 
 > Per Master Plan deviation policy. Scope: presentation/hydration timing +
-  playback-event hygiene only; engine semantics, queue, broadcast, MediaSession
-  handler registration, crossfade math, persistence — không đổi.
+> playback-event hygiene only; engine semantics, queue, broadcast, MediaSession
+> handler registration, crossfade math, persistence — không đổi.
 
 ## AD-17 — Library loading-state: expose sync status + geometry-preserving skeleton
 
@@ -510,7 +510,7 @@ and after adoption.
   layout+paint cả section dưới fold (recent tracks 5 TrackRow, video grid,
   và đặc biệt library 76+ rows full-height ngay từ frame đầu).
 - **Chosen**: `@utility defer-paint { content-visibility: auto;
-  contain-intrinsic-size: auto 600px }` đặt trên CONTAINER section dưới
+contain-intrinsic-size: auto 600px }` đặt trên CONTAINER section dưới
   fold (index: recent + videos; library: list container). Browser skip
   layout/paint khối ngoài viewport, chỉ giữ placeholder theo intrinsic
   size (scrollbar ổn định); render thật khi cuộn tới. 1 dòng CSS, không
@@ -520,5 +520,5 @@ and after adoption.
 - **Hero LCP**: bìa hero `fetchPriority="high" + loading="eager"` —
   không xếp hàng sau ảnh lazy; ambient blur giữ async (không phải LCP).
 - **Testing**: bundle CSS production verified chứa `content-visibility:
-  auto` + `contain-intrinsic-size`; full suite 363/363 (không thay đổi
+auto` + `contain-intrinsic-size`; full suite 363/363 (không thay đổi
   hành vi quan sát được từ JS).

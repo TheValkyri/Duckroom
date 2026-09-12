@@ -625,20 +625,18 @@ export function NowPlaying() {
 function PhoneCurrentLyricLine() {
   const { current } = usePlayer();
   const time = usePlayerTime();
-  const lines = current?.lyrics ?? [];
-  const [activeIdx, setActiveIdx] = useState(-1);
+  const lines = current?.lyrics;
 
-  useEffect(() => {
-    let idx = -1;
-    for (let i = 0; i < lines.length; i++) {
-      const l = lines[i];
-      if (l && time >= l.time) idx = i;
-    }
-    setActiveIdx((prev) => (prev === idx ? prev : idx));
-  }, [time, lines]);
+  if (!lines || lines.length === 0) return null;
 
-  if (!lines.length) return null;
+  let activeIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (l && time >= l.time) activeIdx = i;
+  }
+
   const line = lines[Math.max(0, activeIdx)];
+  if (!line) return null;
 
   return (
     // Fix 2026-09-04 (feedback: "1 dòng canh giữa ổn, xuống dòng thì chữ

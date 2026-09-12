@@ -22,16 +22,22 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
   ws = new WebSocket(WS_URL);
-  await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+  await new Promise((res, rej) => {
+    ws.onopen = res;
+    ws.onerror = rej;
+  });
   ws.onmessage = (ev) => {
     const msg = JSON.parse(ev.data);
     if (msg.id && pending.has(msg.id)) {
-      const p = pending.get(msg.id); pending.delete(msg.id);
+      const p = pending.get(msg.id);
+      pending.delete(msg.id);
       msg.error ? p.reject(new Error(msg.error.message)) : p.resolve(msg.result);
     } else if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") {
       consoleErrors.push(msg.params.args.map((a) => a.value ?? a.description).join(" "));
     } else if (msg.method === "Runtime.exceptionThrown") {
-      consoleErrors.push("EXC: " + (msg.params.exceptionDetails?.exception?.description ?? msg.params.exceptionDetails?.text));
+      consoleErrors.push(
+        "EXC: " + (msg.params.exceptionDetails?.exception?.description ?? msg.params.exceptionDetails?.text),
+      );
     }
   };
   await send("Runtime.enable");
@@ -41,7 +47,12 @@ async function main() {
   for (const step of plan) {
     try {
       if (step.viewport) {
-        await send("Emulation.setDeviceMetricsOverride", { width: step.viewport[0], height: step.viewport[1], deviceScaleFactor: step.viewport[2] ?? 2, mobile: step.viewport[0] < 768 });
+        await send("Emulation.setDeviceMetricsOverride", {
+          width: step.viewport[0],
+          height: step.viewport[1],
+          deviceScaleFactor: step.viewport[2] ?? 2,
+          mobile: step.viewport[0] < 768,
+        });
         log(`[viewport] ${step.viewport[0]}x${step.viewport[1]}`);
       }
       if (step.navigate) {
@@ -49,7 +60,10 @@ async function main() {
         await sleep(step.settle ?? 2500);
         log(`[navigate] ${step.navigate}`);
       }
-      if (step.wait) { await sleep(step.wait); log(`[wait] ${step.wait}ms`); }
+      if (step.wait) {
+        await sleep(step.wait);
+        log(`[wait] ${step.wait}ms`);
+      }
       if (step.tapSelector) {
         const r = await send("Runtime.evaluate", {
           expression: `(() => { const el = document.querySelector(${JSON.stringify(step.tapSelector)}); if (!el) return null; const b = el.getBoundingClientRect(); return [Math.round(b.x + b.width/2), Math.round(b.y + b.height/2)]; })()`,
@@ -58,8 +72,20 @@ async function main() {
         const c = r?.result?.value;
         if (!c) log(`[tapSelector] MISSING ${step.tapSelector}`);
         else {
-          await send("Input.dispatchMouseEvent", { type: "mousePressed", x: c[0], y: c[1], button: "left", clickCount: 1 });
-          await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: c[0], y: c[1], button: "left", clickCount: 1 });
+          await send("Input.dispatchMouseEvent", {
+            type: "mousePressed",
+            x: c[0],
+            y: c[1],
+            button: "left",
+            clickCount: 1,
+          });
+          await send("Input.dispatchMouseEvent", {
+            type: "mouseReleased",
+            x: c[0],
+            y: c[1],
+            button: "left",
+            clickCount: 1,
+          });
           log(`[tapSelector] ${step.tapSelector} @ ${c.join(",")}`);
           await sleep(step.settle ?? 800);
         }
@@ -73,7 +99,8 @@ async function main() {
       if (step.measureFPS) {
         // Measure long tasks + fps sample over N seconds
         const r = await send("Runtime.evaluate", {
-          awaitPromise: true, returnByValue: true,
+          awaitPromise: true,
+          returnByValue: true,
           expression: `(async () => {
             const ms = ${step.measureFPS};
             let frames = 0; let longTasks = 0;
@@ -109,4 +136,7 @@ async function main() {
   log("[console-errors] " + (consoleErrors.length ? JSON.stringify(consoleErrors.slice(0, 8)) : "none"));
   ws.close();
 }
-main().catch((e) => { log("[FATAL] " + e.message); process.exit(1); });
+main().catch((e) => {
+  log("[FATAL] " + e.message);
+  process.exit(1);
+});

@@ -22,8 +22,17 @@
     "name": "reduced-motion"
   },
   { "navigate": "/singles", "settle": 3000 },
-  { "eval": "document.documentElement.scrollWidth + ' vs ' + document.documentElement.clientWidth + ' overflow:' + (document.documentElement.scrollWidth > document.documentElement.clientWidth)", "name": "overflow-singles" },
-  { "eval": "(() => { const search = document.querySelector(\"input[type='search'], input[placeholder*='Tìm kiếm']\"); return search ? 'singles-search:OK enterkey=' + search.getAttribute('enterkeyhint') : 'singles-search:MISSING'; })()", "name": "singles-search" },
+  {
+    "eval": "document.documentElement.scrollWidth + ' vs ' + document.documentElement.clientWidth + ' overflow:' + (document.documentElement.scrollWidth > document.documentElement.clientWidth)",
+    "name": "overflow-singles"
+  },
+  {
+    "eval": "(() => { const search = document.querySelector(\"input[type='search'], input[placeholder*='Tìm kiếm']\"); return search ? 'singles-search:OK enterkey=' + search.getAttribute('enterkeyhint') : 'singles-search:MISSING'; })()",
+    "name": "singles-search"
+  },
   { "navigate": "/albums", "settle": 2500 },
-  { "eval": "(() => { const cards = [...document.querySelectorAll('a[href*=\"/albums/\"]')].filter(a => a.offsetHeight > 0); const first = cards[0]; const r = first.getBoundingClientRect(); return JSON.stringify({ albumCards: cards.length, cardW: Math.round(r.width), tapToOpen: !!first.getAttribute('href') }); })()", "name": "albums-grid" }
+  {
+    "eval": "(() => { const cards = [...document.querySelectorAll('a[href*=\"/albums/\"]')].filter(a => a.offsetHeight > 0); const first = cards[0]; const r = first.getBoundingClientRect(); return JSON.stringify({ albumCards: cards.length, cardW: Math.round(r.width), tapToOpen: !!first.getAttribute('href') }); })()",
+    "name": "albums-grid"
+  }
 ]

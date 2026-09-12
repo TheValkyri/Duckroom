@@ -1,6 +1,8 @@
 [
   { "navigate": "/library", "settle": 3500 },
-  { "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; rows[0].querySelector('button').click(); return 'play'; })()" },
+  {
+    "eval": "(() => { const rows = [...document.querySelectorAll('main .group')]; rows[0].querySelector('button').click(); return 'play'; })()"
+  },
   { "wait": 1800 },
   {
     "eval": "(() => { const d = [...document.querySelectorAll('footer')].find(f => f.getAttribute('aria-label') === 'Trình phát thu nhỏ'); const row = d.querySelector('[role=button]'); if (!row) return 'no role=button row'; const r = row.getBoundingClientRect(); row.click(); return JSON.stringify({ rowW: Math.round(r.width), rowH: Math.round(r.height), hasTitle: !!row.textContent.trim() }); })()",

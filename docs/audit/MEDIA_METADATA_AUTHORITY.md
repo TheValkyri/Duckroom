@@ -1,4 +1,5 @@
 ﻿# DUCKROOM MEDIA METADATA AUTHORITY ARCHITECTURE
+
 ## Single Source of Physical Truth & Non-Fabrication Protocol
 
 ---
@@ -63,15 +64,18 @@ The Duckroom audio/video domain maintains a strict, non-negotiable separation be
 ## 2. Invariants and Rules
 
 ### Rule 1: Non-Fabrication of Physical Metadata
+
 - **Manifest / Cold Reconciliation:** When tracks/videos are imported from cold manifests or replaced via atomic RPC without full binary analysis, `file_size_bytes`, `sha256`, and `verified_at` are **strictly set to NULL**.
 - **No Float Multiplication:** The server never multiplies `size_mb * 1024 * 1024` to synthesize `file_size_bytes`.
 - **Caller Claim != Verified Fact:** A caller-supplied SHA-256 or byte count in an HTTP payload or RPC parameter is treated as an unverified suggestion, NEVER as server-verified truth. It **never triggers `verified_at = NOW()`**.
 
 ### Rule 2: Single Channel for `verified_at` Establishment
+
 - `verified_at` can ONLY be set by the server media analysis pipeline (`verifyAndAnalyzeServerUploadInternal` / `finalizeIngestionCommitInternal`).
 - The server directly hashes the binary stream, measures exact bytes, extracts container headers, and sets `verified_at = NOW()`.
 
 ### Rule 3: Conflict Resolution & Precedence
+
 - When reading media properties in runtime queries (`getPublicMasterLibraryInternal`, `sharing.ts`, playback streaming), verified `track_files` / `video_files` records **strictly override** any legacy columns (`tracks.size_mb`, `tracks.sample_rate`, `tracks.bit_depth`, `videos.size_mb`, etc.).
 - Legacy columns are strictly retained for backward compatibility and display fallbacks when unverified.
 - Updates via `updateTrackInDatabaseInternal` / `updateVideoInDatabaseInternal` alter display attributes only and cannot overwrite verified physical metadata in `track_files` / `video_files`.
@@ -81,6 +85,7 @@ The Duckroom audio/video domain maintains a strict, non-negotiable separation be
 ## 3. Verification Coverage
 
 The invariants are verified in the automated Vitest test suite (`src/test/authoritative-media-metadata.test.ts`):
+
 - Cold migration non-fabrication (NULL bytes, NULL SHA, NULL `verified_at`).
 - Server ingestion commit of exact measured bytes and SHA-256.
 - Physical metadata precedence over legacy `size_mb` / `sample_rate`.

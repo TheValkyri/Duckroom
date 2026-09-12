@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createShareLinkServer } from "./sharing";
 
 export type ShareExpiryChoice = "forever" | "30d" | "7d" | "24h";
@@ -48,6 +49,7 @@ export async function createAndShareLink(options: {
     }
   } else if (navigator.clipboard) {
     await navigator.clipboard.writeText(url);
+    toast.success("Đã sao chép liên kết chia sẻ!");
   }
   return path;
 }

@@ -13,6 +13,7 @@ import { listContainerVariants, listItemVariants, springSnappy, tapScale, tweenB
 import { usePlayer, usePlayerActions, usePlayerIsCurrent, usePlayerIsPlaying } from "../lib/player";
 import { useLibrary } from "../lib/useLibrary";
 import { useAuth } from "../lib/useAuth";
+import { useDuckroomRole } from "../lib/useRole";
 import { useMemberLibraryContext } from "../lib/member-library-context";
 import { cn } from "../lib/utils";
 
@@ -158,6 +159,7 @@ function Index() {
   const isPlaying = usePlayerIsPlaying();
   const { tracks, albums, videos, status } = useLibrary();
   const { isLoggedIn } = useAuth();
+  const { isOwner } = useDuckroomRole();
   const member = useMemberLibraryContext();
   const [editingHeroAlbum, setEditingHeroAlbum] = useState<Album | null>(null);
 
@@ -252,12 +254,14 @@ function Index() {
               vào kho lưu trữ cá nhân ngay bây giờ.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
-              <Link
-                to="/upload"
-                className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-transform hover:scale-[1.03]"
-              >
-                <UploadCloud className="size-4" /> Tải lên nhạc & MV gốc
-              </Link>
+              {isOwner && (
+                <Link
+                  to="/upload"
+                  className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-transform hover:scale-[1.03]"
+                >
+                  <UploadCloud className="size-4" /> Tải lên nhạc & MV gốc
+                </Link>
+              )}
               <Link
                 to="/library"
                 className="border-border hover:bg-accent inline-flex items-center gap-2 rounded-full border px-6 py-3 text-sm transition-colors"
@@ -349,7 +353,7 @@ function Index() {
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <p className="text-primary text-xs tracking-[0.35em] uppercase font-semibold">Album Nổi Bật</p>
-              {isLoggedIn && hero && (
+              {isOwner && hero && (
                 <motion.button
                   whileTap={tapScale}
                   transition={springSnappy}

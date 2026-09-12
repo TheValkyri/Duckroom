@@ -678,22 +678,22 @@ Guest = anonymous session.
 
 ## 7.2. Authorization matrix
 
-| Action | Guest | Member | Owner |
-|---|---:|---:|---:|
-| Browse public library | ✅ | ✅ | ✅ |
-| Play | ✅ | ✅ | ✅ |
-| Lyrics | ✅ | ✅ | ✅ |
-| Share | ✅ | ✅ | ✅ |
-| Favorite | ❌ persistent | ✅ | ✅ |
-| Playlist | ❌ persistent | ✅ | ✅ |
-| History | ❌ persistent | ✅ | ✅ |
-| Upload master | ❌ | ❌ | ✅ |
-| Edit master metadata | ❌ | ❌ | ✅ |
-| Delete/Trash master | ❌ | ❌ | ✅ |
-| Storage tools | ❌ | ❌ | ✅ |
-| User management | ❌ | ❌ | ✅ |
-| Backup/restore | ❌ | ❌ | ✅ |
-| Audit logs | ❌ | ❌ | ✅ |
+| Action                |         Guest | Member | Owner |
+| --------------------- | ------------: | -----: | ----: |
+| Browse public library |            ✅ |     ✅ |    ✅ |
+| Play                  |            ✅ |     ✅ |    ✅ |
+| Lyrics                |            ✅ |     ✅ |    ✅ |
+| Share                 |            ✅ |     ✅ |    ✅ |
+| Favorite              | ❌ persistent |     ✅ |    ✅ |
+| Playlist              | ❌ persistent |     ✅ |    ✅ |
+| History               | ❌ persistent |     ✅ |    ✅ |
+| Upload master         |            ❌ |     ❌ |    ✅ |
+| Edit master metadata  |            ❌ |     ❌ |    ✅ |
+| Delete/Trash master   |            ❌ |     ❌ |    ✅ |
+| Storage tools         |            ❌ |     ❌ |    ✅ |
+| User management       |            ❌ |     ❌ |    ✅ |
+| Backup/restore        |            ❌ |     ❌ |    ✅ |
+| Audit logs            |            ❌ |     ❌ |    ✅ |
 
 ## 7.3. Mandatory security fixes
 
@@ -958,14 +958,14 @@ React is consumer, not the audio engine.
 Conceptually:
 
 ```ts
-load(track)
-play()
-pause()
-seek(seconds)
-setVolume(value)
-preload(track)
-crossfadeTo(track, seconds)
-stop()
+load(track);
+play();
+pause();
+seek(seconds);
+setVolume(value);
+preload(track);
+crossfadeTo(track, seconds);
+stop();
 ```
 
 ## 11.3. Required behavior
@@ -2327,17 +2327,17 @@ No obvious jank in core interaction flows under realistic data.
 
 Test at minimum:
 
-| Scenario | Desktop | Mobile | Slow network | Low CPU |
-|---|---:|---:|---:|---:|
-| Browse library | ✅ | ✅ | ✅ | ✅ |
-| Open album | ✅ | ✅ | ✅ | ✅ |
-| Start playback | ✅ | ✅ | ✅ | ✅ |
-| Lyrics scrolling | ✅ | ✅ | ✅ | ✅ |
-| Queue reorder | ✅ | ✅ | N/A | ✅ |
-| Theme switching | ✅ | ✅ | N/A | ✅ |
-| Upload review | ✅ | ✅ | ✅ | ✅ |
-| Visualizer | ✅ | ✅ | N/A | ✅ |
-| Share page | ✅ | ✅ | ✅ | ✅ |
+| Scenario         | Desktop | Mobile | Slow network | Low CPU |
+| ---------------- | ------: | -----: | -----------: | ------: |
+| Browse library   |      ✅ |     ✅ |           ✅ |      ✅ |
+| Open album       |      ✅ |     ✅ |           ✅ |      ✅ |
+| Start playback   |      ✅ |     ✅ |           ✅ |      ✅ |
+| Lyrics scrolling |      ✅ |     ✅ |           ✅ |      ✅ |
+| Queue reorder    |      ✅ |     ✅ |          N/A |      ✅ |
+| Theme switching  |      ✅ |     ✅ |          N/A |      ✅ |
+| Upload review    |      ✅ |     ✅ |           ✅ |      ✅ |
+| Visualizer       |      ✅ |     ✅ |          N/A |      ✅ |
+| Share page       |      ✅ |     ✅ |           ✅ |      ✅ |
 
 ---
 

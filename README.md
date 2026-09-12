@@ -105,6 +105,7 @@ Kiến trúc: **PostgreSQL (Supabase)** là canonical metadata source-of-truth d
 ### 📊 Thống kê nghe nhạc (`/stats`)
 
 Mọi con số tính từ **playback_history thật** (ghi mỗi khi hết bài) — không phóng đại:
+
 - 4 thẻ tổng: thời gian nghe, tỷ lệ hoàn thành, nghệ sĩ top, bài nghe nhiều nhất.
 - **Top 5 nghệ sĩ** — thanh ngang theo tỷ lệ giờ nghe thật.
 - **Top 10 bài** — grid 2 cột kèm số lần phát.
@@ -141,7 +142,7 @@ Nhấn `?` bất kỳ đâu để mở bảng hướng dẫn: `Space` play/pause
 | Media Storage    | Pikamc S3 + @aws-sdk/client-s3 | Binary masters + presigned URLs     |
 | Canonical DB     | Supabase PostgreSQL + RLS      | Metadata định danh, phân quyền      |
 | Styling & Motion | Tailwind CSS v4 + Motion       | Design system, reduced-motion aware |
-| Testing          | Vitest 4 + ESLint 9 + Prettier | 374 test, secret-scan gate       |
+| Testing          | Vitest 4 + ESLint 9 + Prettier | 374 test, secret-scan gate          |
 
 ---
 

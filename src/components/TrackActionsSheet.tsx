@@ -56,16 +56,7 @@ export function TrackActionsSheet({
     setShareBusy(true);
     setShareError(null);
     try {
-      if (isLoggedIn) {
-        await createAndShareLink({ resourceType: "track", resourceId: track.id, title: track.title });
-      } else {
-        const url = window.location.href;
-        if (navigator.share) {
-          await navigator.share({ title: `${track.title} — ${track.artist}`, url });
-        } else if (navigator.clipboard) {
-          await navigator.clipboard.writeText(url);
-        }
-      }
+      await createAndShareLink({ resourceType: "track", resourceId: track.id, title: track.title });
       onClose();
     } catch (err) {
       setShareError(err instanceof Error ? err.message : "Không chia sẻ được. Vui lòng thử lại.");
