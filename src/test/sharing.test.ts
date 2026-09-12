@@ -22,7 +22,7 @@ describe("Sharing — capability token model (production sharing.ts)", () => {
         const builder = tables[table]?.({ calls }) ?? {};
         if (!builder.__wrapped) {
           const passthrough: any = {};
-          for (const name of ["select", "eq", "neq", "order", "limit", "update", "delete"]) {
+          for (const name of ["select", "eq", "neq", "is", "order", "limit", "update", "delete"]) {
             passthrough[name] = (...args: unknown[]) => {
               calls.push({ op: name, args });
               return passthrough;
@@ -43,6 +43,10 @@ describe("Sharing — capability token model (production sharing.ts)", () => {
               data: builder.__singleData ?? builder.__maybeData ?? null,
               error: builder.__singleError ?? null,
             });
+          // WP-5: the per-resource cap query awaits the chain directly
+          // (select→eq→…→is→order). Default to zero existing links.
+          passthrough.then = (resolve: any, reject: any) =>
+            Promise.resolve({ data: builder.__listData ?? [], error: null }).then(resolve, reject);
           Object.assign(builder, passthrough);
           builder.__calls = calls;
           builder.__wrapped = true;

@@ -7,7 +7,7 @@ import { springSnappy, tapScale } from "../lib/motion";
 import { cn } from "../lib/utils";
 
 const EXPIRY_OPTIONS: Array<{ id: ShareExpiryChoice; label: string }> = [
-  { id: "forever", label: "Vĩnh viễn" },
+  { id: "forever", label: "1 năm" },
   { id: "30d", label: "30 ngày" },
   { id: "7d", label: "7 ngày" },
   { id: "24h", label: "24 giờ" },

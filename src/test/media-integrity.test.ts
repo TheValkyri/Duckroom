@@ -13,11 +13,18 @@ describe("Media Integrity — production duplicate detection & ingestion guards"
   const EXISTING_TRACK = { id: "track-1", title: "Một Đêm Trắng", artist: "Hồ Việt Trung" };
 
   let maybeSingleSpy: ReturnType<typeof vi.fn>;
+  let limitSpy: ReturnType<typeof vi.fn>;
   let eqSpy: ReturnType<typeof vi.fn>;
 
   function installDb(existingTrack: Record<string, unknown> | null) {
+    // WP-4 (2026-09-11): the duplicate lookup is `.limit(2)` + first-match
+    // instead of `.maybeSingle()` — tolerant of multiple rows sharing a
+    // sha256 after a legitimate "upload anyway" duplicate commit.
     maybeSingleSpy = vi.fn().mockResolvedValue({ data: existingTrack, error: null });
-    eqSpy = vi.fn(() => ({ neq: (_col: string, _val: string) => ({ maybeSingle: maybeSingleSpy }) }));
+    limitSpy = vi.fn().mockResolvedValue({ data: existingTrack ? [existingTrack] : [], error: null });
+    eqSpy = vi.fn(() => ({
+      neq: (_col: string, _val: string) => ({ order: () => ({ limit: limitSpy }) }),
+    }));
 
     const mockSupabase = {
       from: vi.fn().mockImplementation((table: string) => {
@@ -65,9 +72,10 @@ describe("Media Integrity — production duplicate detection & ingestion guards"
     expect(result.matchedEntity).toEqual(EXISTING_TRACK);
     expect(result.matchedEntityId).toBe("track-1");
 
-    // Query contract: equality on sha256 AND trash rows excluded
+    // Query contract: equality on sha256 AND trash rows excluded.
+    // WP-4: `.limit(2)` array lookup replaces the PGRST116-prone maybeSingle.
     expect(eqSpy).toHaveBeenCalledWith("sha256", KNOWN_SHA);
-    expect(maybeSingleSpy).toHaveBeenCalledTimes(1);
+    expect(limitSpy).toHaveBeenCalledWith(2);
   });
 
   it("reports NO duplicate when the SHA-256 is unique", async () => {
@@ -91,11 +99,9 @@ describe("Media Integrity — production duplicate detection & ingestion guards"
 
   it("routes video lookups to the videos table", async () => {
     const fromSpy = vi.fn();
-    maybeSingleSpy = vi.fn().mockResolvedValue({
-      data: { id: "video-1", title: "MV", artist: "Artist" },
-      error: null,
-    });
-    eqSpy = vi.fn(() => ({ neq: () => ({ maybeSingle: maybeSingleSpy }) }));
+    const videoMatch = { id: "video-1", title: "MV", artist: "Artist" };
+    const videoLimit = vi.fn().mockResolvedValue({ data: [videoMatch], error: null });
+    eqSpy = vi.fn(() => ({ neq: () => ({ order: () => ({ limit: videoLimit }) }) }));
     fromSpy.mockImplementation((table: string) =>
       table === "videos"
         ? { select: () => ({ eq: eqSpy }) }

@@ -185,17 +185,26 @@ export async function enqueueFilesForIngestion(files: File[]): Promise<void> {
 
 /**
  * Helper to upload a binary payload with smooth real-time progress events.
+ *
+ * P0 fix (2026-09-11): accepts an AbortSignal. Previously cancel left the
+ * in-flight XHR running: the server deleted staging objects first, then the
+ * un-aborted PUT re-created the staging object afterwards — an untracked
+ * orphan (no cleanup debt, session already terminal). Cancel now aborts the
+ * transfer BEFORE the server cleanup runs.
  */
 function uploadWithProgress(
   url: string,
   data: Blob | File,
   contentType: string,
   onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url, true);
     xhr.setRequestHeader("Content-Type", contentType);
+
+    const onAbort = () => xhr.abort();
 
     if (xhr.upload && onProgress) {
       xhr.upload.onprogress = (e) => {
@@ -222,9 +231,28 @@ function uploadWithProgress(
       reject(new Error("Hết thời gian chờ phản hồi từ kho lưu trữ S3."));
     };
 
+    xhr.onabort = () => {
+      reject(new DOMException("Upload đã bị hủy bỏ.", "AbortError"));
+    };
+
+    signal?.addEventListener("abort", onAbort);
+    xhr.addEventListener("loadend", () => signal?.removeEventListener("abort", onAbort), { once: true });
+
+    if (signal?.aborted) {
+      reject(new DOMException("Upload đã bị hủy bỏ.", "AbortError"));
+      return;
+    }
+
     xhr.send(data);
   });
 }
+
+/**
+ * Registered AbortControllers for in-flight transfers, keyed by ingestion item
+ * id. Cancel (WP-2) aborts these BEFORE the server deletes staging objects,
+ * so the XHR can never re-create an already-cleaned staging key.
+ */
+const uploadAbortControllers = new Map<string, AbortController>();
 
 /**
  * Optimizes oversized embedded cover images (>800KB or >1200px) in browser canvas before upload.
@@ -410,6 +438,73 @@ export async function approveAllIngestionItems() {
 }
 
 /**
+ * Duplicate resolution flow (Master Plan §8.5, WP-4 2026-09-11).
+ *
+ * The owner picks one of three decisions for an exact-duplicate item:
+ *   - "cancel"        → cancels the item (staging cleanup + removal).
+ *   - "use_existing"  → links to the existing library record. If the item has
+ *                       already been uploaded+verified, the server commit
+ *                       resolves to the existing entity WITHOUT storing a new
+ *                       master; if it has not been transferred yet, it is
+ *                       approved and the worker uploads + commits, after
+ *                       which the server's duplicate machinery resolves to the
+ *                       existing entity. Either way no new master is created.
+ *   - "upload_anyway" → proceeds through the normal pipeline; the server
+ *                       commit enforces the decision and stores a deliberate
+ *                       duplicate master.
+ *
+ * The previous client behavior (unconditional throw on exact_duplicate) made
+ * the server's duplicate_decision machinery unreachable and the UI buttons
+ * dead. This function is now the single entry point wired to those buttons.
+ */
+export async function resolveDuplicateDecision(itemId: string, decision: DuplicateDecision): Promise<void> {
+  const item = storeState.items.find((i) => i.id === itemId);
+  if (!item || !item.sessionId) return;
+  if (item.duplicate.status !== "exact_duplicate") return;
+
+  updateIngestionItem(itemId, {
+    duplicate: { ...item.duplicate, decision },
+  });
+
+  if (decision === "cancel") {
+    await cancelIngestionItem(itemId);
+    return;
+  }
+
+  const alreadyVerified = Boolean(item.serverSha256);
+
+  if (decision === "use_existing" && alreadyVerified) {
+    // Staging already holds the verified bytes — resolve directly to the
+    // existing entity. No transfer, no new master, staging gets cleaned by
+    // the server commit path.
+    updateIngestionItem(itemId, {
+      stage: "committing",
+      progressPercent: 95,
+      progressText: "Đang liên kết với bản ghi có sẵn...",
+    });
+    try {
+      await commitVerifiedItem(itemId, item);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      updateIngestionItem(itemId, {
+        stage: "failed",
+        errorMessage: msg,
+        progressText: `Lỗi: ${msg}`,
+      });
+    }
+    return;
+  }
+
+  // "use_existing" without verified staging, or "upload_anyway": approve with
+  // the recorded decision and let the worker + server commit machinery
+  // enforce it. For an already-verified "upload_anyway" item this is also
+  // correct — the commit will run after this approve since the worker skips
+  // re-upload only when staging is known-complete (handled server-side via
+  // the session's status machine).
+  await approveIngestionItem(itemId, decision);
+}
+
+/**
  * Bounded worker pool loop handling transfer, server verification, and canonical commit.
  */
 export async function pumpIngestionWorkerPool() {
@@ -440,7 +535,21 @@ async function processApprovedIngestionItem(itemId: string) {
   const item = storeState.items.find((i) => i.id === itemId);
   if (!item || !item.sessionId) return;
 
+  const abortController = new AbortController();
+  uploadAbortControllers.set(itemId, abortController);
+
   try {
+    // WP-4: items that have ALREADY been uploaded and server-verified in this
+    // session (serverSha256 present) skip re-transfer and re-verification —
+    // staging holds the verified bytes and the session row carries the
+    // authoritative analysis. Jump straight to ensure-album + commit.
+    if (item.serverSha256 && item.serverAnalysis) {
+      const commitResult = await commitVerifiedItem(itemId, item);
+      if (commitResult === "item-gone") return;
+      void syncLibraryWithS3(true);
+      return;
+    }
+
     // 1. Prepare Staging Upload URLs (use pre-generated URLs if available)
     updateIngestionItem(itemId, {
       stage: "uploading",
@@ -487,13 +596,19 @@ async function processApprovedIngestionItem(itemId: string) {
     });
 
     const mediaMime = item.file.type || (item.isVideo ? "video/mp4" : "audio/flac");
-    await uploadWithProgress(uploadUrl, item.file, mediaMime, (percent) => {
-      const scaled = 15 + Math.round(percent * 0.55); // 15% -> 70%
-      updateIngestionItem(itemId, {
-        progressPercent: scaled,
-        progressText: `Đang tải lên (${(item.file.size / 1024 / 1024).toFixed(1)} MB)... ${percent}%`,
-      });
-    });
+    await uploadWithProgress(
+      uploadUrl,
+      item.file,
+      mediaMime,
+      (percent) => {
+        const scaled = 15 + Math.round(percent * 0.55); // 15% -> 70%
+        updateIngestionItem(itemId, {
+          progressPercent: scaled,
+          progressText: `Đang tải lên (${(item.file.size / 1024 / 1024).toFixed(1)} MB)... ${percent}%`,
+        });
+      },
+      abortController.signal,
+    );
 
     // 3. Upload Artwork to Staging (if present)
     if (artBlob && artworkUploadUrl) {
@@ -503,13 +618,19 @@ async function processApprovedIngestionItem(itemId: string) {
       });
 
       const artMime = artBlob.type || "image/jpeg";
-      await uploadWithProgress(artworkUploadUrl, artBlob, artMime, (percent) => {
-        const scaled = 72 + Math.round(percent * 0.08); // 72% -> 80%
-        updateIngestionItem(itemId, {
-          progressPercent: scaled,
-          progressText: `Đang tải ảnh bìa Artwork... ${percent}%`,
-        });
-      });
+      await uploadWithProgress(
+        artworkUploadUrl,
+        artBlob,
+        artMime,
+        (percent) => {
+          const scaled = 72 + Math.round(percent * 0.08); // 72% -> 80%
+          updateIngestionItem(itemId, {
+            progressPercent: scaled,
+            progressText: `Đang tải ảnh bìa Artwork... ${percent}%`,
+          });
+        },
+        abortController.signal,
+      );
     }
 
     if (!storeState.items.some((i) => i.id === itemId)) return;
@@ -559,7 +680,17 @@ async function processApprovedIngestionItem(itemId: string) {
       },
     });
 
-    if (verifyRes.duplicateStatus === "exact_duplicate") {
+    // WP-4: an exact duplicate is only a hard stop when the owner has NOT
+    // made an explicit decision (pre-analysis defaults duplicates to
+    // "cancel"). "upload_anyway" and "use_existing" both proceed — the
+    // server commit's duplicate_decision machinery is the authority. The
+    // previous unconditional throw made both UI buttons unreachable.
+    const duplicateDecision = item.duplicate.decision;
+    if (
+      verifyRes.duplicateStatus === "exact_duplicate" &&
+      duplicateDecision !== "upload_anyway" &&
+      duplicateDecision !== "use_existing"
+    ) {
       throw new Error(
         `Máy chủ phát hiện bản sao SHA-256 trùng khớp với "${verifyRes.matchedEntity?.title ?? "bản ghi hiện có"}". Hủy phiên hoặc chọn dùng bản hiện có.`,
       );
@@ -567,66 +698,19 @@ async function processApprovedIngestionItem(itemId: string) {
 
     if (!storeState.items.some((i) => i.id === itemId)) return;
 
-    // 5. Ensure Album Exists (if not singles)
-    let finalAlbumId = "singles";
-    if (!item.isVideo && item.metadata.album && item.metadata.album.trim().toLowerCase() !== "singles") {
-      const albumTitle = item.metadata.album.trim();
-      const existing = albums.find((a) => a.title.toLowerCase() === albumTitle.toLowerCase());
-      if (existing) {
-        finalAlbumId = existing.id;
-      } else {
-        const created = await createAlbum({
-          title: albumTitle,
-          artist: item.metadata.artist || "Nghệ sĩ",
-          year: parseInt(item.metadata.year, 10) || new Date().getFullYear(),
-          note: "Album tự tạo qua Ingestion",
-        });
-        finalAlbumId = created.id;
-      }
-    }
-
-    if (!storeState.items.some((i) => i.id === itemId)) return;
-
-    // 6. Safe Canonical Commit (Server Technical Truth Wins)
-    updateIngestionItem(itemId, {
-      stage: "committing",
-      progressPercent: 95,
-      progressText: "Đang cam kết vào kho lưu trữ chính thức...",
-      serverSha256: verifyRes.serverSha256,
-      serverAnalysis: verifyRes.analysis,
-    });
-
-    const parsedLyrics = item.metadata.lyricsText ? parseLrc(item.metadata.lyricsText) : [];
-
-    const commitRes = await finalizeIngestionCommitServer({
-      data: {
-        sessionId: item.sessionId,
-        metadataOverrides: {
-          title: item.metadata.title,
-          artist: item.metadata.artist,
-          albumId: finalAlbumId === "singles" ? null : finalAlbumId,
-          albumTitle: item.metadata.album,
-          year: parseInt(item.metadata.year, 10) || undefined,
-          trackNo: parseInt(item.metadata.trackNo, 10) || undefined,
-          lyrics: parsedLyrics,
-        },
-      },
-    });
-
-    if (!storeState.items.some((i) => i.id === itemId)) return;
-
-    // 7. Complete immediately and Hydrate Cache in background
-    updateIngestionItem(itemId, {
-      stage: "complete",
-      progressPercent: 100,
-      progressText: (commitRes as any)?.resolvedToExisting
-        ? "✨ Đã liên kết với bản ghi có sẵn trong thư viện!"
-        : "✨ Đã nhập kho lưu trữ chính thức thành công!",
-      committedEntity: commitRes.entity,
-    });
+    // 5 + 6 + 7. Shared canonical commit path.
+    const outcome = await commitVerifiedItem(itemId, item);
+    if (outcome === "item-gone") return;
 
     void syncLibraryWithS3(true);
   } catch (err) {
+    // WP-2: a user-cancel abort is not a pipeline failure — the item has
+    // already been removed from the store by cancelIngestionItem. Exit
+    // silently so the transfer cannot re-create staging objects or surface
+    // a phantom "failed" row.
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return;
+    }
     if (!storeState.items.some((i) => i.id === itemId)) return;
     const msg = err instanceof Error ? err.message : String(err);
     console.error("Ingestion item processing failed:", err);
@@ -636,8 +720,81 @@ async function processApprovedIngestionItem(itemId: string) {
       progressText: `Lỗi: ${msg}`,
     });
   } finally {
+    uploadAbortControllers.delete(itemId);
     void pumpIngestionWorkerPool();
   }
+}
+
+/**
+ * Shared tail of the ingestion pipeline (WP-4): ensure-album, canonical
+ * commit, and completion update. Used both by the normal worker (after
+ * upload+verify) and by the already-verified short-circuit paths
+ * (duplicate "use_existing" / "upload_anyway" resolution without
+ * re-transfer). Returns "item-gone" when the item was removed mid-flight.
+ */
+async function commitVerifiedItem(itemId: string, item: IngestionItem): Promise<"ok" | "item-gone"> {
+  if (!item.sessionId) return "item-gone";
+  const sessionId = item.sessionId;
+
+  // Ensure Album Exists (if not singles)
+  let finalAlbumId = "singles";
+  if (!item.isVideo && item.metadata.album && item.metadata.album.trim().toLowerCase() !== "singles") {
+    const albumTitle = item.metadata.album.trim();
+    const existing = albums.find((a) => a.title.toLowerCase() === albumTitle.toLowerCase());
+    if (existing) {
+      finalAlbumId = existing.id;
+    } else {
+      const created = await createAlbum({
+        title: albumTitle,
+        artist: item.metadata.artist || "Nghệ sĩ",
+        year: parseInt(item.metadata.year, 10) || new Date().getFullYear(),
+        note: "Album tự tạo qua Ingestion",
+      });
+      finalAlbumId = created.id;
+    }
+  }
+
+  if (!storeState.items.some((i) => i.id === itemId)) return "item-gone";
+
+  // Safe Canonical Commit (Server Technical Truth Wins)
+  updateIngestionItem(itemId, {
+    stage: "committing",
+    progressPercent: 95,
+    progressText: "Đang cam kết vào kho lưu trữ chính thức...",
+  });
+
+  const parsedLyrics = item.metadata.lyricsText ? parseLrc(item.metadata.lyricsText) : [];
+
+  const commitRes = await finalizeIngestionCommitServer({
+    data: {
+      sessionId,
+      metadataOverrides: {
+        title: item.metadata.title,
+        artist: item.metadata.artist,
+        albumId: finalAlbumId === "singles" ? null : finalAlbumId,
+        albumTitle: item.metadata.album,
+        year: parseInt(item.metadata.year, 10) || undefined,
+        trackNo: parseInt(item.metadata.trackNo, 10) || undefined,
+        lyrics: parsedLyrics,
+      },
+    },
+  });
+
+  if (!storeState.items.some((i) => i.id === itemId)) return "item-gone";
+
+  // Complete immediately (cache hydration is the caller's job)
+  updateIngestionItem(itemId, {
+    stage: "complete",
+    progressPercent: 100,
+    progressText: (commitRes as any)?.resolvedToExisting
+      ? "✨ Đã liên kết với bản ghi có sẵn trong thư viện!"
+      : (commitRes as any)?.cancelled
+        ? "Đã hủy theo quyết định trùng lặp."
+        : "✨ Đã nhập kho lưu trữ chính thức thành công!",
+    committedEntity: commitRes.entity,
+  });
+
+  return "ok";
 }
 
 /**
@@ -696,6 +853,16 @@ export async function retryIngestionItem(itemId: string): Promise<void> {
 export async function cancelIngestionItem(itemId: string) {
   const item = storeState.items.find((i) => i.id === itemId);
   if (!item) return;
+
+  // WP-2 (P0): abort the in-flight transfer FIRST. The server cleanup below
+  // deletes staging objects; if the XHR were still running it would re-create
+  // the staging object AFTER cleanup, leaving an untracked orphan under
+  // temp/upload-sessions/ with the session already terminal (no cleanup debt).
+  const controller = uploadAbortControllers.get(itemId);
+  if (controller) {
+    controller.abort();
+    uploadAbortControllers.delete(itemId);
+  }
 
   if (item.sessionId) {
     try {

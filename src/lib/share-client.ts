@@ -2,10 +2,15 @@ import { createShareLinkServer } from "./sharing";
 
 export type ShareExpiryChoice = "forever" | "30d" | "7d" | "24h";
 
-/** §13.3 optional expiry — chuyển lựa chọn UI thành ISO timestamp. */
-export function expiresAtFromChoice(choice: ShareExpiryChoice): string | null {
-  if (choice === "forever") return null;
-  const hours = choice === "30d" ? 24 * 30 : choice === "7d" ? 24 * 7 : 24;
+/**
+ * §13.3 optional expiry — chuyển lựa chọn UI thành ISO timestamp.
+ *
+ * WP-5 (2026-09-11): "forever" giờ là 365 NGÀY chứ không phải null — mọi
+ * link đều có hạn. Server nữa sẽ kẹp TTL vào tối đa 1 năm (defense in
+ * depth), nhưng client cũng tự trung thực về nhãn UI.
+ */
+export function expiresAtFromChoice(choice: ShareExpiryChoice): string {
+  const hours = choice === "30d" ? 24 * 30 : choice === "7d" ? 24 * 7 : choice === "24h" ? 24 : 24 * 365;
   return new Date(Date.now() + hours * 3600_000).toISOString();
 }
 
@@ -25,7 +30,7 @@ export async function createAndShareLink(options: {
     ? expiresAtFromChoice(options.expiresInChoice)
     : options.expiresInDays
       ? new Date(Date.now() + options.expiresInDays * 24 * 3600_000).toISOString()
-      : null;
+      : undefined;
   const { path } = await createShareLinkServer({
     data: {
       resourceType: options.resourceType,

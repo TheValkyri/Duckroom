@@ -1,4 +1,4 @@
-﻿-- ============================================================================
+-- ============================================================================
 -- DUCKROOM — APPLY ALL MIGRATIONS (v2 — fixed mar.created_at, 2026-08-25)
 -- Idempotent: an toàn khi chạy lại (các phần đã apply sẽ tự no-op).
 -- ============================================================================
@@ -3302,3 +3302,66 @@ COMMENT ON COLUMN public.playback_history.client_event_id IS
   'Client-generated UUID for the play event; retries of the same event dedupe to one row via upsert-ignore. NULL = legacy row written before this column existed.';
 
 -- >>> END 20260904_duckroom_v2_history_idempotency.sql
+
+-- >>> BEGIN 20260911_duckroom_v2_rls_legacy_tables.sql
+-- Duckroom V2 — Enable RLS on legacy v1 core tables (tracks / albums / videos)
+--
+-- P0 security finding (verified 2026-09-11): the chain enabled RLS on every
+-- V2 table but never on the three legacy v1 tables. Policies existed but
+-- were inert, so any anon-key REST client could read AND write the core
+-- catalog. Enabling RLS activates the existing public-read/owner-manage
+-- policies. Application traffic runs as service_role (bypasses RLS by
+-- design, AD-16), so enabling RLS changes nothing for the app.
+-- Idempotent: ENABLE is a no-op when already enabled; policies are
+-- DROP+CREATE copies of 20260830 R4 (SELECT) and 20260821 (ALL).
+
+ALTER TABLE public.tracks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.albums ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.videos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can read active public albums" ON public.albums;
+CREATE POLICY "Public can read active public albums" ON public.albums
+  FOR SELECT USING (
+    status = 'active' AND (
+      visibility = 'public'
+      OR ((select auth.jwt()->>'role') = 'authenticated' AND visibility = 'members')
+      OR public.current_duckroom_role() = 'owner'
+    )
+  );
+
+DROP POLICY IF EXISTS "Owners can manage albums" ON public.albums;
+CREATE POLICY "Owners can manage albums" ON public.albums
+  FOR ALL USING (public.current_duckroom_role() = 'owner')
+  WITH CHECK (public.current_duckroom_role() = 'owner');
+
+DROP POLICY IF EXISTS "Public can read active public tracks" ON public.tracks;
+CREATE POLICY "Public can read active public tracks" ON public.tracks
+  FOR SELECT USING (
+    status = 'active' AND (
+      visibility = 'public'
+      OR ((select auth.jwt()->>'role') = 'authenticated' AND visibility = 'members')
+      OR public.current_duckroom_role() = 'owner'
+    )
+  );
+
+DROP POLICY IF EXISTS "Owners can manage tracks" ON public.tracks;
+CREATE POLICY "Owners can manage tracks" ON public.tracks
+  FOR ALL USING (public.current_duckroom_role() = 'owner')
+  WITH CHECK (public.current_duckroom_role() = 'owner');
+
+DROP POLICY IF EXISTS "Public can read active public videos" ON public.videos;
+CREATE POLICY "Public can read active public videos" ON public.videos
+  FOR SELECT USING (
+    status = 'active' AND (
+      visibility = 'public'
+      OR ((select auth.jwt()->>'role') = 'authenticated' AND visibility = 'members')
+      OR public.current_duckroom_role() = 'owner'
+    )
+  );
+
+DROP POLICY IF EXISTS "Owners can manage videos" ON public.videos;
+CREATE POLICY "Owners can manage videos" ON public.videos
+  FOR ALL USING (public.current_duckroom_role() = 'owner')
+  WITH CHECK (public.current_duckroom_role() = 'owner');
+
+-- >>> END 20260911_duckroom_v2_rls_legacy_tables.sql

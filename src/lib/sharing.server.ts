@@ -21,12 +21,29 @@ import { validateStorageKey } from "./auth-guard";
  * - Resolve time enforces exactly the same rule set against the stored
  *   creator identity, eliminating the historical create-vs-resolve policy
  *   contradiction that produced dead-on-arrival owner tokens.
+ * - WP-5 (2026-09-11): minting is BOUNDED — every link expires (max TTL
+ *   1 year) and each (resource, creator) pair keeps at most
+ *   MAX_LINKS_PER_RESOURCE unrevoked links, oldest first (LRU eviction),
+ *   so unauthenticated minting of public content cannot become unbounded
+ *   DB row spam.
  *
  * Tokens are never persisted. Only their SHA-256 hex digest (token_hash)
  * reaches the database, so a metadata leak cannot expose live share URLs.
  */
 
 const TOKEN_BYTES = 16; // 128-bit entropy for long-lived unauthenticated capability URLs
+
+/**
+ * WP-5 hardening (2026-09-11): minting is unauthenticated for public
+ * content, so the DB write path needs bounds:
+ *   - TTL cap: every link expires. "forever" is capped at 365 days.
+ *   - Per-resource cap: at most MAX_LINKS_PER_RESOURCE unrevoked links per
+ *     (resource, creator) pair; the oldest links are revoked (LRU) to make
+ *     room so minting never hard-fails for a legitimate user, while
+ *     anonymous row spam stays bounded.
+ */
+const MAX_SHARE_TTL_MS = 365 * 24 * 3600_000; // 1 year
+const MAX_LINKS_PER_RESOURCE = 10;
 
 function generateShareToken(): string {
   return randomBytes(TOKEN_BYTES).toString("base64url");
@@ -115,13 +132,54 @@ export async function createShareLinkInternal(
 
   await assertCreatorMayMint(db, auth ?? null, data.resourceType, data.resourceId);
 
+  // WP-5: bound the expiry. Every link gets a real expires_at — a missing
+  // or oversized client value is clamped to the 1-year maximum.
+  const requestedExpiry = data.expiresAt ? new Date(data.expiresAt).getTime() : Number.NaN;
+  const maxExpiry = Date.now() + MAX_SHARE_TTL_MS;
+  let expiresAtMs: number;
+  if (!Number.isFinite(requestedExpiry)) {
+    expiresAtMs = maxExpiry;
+  } else {
+    expiresAtMs = Math.min(requestedExpiry, maxExpiry);
+  }
+  const boundedExpiresAt = new Date(expiresAtMs).toISOString();
+
+  // WP-5: cap unrevoked links per (resource, creator). LRU eviction of the
+  // oldest links keeps minting available for legitimate users while an
+  // anonymous minter cannot accumulate unbounded rows. Rows without
+  // expires_at (legacy "forever" links) count as active.
+  const { data: existing, error: listErr } = await db
+    .from("share_links")
+    .select("id, created_at, expires_at")
+    .eq("resource_type", data.resourceType)
+    .eq("resource_id", data.resourceId)
+    .eq("created_by", auth?.userId ?? null)
+    .is("revoked_at", null)
+    .order("created_at", { ascending: true });
+  if (listErr) throw new Error(listErr.message);
+
+  const activeLinks = (existing ?? []).filter((row: any) => {
+    if (!row?.expires_at) return true; // no expiry set = still active
+    return new Date(row.expires_at).getTime() > Date.now();
+  });
+
+  if (activeLinks.length >= MAX_LINKS_PER_RESOURCE) {
+    const excessCount = activeLinks.length - MAX_LINKS_PER_RESOURCE + 1;
+    const revokeIds = activeLinks.slice(0, excessCount).map((row: any) => row.id);
+    const { error: revokeErr } = await db
+      .from("share_links")
+      .update({ revoked_at: new Date().toISOString() })
+      .in("id", revokeIds);
+    if (revokeErr) throw new Error(revokeErr.message);
+  }
+
   const rawToken = generateShareToken();
   const { error } = await db.from("share_links").insert({
     token_hash: hashShareToken(rawToken),
     resource_type: data.resourceType,
     resource_id: data.resourceId,
     created_by: auth?.userId ?? null,
-    expires_at: data.expiresAt ?? null,
+    expires_at: boundedExpiresAt,
   });
   if (error) throw new Error(error.message);
   return { token: rawToken, path: `/s/${rawToken}` };

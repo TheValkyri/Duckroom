@@ -25,6 +25,7 @@ import {
   updateIngestionItem,
   approveIngestionItem,
   approveAllIngestionItems,
+  resolveDuplicateDecision,
   retryIngestionItem,
   cancelIngestionItem,
   clearCompletedIngestionItems,
@@ -408,7 +409,7 @@ function UploadPage() {
                 </div>
               </div>
 
-              {/* Duplicate Alert */}
+              {/* Duplicate Alert (§8.5 — three-way decision, WP-4) */}
               {activeItem.duplicate.status === "exact_duplicate" && (
                 <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-2">
                   <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold text-sm">
@@ -416,17 +417,27 @@ function UploadPage() {
                     Phát hiện bản sao SHA-256 chính xác
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Tệp này trùng mã băm SHA-256 với một bản ghi đã tồn tại trong thư viện.
+                    Tệp này trùng mã băm SHA-256 với
+                    {activeItem.duplicate.matchedEntity
+                      ? ` "${activeItem.duplicate.matchedEntity.title}" — ${activeItem.duplicate.matchedEntity.artist}`
+                      : " một bản ghi đã tồn tại"}
+                    trong thư viện.
                   </p>
-                  <div className="flex items-center gap-2 pt-2">
+                  <div className="flex flex-wrap items-center gap-2 pt-2">
                     <button
-                      onClick={() => approveIngestionItem(activeItem.id, "upload_anyway")}
+                      onClick={() => void resolveDuplicateDecision(activeItem.id, "use_existing")}
+                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                    >
+                      Dùng bản có sẵn
+                    </button>
+                    <button
+                      onClick={() => void resolveDuplicateDecision(activeItem.id, "upload_anyway")}
                       className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
                     >
                       Vẫn tải lên bản sao
                     </button>
                     <button
-                      onClick={() => void cancelIngestionItem(activeItem.id)}
+                      onClick={() => void resolveDuplicateDecision(activeItem.id, "cancel")}
                       className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
                     >
                       Hủy mục này

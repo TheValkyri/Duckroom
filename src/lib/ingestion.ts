@@ -261,12 +261,17 @@ export async function createUploadSessionInternal(data: CreateUploadSessionInput
 
   if (data.clientSha256) {
     const table = data.resourceKind === "track" ? "tracks" : "videos";
-    const { data: matched } = await db
+    // WP-4: `.limit(2)` + first-match instead of `.maybeSingle()` — once an
+    // owner has committed an "upload anyway" duplicate, multiple active rows
+    // share the same sha256 and maybeSingle errors with PGRST116.
+    const { data: matchedRows } = await db
       .from(table)
       .select("id, title, artist")
       .eq("sha256", data.clientSha256)
       .neq("status", "trash")
-      .maybeSingle();
+      .order("created_at", { ascending: true })
+      .limit(2);
+    const matched = (matchedRows ?? [])[0] ?? null;
 
     if (matched) {
       duplicateStatus = "exact_duplicate";
@@ -494,6 +499,12 @@ export async function verifyAndAnalyzeServerUploadInternal(
   const s3 = getS3ServerClient();
 
   // 1. Verify S3 Object Existence & Actual Size
+  //
+  // WP-3 (P0, 2026-09-11): verification is FAIL-CLOSED. Only genuine network
+  // reachability errors (serverless egress timeouts) may fall back to the
+  // client-declared transfer. Any other S3 failure — credentials (403),
+  // bad request, misconfiguration — previously fell open to client-trust and
+  // is now a hard verification failure.
   let head;
   let s3DirectNetworkAvailable = true;
   try {
@@ -534,11 +545,23 @@ export async function verifyAndAnalyzeServerUploadInternal(
         .eq("id", data.sessionId);
       throw new IngestionVerificationError("Tệp tải lên không tồn tại trên kho lưu trữ S3.");
     } else {
-      s3DirectNetworkAvailable = false;
-      head = {
-        ContentLength: Number(session.expected_size_bytes),
-        ContentType: session.expected_mime,
-      };
+      // Fail closed: credentials/permission/config errors must not be
+      // indistinguishable from a timeout, and must never verify an upload
+      // the server could not actually inspect.
+      const msg = `Không thể kiểm tra tệp trên kho lưu trữ S3 (lỗi ${
+        headErr?.$metadata?.httpStatusCode ?? "không xác định"
+      }: ${headErr?.name ?? "S3Error"}).`;
+      console.error("[Duckroom Ingestion] S3 HeadObject failed (fail-closed):", headErr);
+      await db
+        .from("upload_sessions")
+        .update({
+          status: "verification_failed",
+          stage: "cleanup_pending",
+          error_message: msg,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", data.sessionId);
+      throw new IngestionVerificationError(msg);
     }
   }
 
@@ -624,12 +647,30 @@ export async function verifyAndAnalyzeServerUploadInternal(
     }
   }
 
+  // WP-3 (P0): never fabricate a hash. If the server could not hash the
+  // object, the integrity verdict can only be as strong as the client
+  // declared hash — and if there is none at all, verification fails closed.
   if (!serverSha256) {
-    serverSha256 = session.client_sha256 || "verified_client_transfer";
+    if (session.client_sha256) {
+      serverSha256 = session.client_sha256;
+    } else {
+      const msg =
+        "Không thể xác minh tính toàn vẹn tệp: máy chủ không đọc được tệp từ kho lưu trữ và máy khách không cung cấp mã SHA-256.";
+      await db
+        .from("upload_sessions")
+        .update({
+          status: "verification_failed",
+          stage: "cleanup_pending",
+          error_message: msg,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", data.sessionId);
+      throw new IngestionVerificationError(msg);
+    }
   }
 
   // Integrity gate: corruption in transit must fail closed.
-  if (session.client_sha256 && serverSha256 !== "verified_client_transfer" && session.client_sha256 !== serverSha256) {
+  if (session.client_sha256 && session.client_sha256 !== serverSha256) {
     const msg = `Mã kiểm tra SHA-256 máy chủ (${serverSha256}) không khớp với mã máy khách (${session.client_sha256}). Tệp có thể bị hỏng trong quá trình tải lên.`;
     await db
       .from("upload_sessions")
@@ -688,21 +729,27 @@ export async function verifyAndAnalyzeServerUploadInternal(
     }
   }
 
+  // WP-3 (P0, 2026-09-11): fail-closed analysis requirement. If the server
+  // could not inspect the bytes (no header buffer) AND the client provided
+  // no analysis of its own, there is no authoritative technical metadata at
+  // all — the session fails verification with a clear, honest error
+  // instead of proceeding on fabricated values (Unknown > fake, §0.3 r13).
+  // The only sanctioned fallback is a client-declared analysis, which the
+  // strict container cross-validation below still gates against the
+  // declared extension.
   if (!analysisResult) {
-    const ext = session.expected_extension.toLowerCase();
-    analysisResult = {
-      analysisStatus: "verified",
-      kind: session.resource_kind === "video" ? "video" : "audio",
-      format: ext.toUpperCase(),
-      codec: ext.toUpperCase(),
-      container: ext.toUpperCase(),
-      durationSeconds: 0,
-      bitDepth: 16,
-      sampleRate: 44100,
-      bitrateKbps: 0,
-      isLossless: ["flac", "wav", "alac"].includes(ext),
-      sha256: serverSha256,
-    };
+    const msg =
+      "Không thể phân tích tệp media: máy chủ không đọc được tệp từ kho lưu trữ và máy khách không cung cấp kết quả phân tích. Vui lòng thử lại.";
+    await db
+      .from("upload_sessions")
+      .update({
+        status: "verification_failed",
+        stage: "cleanup_pending",
+        error_message: msg,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.sessionId);
+    throw new IngestionVerificationError(msg);
   }
 
   // 4. Strict MIME & Container Cross-Validation
@@ -763,12 +810,19 @@ export async function verifyAndAnalyzeServerUploadInternal(
   // Existence alone is NOT verification: the staged bytes are downloaded and
   // magic-byte analyzed; detected MIME/dimensions are persisted and later
   // drive the canonical artwork key extension (Master Plan §16, §21).
+  //
+  // WP-3 (P0, 2026-09-11): fail-honest. A download failure (even a network
+  // timeout) no longer marks the artwork "verified" with a guessed MIME —
+  // unverifiable bytes are recorded as status "none" with no detected MIME,
+  // and the commit path skips the canonical artwork copy for this session.
+  // The owner can attach artwork afterwards via EditTrackModal. Unknown is
+  // always preferable to fake (§0.3 rule 13).
   let artworkStatus = "none";
   let artworkMime: string | null = null;
   let artworkWidth: number | null = null;
   let artworkHeight: number | null = null;
   if (data.hasArtwork && session.artwork_staging_key) {
-    try {
+    const downloadArtwork = async (): Promise<Uint8Array | null> => {
       const artObj = await s3.send(
         new GetObjectCommand({
           Bucket: BUCKET_NAME,
@@ -790,48 +844,60 @@ export async function verifyAndAnalyzeServerUploadInternal(
       } else if (body && typeof body.transformToByteArray === "function") {
         artBytes = await body.transformToByteArray();
       }
+      return artBytes && artBytes.length > 0 ? artBytes : null;
+    };
 
-      if (!artBytes || artBytes.length === 0) {
-        artworkStatus = "failed";
-      } else {
+    let artBytes: Uint8Array | null = null;
+    let downloadFailed = false;
+    try {
+      artBytes = await downloadArtwork().catch(() => downloadArtwork()); // one retry for transient network errors
+    } catch (downloadErr: any) {
+      downloadFailed = true;
+      // Download failed (even a network timeout): unverifiable ≠ invalid.
+      // Record honestly as "none" with NO detected MIME and NO "verified"
+      // label — the commit path skips the canonical artwork copy for this
+      // session and the owner can attach artwork afterwards (§0.3 r13).
+      console.warn(
+        "[Duckroom Ingestion] S3 Artwork download failed — recording artwork as unverified (status none), no guessed MIME:",
+        downloadErr,
+      );
+    }
+
+    if (artBytes && artBytes.length > 0) {
+      try {
         const imageAnalysis = await analyzeImageBuffer(artBytes, artBytes.length);
         artworkStatus = "verified";
         artworkMime = imageAnalysis.mimeType;
         artworkWidth = imageAnalysis.width;
         artworkHeight = imageAnalysis.height;
-      }
-    } catch (artErr: any) {
-      const isNetworkError =
-        artErr?.code === "ETIMEDOUT" ||
-        artErr?.name === "TimeoutError" ||
-        artErr?.name === "NetworkingError" ||
-        artErr?.message?.includes("ETIMEDOUT") ||
-        artErr?.message?.includes("ECONNREFUSED") ||
-        artErr?.message?.includes("fetch failed");
-
-      if (isNetworkError) {
-        console.warn(
-          "[Duckroom Ingestion] S3 Artwork download timed out from Serverless IP, trusting client upload:",
-          artErr,
-        );
-        artworkStatus = "verified";
-        artworkMime = "image/jpeg";
-      } else {
+      } catch (analysisErr: any) {
+        // Bytes WERE retrieved and inspected — magic-byte analysis rejected
+        // them. This is a real "failed" verdict, not an unknown.
+        console.error("[Duckroom Ingestion] Artwork binary inspection failed (invalid image):", analysisErr);
         artworkStatus = "failed";
+        artworkMime = null;
       }
+    } else if (!downloadFailed) {
+      // downloadArtwork resolved with EMPTY bytes (no throw) — the staged
+      // object exists but is empty. That is a real "failed" verdict.
+      artworkStatus = "failed";
     }
   }
 
   // 6. Server-Authoritative Duplicate Check
+  // WP-4: `.limit(2)` + first-match — tolerant of multiple rows sharing a
+  // sha256 after a legitimate "upload anyway" duplicate commit.
   let duplicateStatus: "none" | "exact_duplicate" = "none";
   let matchedEntityId: string | null = null;
   const table = session.resource_kind === "track" ? "tracks" : "videos";
-  const { data: matched } = await db
+  const { data: matchedRows } = await db
     .from(table)
     .select("id, title, artist")
     .eq("sha256", serverSha256)
     .neq("status", "trash")
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(2);
+  const matched = (matchedRows ?? [])[0] ?? null;
 
   if (matched) {
     duplicateStatus = "exact_duplicate";
@@ -840,6 +906,9 @@ export async function verifyAndAnalyzeServerUploadInternal(
 
   const safeAnalysis = sanitizeAnalysisResult(analysisResult);
 
+  // WP-2 companion: the final review transition is status-guarded so a
+  // session cancelled mid-verify cannot be resurrected to waiting_review
+  // after its staging objects were already deleted by the cancel path.
   await db
     .from("upload_sessions")
     .update({
@@ -857,7 +926,8 @@ export async function verifyAndAnalyzeServerUploadInternal(
       artwork_height: artworkHeight,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", data.sessionId);
+    .eq("id", data.sessionId)
+    .in("status", validVerifyingStates);
 
   return {
     session: {
@@ -991,8 +1061,16 @@ export async function finalizeIngestionCommitInternal(data: FinalizeIngestionCom
         existingRecord = found;
       }
       if (!existingRecord && session.server_sha256) {
-        const { data: found } = await db.from(table).select().eq("sha256", session.server_sha256).maybeSingle();
-        existingRecord = found;
+        // WP-4: sha256 lookups never use maybeSingle — multiple rows can
+        // legitimately share the hash after an "upload anyway" duplicate.
+        const { data: foundRows } = await db
+          .from(table)
+          .select()
+          .eq("sha256", session.server_sha256)
+          .neq("status", "trash")
+          .order("created_at", { ascending: true })
+          .limit(2);
+        existingRecord = (foundRows ?? [])[0] ?? null;
       }
 
       if (!existingRecord) {

@@ -71,11 +71,15 @@ function installVerifyMocks(opts: {
         };
       }
       if (table === "tracks") {
+        // WP-4 contract: sha256 duplicate lookups use .limit(2) + first-match
+        // (multiple rows can share a hash after "upload anyway" duplicates).
         return {
           select: () => ({
             eq: () => ({
               neq: () => ({
-                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                order: () => ({
+                  limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+                }),
               }),
             }),
           }),
