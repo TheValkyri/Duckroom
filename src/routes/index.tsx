@@ -10,7 +10,7 @@ import { Visualizer } from "../components/Visualizer";
 import { VideoThumb } from "../components/VideoThumb";
 import { albumTracks, type Album, type Track } from "../data/library";
 import { listContainerVariants, listItemVariants, springSnappy, tapScale, tweenBase } from "../lib/motion";
-import { usePlayer } from "../lib/player";
+import { usePlayer, usePlayerActions, usePlayerIsCurrent, usePlayerIsPlaying } from "../lib/player";
 import { useLibrary } from "../lib/useLibrary";
 import { useAuth } from "../lib/useAuth";
 import { useMemberLibraryContext } from "../lib/member-library-context";
@@ -43,8 +43,8 @@ export const Route = createFileRoute("/")({
 });
 
 function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void }) {
-  const { current, isPlaying } = usePlayer();
-  const isCurrentTrack = current?.id === track.id;
+  const isCurrentTrack = usePlayerIsCurrent(track.id);
+  const isPlaying = usePlayerIsPlaying();
   const isThisPlaying = isCurrentTrack && isPlaying;
   const [hover, setHover] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -91,6 +91,8 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
                 : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='600' height='600' fill='%2318181b'/%3E%3C/svg%3E"
             }
             alt={track.title}
+            width={300}
+            height={300}
             loading="lazy"
             decoding="async"
             onLoad={() => setImgLoaded(true)}
@@ -152,7 +154,8 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
 }
 
 function Index() {
-  const { playQueue, isPlaying } = usePlayer();
+  const { playQueue } = usePlayerActions();
+  const isPlaying = usePlayerIsPlaying();
   const { tracks, albums, videos, status } = useLibrary();
   const { isLoggedIn } = useAuth();
   const member = useMemberLibraryContext();

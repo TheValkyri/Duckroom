@@ -589,7 +589,7 @@ export const deleteS3ObjectServer = createServerFn({ method: "POST" })
 /**
  * Internal server helper to list all keys in S3 without going through RPC middleware.
  */
-export async function listS3ObjectsInternal(): Promise<string[]> {
+export async function listS3ObjectsInternal(maxKeys = 10000): Promise<string[]> {
   try {
     const s3 = getS3ServerClient();
     const allKeys: string[] = [];
@@ -603,6 +603,10 @@ export async function listS3ObjectsInternal(): Promise<string[]> {
       const res = await s3.send(command);
       const keys = (res.Contents || []).map((item) => item.Key).filter(Boolean) as string[];
       allKeys.push(...keys);
+      if (allKeys.length >= maxKeys) {
+        console.warn(`[Duckroom S3] listS3ObjectsInternal reached safety cap of ${maxKeys} keys.`);
+        break;
+      }
       continuationToken = res.IsTruncated ? res.NextContinuationToken : undefined;
     } while (continuationToken);
 

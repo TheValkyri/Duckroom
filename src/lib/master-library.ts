@@ -167,6 +167,29 @@ export const replaceMasterLibraryServer = createServerFn({ method: "POST" })
  * Returns all public canonical tracks, albums, and videos with short-lived (15 min) signed URLs.
  * Throws explicit error if database is unreachable (does NOT return fake empty arrays).
  */
+/**
+ * Executes an async mapper function with a bounded concurrency pool.
+ * Preserves exact array ordering and avoids CPU/event-loop spikes on cold starts.
+ */
+async function mapConcurrent<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  if (items.length === 0) return [];
+  const results: R[] = new Array(items.length);
+  let index = 0;
+  async function worker() {
+    while (index < items.length) {
+      const current = index++;
+      const item = items[current];
+      if (item !== undefined) {
+        results[current] = await fn(item);
+      }
+    }
+  }
+  const workerCount = Math.min(limit, items.length);
+  const workers = Array.from({ length: workerCount }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
 const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
 
 function getCachedSignedUrl(key: string, inline: boolean): string | null {
@@ -180,9 +203,21 @@ function getCachedSignedUrl(key: string, inline: boolean): string | null {
 
 function setCachedSignedUrl(key: string, inline: boolean, url: string) {
   const cacheKey = `${key}::${inline ? "inline" : "attach"}`;
-  // Prune cache if it grows too large
-  if (signedUrlCache.size > 500) {
-    signedUrlCache.clear();
+  // Prune cache if it grows too large (up to 3,000 entries accommodates 1,000+ tracks)
+  if (signedUrlCache.size > 3000) {
+    const now = Date.now();
+    for (const [k, v] of signedUrlCache) {
+      if (v.expiresAt <= now) signedUrlCache.delete(k);
+    }
+    // If still over limit, evict oldest 20%
+    if (signedUrlCache.size > 3000) {
+      const toDelete = Math.floor(signedUrlCache.size * 0.2);
+      let count = 0;
+      for (const k of signedUrlCache.keys()) {
+        signedUrlCache.delete(k);
+        if (++count >= toDelete) break;
+      }
+    }
   }
   signedUrlCache.set(cacheKey, { url, expiresAt: Date.now() + 72_000_000 });
 }
@@ -290,20 +325,18 @@ export async function getPublicMasterLibraryInternal() {
     return 999;
   }
 
-  const albumRows = await Promise.all(
-    (albums.data ?? []).map(async (a) => ({
-      id: a.id,
-      title: a.title,
-      artist: a.artist,
-      year: a.year,
-      cover: (await sign(a.cover_storage_key)) ?? "",
-      accent: a.accent,
-      note: a.note,
-      version: a.version,
-      updated_at: a.updated_at,
-      status: a.status,
-    })),
-  );
+  const albumRows = await mapConcurrent(albums.data ?? [], 20, async (a) => ({
+    id: a.id,
+    title: a.title,
+    artist: a.artist,
+    year: a.year,
+    cover: (await sign(a.cover_storage_key)) ?? "",
+    accent: a.accent,
+    note: a.note,
+    version: a.version,
+    updated_at: a.updated_at,
+    status: a.status,
+  }));
 
   albumRows.sort((a, b) => {
     const pA = getAlbumPriority(a);
@@ -312,47 +345,45 @@ export async function getPublicMasterLibraryInternal() {
     return (b.year || 0) - (a.year || 0) || a.title.localeCompare(b.title);
   });
 
-  const trackRows = await Promise.all(
-    (tracks.data ?? []).map(async (t: any) => {
-      const files = Array.isArray(t.track_files) ? t.track_files : t.track_files ? [t.track_files] : [];
-      const masterFile = files.find((f: any) => f.verified_at) ?? files[0];
+  const trackRows = await mapConcurrent(tracks.data ?? [], 25, async (t: any) => {
+    const files = Array.isArray(t.track_files) ? t.track_files : t.track_files ? [t.track_files] : [];
+    const masterFile = files.find((f: any) => f.verified_at) ?? files[0];
 
-      // Authoritative physical metadata precedence over legacy display fields
-      const format = masterFile?.container ?? masterFile?.codec ?? t.format;
-      const bitDepth = masterFile?.bit_depth ?? t.bit_depth;
-      const sampleRate = masterFile?.sample_rate ?? t.sample_rate;
-      const duration = masterFile?.duration_seconds ?? t.duration_seconds;
-      const sizeMB =
-        masterFile?.file_size_bytes != null
-          ? parseFloat((masterFile.file_size_bytes / (1024 * 1024)).toFixed(2))
-          : Number(t.size_mb);
+    // Authoritative physical metadata precedence over legacy display fields
+    const format = masterFile?.container ?? masterFile?.codec ?? t.format;
+    const bitDepth = masterFile?.bit_depth ?? t.bit_depth;
+    const sampleRate = masterFile?.sample_rate ?? t.sample_rate;
+    const duration = masterFile?.duration_seconds ?? t.duration_seconds;
+    const sizeMB =
+      masterFile?.file_size_bytes != null
+        ? parseFloat((masterFile.file_size_bytes / (1024 * 1024)).toFixed(2))
+        : Number(t.size_mb);
 
-      return {
-        id: t.id,
-        albumId: t.album_id ?? undefined,
-        title: t.title,
-        artist: t.artist,
-        duration,
-        trackNo: t.track_no,
-        format,
-        bitDepth,
-        sampleRate,
-        sizeMB,
-        src: (await sign(t.storage_key, true)) ?? "",
-        cover: await sign(t.cover_storage_key),
-        year: t.year ?? undefined,
-        lyrics: t.lyrics ?? [],
-        lyricsSource: (t.lyrics_source as string | null) ?? null,
-        rgTrackDb:
-          typeof masterFile?.replaygain_track_gain_db === "number" ? masterFile.replaygain_track_gain_db : undefined,
-        rgAlbumDb:
-          typeof masterFile?.replaygain_album_gain_db === "number" ? masterFile.replaygain_album_gain_db : undefined,
-        version: t.version,
-        updated_at: t.updated_at,
-        status: t.status,
-      };
-    }),
-  );
+    return {
+      id: t.id,
+      albumId: t.album_id ?? undefined,
+      title: t.title,
+      artist: t.artist,
+      duration,
+      trackNo: t.track_no,
+      format,
+      bitDepth,
+      sampleRate,
+      sizeMB,
+      src: (await sign(t.storage_key, true)) ?? "",
+      cover: await sign(t.cover_storage_key),
+      year: t.year ?? undefined,
+      lyrics: t.lyrics ?? [],
+      lyricsSource: (t.lyrics_source as string | null) ?? null,
+      rgTrackDb:
+        typeof masterFile?.replaygain_track_gain_db === "number" ? masterFile.replaygain_track_gain_db : undefined,
+      rgAlbumDb:
+        typeof masterFile?.replaygain_album_gain_db === "number" ? masterFile.replaygain_album_gain_db : undefined,
+      version: t.version,
+      updated_at: t.updated_at,
+      status: t.status,
+    };
+  });
 
   const albumOrderMap = new Map<string, { priority: number }>();
   albumRows.forEach((a, idx) => {
@@ -398,37 +429,35 @@ export async function getPublicMasterLibraryInternal() {
     return a.title.localeCompare(b.title);
   });
 
-  const videoRows = await Promise.all(
-    (videos.data ?? []).map(async (v: any) => {
-      const files = Array.isArray(v.video_files) ? v.video_files : v.video_files ? [v.video_files] : [];
-      const masterFile = files.find((f: any) => f.verified_at) ?? files[0];
+  const videoRows = await mapConcurrent(videos.data ?? [], 20, async (v: any) => {
+    const files = Array.isArray(v.video_files) ? v.video_files : v.video_files ? [v.video_files] : [];
+    const masterFile = files.find((f: any) => f.verified_at) ?? files[0];
 
-      const resolution = masterFile?.resolution ?? v.resolution;
-      const codec = masterFile?.codec ?? v.codec;
-      const duration = masterFile?.duration_seconds ?? v.duration_seconds;
-      const sizeMB =
-        masterFile?.file_size_bytes != null
-          ? parseFloat((masterFile.file_size_bytes / (1024 * 1024)).toFixed(2))
-          : Number(v.size_mb);
+    const resolution = masterFile?.resolution ?? v.resolution;
+    const codec = masterFile?.codec ?? v.codec;
+    const duration = masterFile?.duration_seconds ?? v.duration_seconds;
+    const sizeMB =
+      masterFile?.file_size_bytes != null
+        ? parseFloat((masterFile.file_size_bytes / (1024 * 1024)).toFixed(2))
+        : Number(v.size_mb);
 
-      return {
-        id: v.id,
-        title: v.title,
-        artist: v.artist,
-        year: v.year,
-        thumb: (await sign(v.thumb_storage_key)) ?? "",
-        duration,
-        resolution,
-        codec,
-        bitrate: v.bitrate,
-        sizeMB,
-        src: (await sign(v.storage_key, true)) ?? "",
-        version: v.version,
-        updated_at: v.updated_at,
-        status: v.status,
-      };
-    }),
-  );
+    return {
+      id: v.id,
+      title: v.title,
+      artist: v.artist,
+      year: v.year,
+      thumb: (await sign(v.thumb_storage_key)) ?? "",
+      duration,
+      resolution,
+      codec,
+      bitrate: v.bitrate,
+      sizeMB,
+      src: (await sign(v.storage_key, true)) ?? "",
+      version: v.version,
+      updated_at: v.updated_at,
+      status: v.status,
+    };
+  });
 
   return { albums: albumRows, tracks: trackRows, videos: videoRows };
 }

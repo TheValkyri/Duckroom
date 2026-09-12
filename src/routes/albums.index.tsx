@@ -3,7 +3,7 @@ import { Disc3, Image as ImageIcon, Loader2, Play, Plus, Scissors, Trash2, Uploa
 import { motion, AnimatePresence } from "motion/react";
 import { useState } from "react";
 import { albumTracks, albums, createAlbum, deleteAlbum, type Album } from "../data/library";
-import { usePlayer } from "../lib/player";
+import { usePlayerActions } from "../lib/player";
 import { ArtworkCropModal } from "../components/ArtworkCropModal";
 import { compressAndResizeImageFile, cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
 import {
@@ -375,7 +375,7 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
 import { useLibrary } from "../lib/useLibrary";
 
 function AlbumsPage() {
-  const { playQueue } = usePlayer();
+  const { playQueue } = usePlayerActions();
   const { albums, status } = useLibrary();
   const { isLoggedIn } = useAuth();
   const [showCreate, setShowCreate] = useState(false);

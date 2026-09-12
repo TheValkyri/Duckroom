@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { albumById, formatTime, type Track } from "../data/library";
 import { MobileSheet } from "./MobileSheet";
 import { springSnappy, tapScale } from "../lib/motion";
-import { usePlayer } from "../lib/player";
+import { usePlayerActions } from "../lib/player";
 import { useAuth } from "../lib/useAuth";
 import { useMemberLibraryContext } from "../lib/member-library-context";
 import { useDuckroomRole } from "../lib/useRole";
@@ -42,7 +42,7 @@ export function TrackActionsSheet({
   const { isLoggedIn } = useAuth();
   const { favorites, toggleFavorite } = useMemberLibraryContext();
   const { isOwner } = useDuckroomRole();
-  const { playQueue, insertNext } = usePlayer();
+  const { playQueue, insertNext } = usePlayerActions();
   const isFavorite = favorites?.has ? favorites.has(track.id) : false;
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);

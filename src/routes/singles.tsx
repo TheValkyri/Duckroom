@@ -30,7 +30,7 @@ import {
   tapScale,
   tweenBase,
 } from "../lib/motion";
-import { usePlayer } from "../lib/player";
+import { usePlayer, usePlayerActions, usePlayerIsCurrent, usePlayerIsPlaying } from "../lib/player";
 import { useAuth } from "../lib/useAuth";
 import { useLibrary } from "../lib/useLibrary";
 import { cn } from "../lib/utils";
@@ -69,8 +69,8 @@ function SingleCard({
   onDelete: () => void;
 }) {
   const { isLoggedIn } = useAuth();
-  const { current, isPlaying } = usePlayer();
-  const isCurrentTrack = current?.id === track.id;
+  const isCurrentTrack = usePlayerIsCurrent(track.id);
+  const isPlaying = usePlayerIsPlaying();
   const isThisPlaying = isCurrentTrack && isPlaying;
   const [hover, setHover] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -155,6 +155,8 @@ function SingleCard({
           <img
             src={validCover}
             alt={track.title}
+            width={512}
+            height={512}
             loading="lazy"
             decoding="async"
             onLoad={() => setImgLoaded(true)}
@@ -245,7 +247,7 @@ function SingleCard({
 }
 
 function SinglesPage() {
-  const { playQueue } = usePlayer();
+  const { playQueue } = usePlayerActions();
   const { tracks } = useLibrary();
   const { isLoggedIn } = useAuth();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");

@@ -22,7 +22,7 @@ import { TrackRow } from "../components/TrackRow";
 import { useAuth } from "../lib/useAuth";
 import { useLibrary } from "../lib/useLibrary";
 import { useMemberLibraryContext } from "../lib/member-library-context";
-import { usePlayer } from "../lib/player";
+import { usePlayerActions } from "../lib/player";
 import { springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { cn } from "../lib/utils";
 import type { MemberPlaylist } from "../lib/useMemberLibrary";
@@ -55,7 +55,7 @@ function MyLibraryPage() {
   const navigate = useNavigate();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const { tracks } = useLibrary();
-  const { playQueue } = usePlayer();
+  const { playQueue } = usePlayerActions();
   const member = useMemberLibraryContext();
   const [tab, setTab] = useState<"favorites" | "albums" | "playlists" | "history">("favorites");
   const [newPlaylist, setNewPlaylist] = useState("");
@@ -449,7 +449,7 @@ function PlaylistPicker({ track }: { track: Track }) {
  */
 function PlaylistCard({ playlist, allTracks }: { playlist: MemberPlaylist; allTracks: Track[] }) {
   const member = useMemberLibraryContext();
-  const { playQueue } = usePlayer();
+  const { playQueue } = usePlayerActions();
   const [expanded, setExpanded] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");

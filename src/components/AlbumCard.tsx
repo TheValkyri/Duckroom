@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { memo, useState } from "react";
 import { albumTracks, type Album } from "../data/library";
 import { springSnappy, tapScale } from "../lib/motion";
-import { usePlayer } from "../lib/player";
+import { usePlayerActions } from "../lib/player";
 import { useAuth } from "../lib/useAuth";
 import { cn } from "../lib/utils";
 import { EditAlbumModal } from "./EditAlbumModal";
@@ -20,7 +20,7 @@ export const AlbumCard = memo(function AlbumCard({
   onDelete?: () => void;
   onPlay?: () => void;
 }) {
-  const { playQueue } = usePlayer();
+  const { playQueue } = usePlayerActions();
   const { isLoggedIn } = useAuth();
   const [showLocalEdit, setShowLocalEdit] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);

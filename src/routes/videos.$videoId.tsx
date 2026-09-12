@@ -5,7 +5,7 @@ import { deleteVideo, formatTime, videoById } from "../data/library";
 import { useAuth } from "../lib/useAuth";
 import { ShareMenu } from "../components/ShareMenu";
 import { useLibrary } from "../lib/useLibrary";
-import { usePlayer } from "../lib/player";
+import { usePlayerActions } from "../lib/player";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/videos/$videoId")({
@@ -35,7 +35,7 @@ export const Route = createFileRoute("/videos/$videoId")({
 function VideoPage() {
   const { video: loadedVideo, videoId: paramVideoId } = Route.useLoaderData();
   const { videos } = useLibrary();
-  const { pause: pauseAudioPlayer } = usePlayer();
+  const { pause: pauseAudioPlayer } = usePlayerActions();
   const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
 

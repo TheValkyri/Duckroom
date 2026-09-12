@@ -181,11 +181,46 @@ type PlayerState = {
   insertNext: (track: Track) => void;
 };
 
+export type PlayerActions = {
+  playQueue: (list: Track[], startIndex?: number, shuffleNow?: boolean) => void;
+  toggle: () => void;
+  pause: () => void;
+  next: (manual?: boolean) => void;
+  prev: () => void;
+  seek: (t: number) => void;
+  setVolume: (v: number) => void;
+  setCrossfade: (v: number) => void;
+  toggleMute: () => void;
+  toggleShuffle: () => void;
+  cycleRepeat: () => void;
+  setExpanded: (v: boolean) => void;
+  setLyricsOpen: (v: boolean) => void;
+  setQueueOpen: (v: boolean) => void;
+  jumpTo: (i: number) => void;
+  moveInQueue: (from: number, to: number) => void;
+  insertNext: (track: Track) => void;
+  cycleReplayGain: () => void;
+  clearResumeHint: () => void;
+};
+
 const Ctx = createContext<PlayerState | null>(null);
+const PlayerActionsCtx = createContext<PlayerActions | null>(null);
 
 export const usePlayer = () => {
   const ctx = useContext(Ctx);
   if (!ctx) throw new Error("usePlayer must be used inside PlayerProvider");
+  return ctx;
+};
+
+/**
+ * P1-PERF-1: Hook trả về các hàm điều khiển ổn định (identity-stable).
+ * Dùng cho các component chỉ cần gọi hành động (playQueue, toggle, pause...)
+ * như AlbumCard, TrackRow, nút Play... để KHÔNG bị re-render khi volume,
+ * vị trí bài hát hay track hiện tại thay đổi.
+ */
+export const usePlayerActions = (): PlayerActions => {
+  const ctx = useContext(PlayerActionsCtx);
+  if (!ctx) throw new Error("usePlayerActions must be used inside PlayerProvider");
   return ctx;
 };
 
@@ -1363,38 +1398,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(timer);
   }, [isFollower, broadcastSend]);
 
-  // ---- Context projection ----------------------------------------------------
-  const value = useMemo<PlayerState>(() => {
-    // Follower view: mirror leader projection onto the shared library queue.
-    let viewCurrent = current;
-    let viewIndex = safeIndex;
-    if (isFollower && remoteView) {
-      const idx = engineState.queue.findIndex((t) => t.id === remoteView.trackId);
-      if (idx >= 0) {
-        viewIndex = idx;
-        viewCurrent = engineState.queue[idx];
-      }
-    }
-    return {
-      queue: engineState.queue,
-      index: viewIndex,
-      current: viewCurrent,
-      isPlaying: isFollower ? !!remoteView?.isPlaying : engineState.isPlaying,
-      volume: engineState.volume,
-      isMuted: engineState.muted,
-      shuffle: engineState.shuffle,
-      repeat: engineState.repeat,
-      crossfade: engineState.crossfade,
-      expanded,
-      lyricsOpen,
-      queueOpen,
-      direction: engineState.direction,
-      tabRole,
-      replayGainMode,
-      cycleReplayGain,
-      resumeHint,
-      clearResumeHint: () => setResumeHint(null),
-      audioRef: primaryAudioRef,
+  // ---- P1-PERF-1: Decoupled actions projection (identity-stable) ------------
+  const clearResumeHint = useCallback(() => setResumeHint(null), []);
+
+  const actionsValue = useMemo<PlayerActions>(
+    () => ({
       playQueue,
       toggle,
       pause,
@@ -1412,8 +1420,66 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       jumpTo,
       moveInQueue,
       insertNext,
+      cycleReplayGain,
+      clearResumeHint,
+    }),
+    [
+      playQueue,
+      toggle,
+      pause,
+      next,
+      prev,
+      seek,
+      setVolume,
+      setCrossfade,
+      toggleMute,
+      toggleShuffle,
+      cycleRepeat,
+      setExpanded,
+      setLyricsOpen,
+      setQueueOpen,
+      jumpTo,
+      moveInQueue,
+      insertNext,
+      cycleReplayGain,
+      clearResumeHint,
+    ],
+  );
+
+  // ---- Context projection (backward-compatible combined state) --------------
+  const value = useMemo<PlayerState>(() => {
+    // Follower view: mirror leader projection onto the shared library queue.
+    let viewCurrent = current;
+    let viewIndex = safeIndex;
+    if (isFollower && remoteView) {
+      const idx = engineState.queue.findIndex((t) => t.id === remoteView.trackId);
+      if (idx >= 0) {
+        viewIndex = idx;
+        viewCurrent = engineState.queue[idx];
+      }
+    }
+    return {
+      ...actionsValue,
+      queue: engineState.queue,
+      index: viewIndex,
+      current: viewCurrent,
+      isPlaying: isFollower ? !!remoteView?.isPlaying : engineState.isPlaying,
+      volume: engineState.volume,
+      isMuted: engineState.muted,
+      shuffle: engineState.shuffle,
+      repeat: engineState.repeat,
+      crossfade: engineState.crossfade,
+      expanded,
+      lyricsOpen,
+      queueOpen,
+      direction: engineState.direction,
+      tabRole,
+      replayGainMode,
+      resumeHint,
+      audioRef: primaryAudioRef,
     };
   }, [
+    actionsValue,
     current,
     safeIndex,
     isFollower,
@@ -1424,33 +1490,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     queueOpen,
     tabRole,
     replayGainMode,
-    cycleReplayGain,
     resumeHint,
     primaryAudioRef,
-    playQueue,
-    toggle,
-    pause,
-    next,
-    prev,
-    seek,
-    setVolume,
-    setCrossfade,
-    toggleMute,
-    toggleShuffle,
-    cycleRepeat,
-    jumpTo,
-    moveInQueue,
-    insertNext,
   ]);
 
   return (
-    <Ctx.Provider value={value}>
-      <PlayerTimeCtx.Provider value={timeStore}>
-        {children}
-        {/* Pure imperative dual audio elements for zero-latency seamless crossfade */}
-        <audio ref={audioRefA} crossOrigin="anonymous" preload="auto" />
-        <audio ref={audioRefB} crossOrigin="anonymous" preload="auto" />
-      </PlayerTimeCtx.Provider>
-    </Ctx.Provider>
+    <PlayerActionsCtx.Provider value={actionsValue}>
+      <Ctx.Provider value={value}>
+        <PlayerTimeCtx.Provider value={timeStore}>
+          {children}
+          {/* Pure imperative dual audio elements for zero-latency seamless crossfade */}
+          <audio ref={audioRefA} crossOrigin="anonymous" preload="auto" />
+          <audio ref={audioRefB} crossOrigin="anonymous" preload="auto" />
+        </PlayerTimeCtx.Provider>
+      </Ctx.Provider>
+    </PlayerActionsCtx.Provider>
   );
 }

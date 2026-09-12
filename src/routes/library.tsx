@@ -21,22 +21,21 @@ import {
 import { springPill, springSnappy, tapScale } from "../lib/motion";
 import { useAuth } from "../lib/useAuth";
 import { useLibrary } from "../lib/useLibrary";
-import { usePlayer } from "../lib/player";
+import { usePlayerActions } from "../lib/player";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/library")({
   head: () => ({
     meta: [
       { title: "Thư viện — Duckroom" },
-      {
-        name: "description",
-        content: "Toàn bộ bản thu FLAC/WAV 24-bit trong kho lưu trữ Duckroom.",
-      },
-      { property: "og:site_name", content: "Duckroom" },
       { property: "og:title", content: "Thư viện — Duckroom" },
+      { property: "og:description", content: "Kho nhạc cá nhân lossless chất lượng cao." },
+      { property: "og:type", content: "music.playlist" },
+      { property: "og:url", content: "https://duckroom.vercel.app/library" },
+      { property: "og:site_name", content: "Duckroom" },
       {
-        property: "og:description",
-        content: "Toàn bộ bản thu FLAC/WAV 24-bit trong kho lưu trữ Duckroom.",
+        property: "og:image:alt",
+        content: "Duckroom Library — Kho lưu trữ lossless & master trực tuyến",
       },
       { property: "og:image", content: "https://duckroom.vercel.app/og-image.jpg" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -47,7 +46,7 @@ export const Route = createFileRoute("/library")({
 });
 
 function LibraryPage() {
-  const { playQueue } = usePlayer();
+  const { playQueue } = usePlayerActions();
   const { tracks, albums, status } = useLibrary();
   const { isLoggedIn } = useAuth();
   const [q, setQ] = useState("");

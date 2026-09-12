@@ -28,7 +28,7 @@ import {
 import { useAuth } from "../lib/useAuth";
 import { ShareMenu } from "../components/ShareMenu";
 import { useLibrary } from "../lib/useLibrary";
-import { usePlayer } from "../lib/player";
+import { usePlayerActions } from "../lib/player";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/albums/$albumId")({
@@ -181,7 +181,7 @@ function AddTracksModal({
 function AlbumPage() {
   const { album: loadedAlbum, albumId: paramAlbumId } = Route.useLoaderData();
   const { tracks, albums, refresh } = useLibrary();
-  const { playQueue } = usePlayer();
+  const { playQueue } = usePlayerActions();
   const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
   const [showAddTracks, setShowAddTracks] = useState(false);
