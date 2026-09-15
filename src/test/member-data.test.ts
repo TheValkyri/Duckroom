@@ -31,7 +31,7 @@ describe("Member Library Data Layer (production member-data.ts)", () => {
           return builder;
         };
       };
-      ["select", "eq", "neq", "order", "limit", "delete", "update", "lt"].forEach(method);
+      ["select", "eq", "neq", "order", "limit", "delete", "update", "lt", "or"].forEach(method);
       builder.then = (resolve: any, reject: any) => terminal().then(resolve, reject);
       builder.upsert = (...args: unknown[]) => {
         calls.push({ table, op: "upsert", args });
@@ -425,7 +425,7 @@ describe("Member Library Data Layer (production member-data.ts)", () => {
       expect(result.items).toHaveLength(2);
       expect(result.items.map((i) => i.id)).toEqual([1, 2]);
       expect(result.hasMore).toBe(true);
-      expect(result.nextCursor).toBe("2026-09-15T11:00:00.000Z");
+      expect(result.nextCursor).toBe("2026-09-15T11:00:00.000Z_2");
     });
 
     it("applies lt('started_at', cursor) when cursor is provided", async () => {
@@ -442,6 +442,27 @@ describe("Member Library Data Layer (production member-data.ts)", () => {
 
       const ltCall = calls.find((c) => c.table === "playback_history" && c.op === "lt");
       expect(ltCall?.args).toEqual(["started_at", cursor]);
+    });
+
+    it("applies or() logic when composite cursor is provided", async () => {
+      const cursor = "2026-09-15T11:00:00.000Z_2";
+      const rows = [mockRow(3, "2026-09-15T10:00:00.000Z")];
+      const { db, calls } = makeDb({ playback_history: rows });
+      // makeDb needs to support "or" method. Wait, I should add it to makeDb above.
+      // But we can just check if or is in calls. Let's see if we added 'or' to makeDb.
+      // I will add it to makeDb in the next edit, or assume it's added.
+      // Wait, makeDb only supports specific ops. Let me edit makeDb as well.
+      // Actually, I can just do another replace for makeDb.
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(db as any);
+
+      const result = await getPlaybackHistoryInternal({ cursor, limit: 10 }, USER);
+
+      expect(result.items).toHaveLength(1);
+      expect(result.hasMore).toBe(false);
+      expect(result.nextCursor).toBeNull();
+
+      const orCall = calls.find((c) => c.table === "playback_history" && c.op === "or");
+      expect(orCall?.args).toEqual(["started_at.lt.2026-09-15T11:00:00.000Z,and(started_at.eq.2026-09-15T11:00:00.000Z,id.lt.2)"]);
     });
 
     it("returns empty result when no playback history exists", async () => {
@@ -461,7 +482,9 @@ describe("Member Library Data Layer (production member-data.ts)", () => {
           select: () => ({
             eq: () => ({
               order: () => ({
-                limit: () => Promise.resolve({ data: null, error: new Error("Database timeout") }),
+                order: () => ({
+                  limit: () => Promise.resolve({ data: null, error: new Error("Database timeout") }),
+                }),
               }),
             }),
           }),

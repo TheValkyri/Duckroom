@@ -258,10 +258,18 @@ export async function getPlaybackHistoryInternal(
     .from("playback_history")
     .select("id, track_id, started_at, ended_at, seconds_played, completed")
     .eq("user_id", userId)
-    .order("started_at", { ascending: false });
+    .order("started_at", { ascending: false })
+    .order("id", { ascending: false });
 
   if (options?.cursor) {
-    query = query.lt("started_at", options.cursor);
+    if (options.cursor.includes("_")) {
+      const parts = options.cursor.split("_");
+      const cursorStartedAt = parts[0];
+      const cursorId = parts[1];
+      query = query.or(`started_at.lt.${cursorStartedAt},and(started_at.eq.${cursorStartedAt},id.lt.${cursorId})`);
+    } else {
+      query = query.lt("started_at", options.cursor);
+    }
   }
 
   query = query.limit(limit + 1);
@@ -272,7 +280,7 @@ export async function getPlaybackHistoryInternal(
   const hasMore = rows.length > limit;
   const items = hasMore ? rows.slice(0, limit) : rows;
   const lastItem = hasMore && items.length > 0 ? items[items.length - 1] : undefined;
-  const nextCursor = lastItem ? lastItem.started_at : null;
+  const nextCursor = lastItem ? `${lastItem.started_at}_${lastItem.id}` : null;
 
   return {
     items,
