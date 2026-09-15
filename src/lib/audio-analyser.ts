@@ -31,7 +31,7 @@ export function getAudioAnalyser(audioEl: HTMLAudioElement | null): AnalyserNode
   if (!userGestureSeen) return null;
 
   try {
-    if (!audioCtx) {
+    if (!audioCtx || audioCtx.state === "closed") {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) return null;
       audioCtx = new AudioContextClass();
@@ -44,16 +44,91 @@ export function getAudioAnalyser(audioEl: HTMLAudioElement | null): AnalyserNode
       void audioCtx.resume().catch(() => undefined);
     }
 
-    if (!mediaSourceMap.has(audioEl) && analyserNode) {
-      const source = audioCtx.createMediaElementSource(audioEl);
-      source.connect(analyserNode);
-      analyserNode.connect(audioCtx.destination);
+    if (!analyserNode) {
+      analyserNode = audioCtx.createAnalyser();
+      analyserNode.fftSize = 128;
+      analyserNode.smoothingTimeConstant = 0.75;
+    }
+
+    let source = mediaSourceMap.get(audioEl);
+    if (!source) {
+      source = audioCtx.createMediaElementSource(audioEl);
       mediaSourceMap.set(audioEl, source);
     }
 
+    // Connect nodes idempotently
+    try {
+      source.disconnect();
+    } catch (_err) {
+      void _err;
+    }
+    try {
+      analyserNode.disconnect();
+    } catch (_err) {
+      void _err;
+    }
+
+    source.connect(analyserNode);
+    analyserNode.connect(audioCtx.destination);
+
     return analyserNode;
-  } catch (err) {
+  } catch (_err) {
+    void _err;
     // Return analyserNode safely if createMediaElementSource is constrained
     return analyserNode;
   }
+}
+
+/**
+ * Ngắt kết nối AudioContext và MediaElementSource khi Visualizer unmount (P2.2).
+ * Đảm bảo Audio element không bị giữ trong Web Audio pipeline, giải phóng tài nguyên.
+ */
+export function disconnectAudioAnalyser(audioEl?: HTMLAudioElement | null): void {
+  try {
+    if (audioEl && mediaSourceMap.has(audioEl)) {
+      const source = mediaSourceMap.get(audioEl);
+      try {
+        source?.disconnect();
+      } catch (_err) {
+        void _err;
+      }
+    }
+    if (analyserNode) {
+      try {
+        analyserNode.disconnect();
+      } catch (_err) {
+        void _err;
+      }
+    }
+    if (audioCtx && audioCtx.state !== "closed") {
+      try {
+        void audioCtx.suspend().catch(() => undefined);
+      } catch (_err) {
+        void _err;
+      }
+    }
+  } catch (_err) {
+    void _err;
+    // Fail-safe cleanup
+  }
+}
+
+/** Reset toàn bộ audio analyser state — test hook */
+export function resetAudioAnalyser(): void {
+  disconnectAudioAnalyser();
+  if (audioCtx && audioCtx.state !== "closed") {
+    try {
+      void audioCtx.close().catch(() => undefined);
+    } catch (_err) {
+      void _err;
+    }
+  }
+  audioCtx = null;
+  analyserNode = null;
+  userGestureSeen = false;
+}
+
+/** Test hook để thiết lập userGestureSeen */
+export function setUserGestureSeenForTesting(seen = true): void {
+  userGestureSeen = seen;
 }

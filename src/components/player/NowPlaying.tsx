@@ -1,4 +1,4 @@
-import { ChevronDown, ListMusic, Mic2, SkipForward, X } from "lucide-react";
+import { ChevronDown, ListMusic, Mic2, SkipForward, Waves, X } from "lucide-react";
 import { AnimatePresence, motion, useDragControls, type PanInfo } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { albumById, formatTime } from "../../data/library";
@@ -164,6 +164,7 @@ export function NowPlaying() {
   // Crop chỉ chạy nền để nâng cấp ảnh khi xong, tránh flash ảnh cũ.
   const [cleanCoverUrl, setCleanCoverUrl] = useState<string>(() => croppedCoverCache.get(rawCoverUrl) ?? rawCoverUrl);
   const [isLandscape, setIsLandscape] = useState(false);
+  const [showVisualizer, setShowVisualizer] = useState(false);
 
   useEffect(() => {
     const cached = croppedCoverCache.get(rawCoverUrl);
@@ -340,6 +341,21 @@ export function NowPlaying() {
               >
                 <Mic2 className={isPhone ? "size-6" : "size-4"} />
                 {!isPhone && <span>Lời</span>}
+              </motion.button>
+              <motion.button
+                onClick={() => setShowVisualizer(!showVisualizer)}
+                whileTap={tapScale}
+                transition={springSnappy}
+                aria-label={showVisualizer ? "Ẩn sóng nhạc" : "Bật sóng nhạc"}
+                title={showVisualizer ? "Ẩn sóng nhạc" : "Bật sóng nhạc"}
+                className={cn(
+                  "text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors cursor-pointer rounded-full border border-transparent",
+                  isPhone ? "p-2.5" : "px-3.5 py-1.5 text-sm",
+                  showVisualizer && "text-primary border-primary/30 bg-primary/10 font-medium",
+                )}
+              >
+                <Waves className={isPhone ? "size-6" : "size-4"} />
+                {!isPhone && <span>Sóng nhạc</span>}
               </motion.button>
             </div>
           </div>
@@ -555,12 +571,15 @@ export function NowPlaying() {
                       title là dòng LỜI ĐANG PHÁT (current lyric line) mượt
                       bằng CSS mask fade 2 bên — lời "chảy" trên player ngay
                       cả khi sheet chưa mở. */}
-                  {isPhone ? (
-                    <PhoneCurrentLyricLine />
-                  ) : (
-                    <Visualizer playing={isPlaying} bars={36} height={38} className="mt-3" />
+                  {isPhone && <PhoneCurrentLyricLine />}
+                  {showVisualizer && (
+                    <Visualizer
+                      playing={isPlaying}
+                      bars={isPhone ? 28 : 36}
+                      height={isPhone ? 16 : 38}
+                      className={isPhone ? "mt-2 opacity-70" : "mt-3"}
+                    />
                   )}
-                  {isPhone && <Visualizer playing={isPlaying} bars={28} height={16} className="mt-2 opacity-70" />}
 
                   <div className="mt-2">
                     {/* F5 2026-09-04: WAVEFORM SEEKBAR — sóng THẬT của bài

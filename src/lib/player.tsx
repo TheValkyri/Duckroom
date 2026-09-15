@@ -224,6 +224,57 @@ export const usePlayerActions = (): PlayerActions => {
   return ctx;
 };
 
+/**
+ * P2.4: Kiểm tra xem URL phát nhạc có phải là presigned S3 URL hợp lệ và còn
+ * trên `minRemainingMs` (mặc định 2 phút = 120,000ms) trước khi hết hạn hay không.
+ * Nếu hợp lệ, tái sử dụng thay vì gọi fetchTrackPlaybackUrl cho mỗi lần handover.
+ */
+export function isPresignedUrlValid(url: string | undefined | null, minRemainingMs = 120_000): boolean {
+  if (!url || typeof url !== "string" || !url.startsWith("http")) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(url);
+
+    // SigV4: X-Amz-Date (YYYYMMDDTHHMMSSZ) + X-Amz-Expires (seconds) + X-Amz-Signature
+    const amzDate = parsed.searchParams.get("X-Amz-Date");
+    const amzExpires = parsed.searchParams.get("X-Amz-Expires");
+    const amzSig = parsed.searchParams.get("X-Amz-Signature");
+
+    if (amzDate && amzExpires && amzSig && /^\d{8}T\d{6}Z$/.test(amzDate)) {
+      const year = parseInt(amzDate.slice(0, 4), 10);
+      const month = parseInt(amzDate.slice(4, 6), 10) - 1;
+      const day = parseInt(amzDate.slice(6, 8), 10);
+      const hour = parseInt(amzDate.slice(9, 11), 10);
+      const min = parseInt(amzDate.slice(11, 13), 10);
+      const sec = parseInt(amzDate.slice(13, 15), 10);
+
+      const creationTimeMs = Date.UTC(year, month, day, hour, min, sec);
+      if (!Number.isFinite(creationTimeMs)) return false;
+
+      const ttlSec = parseInt(amzExpires, 10);
+      if (!Number.isFinite(ttlSec) || ttlSec <= 0) return false;
+
+      const expiresAtMs = creationTimeMs + ttlSec * 1000;
+      return expiresAtMs - Date.now() > minRemainingMs;
+    }
+
+    // SigV2 / CloudFront: Expires=<epoch_seconds>
+    const epochExpires = parsed.searchParams.get("Expires");
+    if (epochExpires && /^\d+$/.test(epochExpires)) {
+      const expSec = parseInt(epochExpires, 10);
+      if (!Number.isFinite(expSec) || expSec <= 0) return false;
+      const expiresAtMs = expSec * 1000;
+      return expiresAtMs - Date.now() > minRemainingMs;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const { tracks: libraryTracks } = useLibrary();
   const { isLoggedIn } = useAuth();
@@ -625,12 +676,38 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     async function prepareSecondaryAudio() {
       // Fail-closed: no fabricated URL. Signed fetch is the only legitimate source.
       if (!nextTrack?.src && !nextTrack?.id) return;
+
+      // P2.4 Optimize Crossfade Preloading:
+      // Check if nextTrack.src already contains a valid presigned URL with >2 minutes
+      // remaining before expiration. If valid, reuse it instead of calling fetchTrackPlaybackUrl.
+      if (nextTrack.src && isPresignedUrlValid(nextTrack.src, 120_000)) {
+        if (isCancelled || !secEl) return;
+        secEl.src = nextTrack.src;
+        secEl.volume = 0;
+        secEl.preload = "auto";
+        secEl.onerror = () => {
+          if (activeChannel === "A") {
+            channelTrackIdB.current = null;
+          } else {
+            channelTrackIdA.current = null;
+          }
+        };
+        secEl.load();
+        if (activeChannel === "A") {
+          channelTrackIdB.current = nextTrack.id;
+        } else {
+          channelTrackIdA.current = nextTrack.id;
+        }
+        return;
+      }
+
       let targetSrc = nextTrack.src || "";
       if (nextTrack.id) {
         try {
           const freshSignedUrl = await fetchTrackPlaybackUrl(nextTrack.id);
           if (!isCancelled && freshSignedUrl) {
             targetSrc = freshSignedUrl;
+            nextTrack.src = freshSignedUrl;
           }
         } catch (err) {
           console.error("Secondary playback URL fetch failed:", err);
@@ -700,12 +777,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     async function syncAudioSource() {
       let targetSrc = current?.src || "";
-      if (current?.id && (!targetSrc || !targetSrc.includes("X-Amz-Signature"))) {
+      const isSrcValid = targetSrc && isPresignedUrlValid(targetSrc, 120_000);
+      if (current?.id && !isSrcValid) {
         try {
           const freshSignedUrl = await fetchTrackPlaybackUrl(current.id);
           if (isCancelled) return;
           if (freshSignedUrl) {
             targetSrc = freshSignedUrl;
+            current.src = freshSignedUrl;
           }
         } catch (err) {
           console.error("Playback URL fetch failed:", err);

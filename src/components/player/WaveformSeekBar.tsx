@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { getTrackPeaks, WAVEFORM_BARS } from "../../lib/waveform-peaks";
+import { fetchWaveformPeaks, WAVEFORM_BARS } from "../../lib/waveform-peaks";
 import { usePlayer, usePlayerTime } from "../../lib/player";
 import { subscribeTheme, accentCssVars, getThemeState } from "../../lib/theme";
 import { cn } from "../../lib/utils";
 
 /**
- * WAVEFORM SEEK BAR (F5 2026-09-04).
+ * WAVEFORM SEEK BAR (F5 2026-09-04, updated Phase 2).
  *
- * Sóng THẬT của bài (96 peak bars — xem lib/waveform-peaks.ts) thay thanh
- * trơn: phần đã phát màu accent, phần chưa phát mờ — click lên đỉnh sóng
- * để seek. Đây là signature feature: waveform là DNA Duckroom nhưng từ
- * trước đến giờ chỉ là visualizer trang trí — giờ nó là CÔNG CỤ.
+ * Sóng THẬT của bài (128 precomputed peaks từ database hoặc fallback client)
+ * thay thanh trơn: phần đã phát màu accent, phần chưa phát mờ — click lên
+ * đỉnh sóng để seek.
  *
  * Rendering: canvas 2D, vẽ LẦN khi peaks/size đổi + progress overlay cập
  * nhật bằng CSS width (không vẽ lại canvas mỗi tick — timeupdate chỉ đổi
@@ -29,21 +28,19 @@ export function WaveformSeekBar({ height = 44 }: { height?: number }) {
   const [peaks, setPeaks] = useState<Uint8Array | null>(null);
   const [dragTime, setDragTime] = useState<number | null>(null);
   const trackId = current?.id;
-  const src = current?.src;
 
   useEffect(() => {
     if (!trackId) return;
     let cancelled = false;
     setPeaks(null);
-    // Chỉ fetch peaks khi bài đang mở fullscreen — decode 30-100MB không
-    // phải việc làm ngầm mỗi lần đổi bài trong mini-player.
-    void getTrackPeaks(trackId, src).then((p: Uint8Array | null) => {
+    // Ưu tiên trả về ngay lập tức precomputed 128-byte peaks từ track.waveformPeaks.
+    void fetchWaveformPeaks(current).then((p: Uint8Array | null) => {
       if (!cancelled) setPeaks(p);
     });
     return () => {
       cancelled = true;
     };
-  }, [trackId, src]);
+  }, [trackId, current]);
 
   const duration = current?.duration || 1;
   const displayTime = dragTime ?? time;
@@ -61,8 +58,9 @@ export function WaveformSeekBar({ height = 44 }: { height?: number }) {
       const h = unplayedCanvas.clientHeight;
       if (w === 0 || h === 0) return;
 
-      const gap = w / WAVEFORM_BARS > 3 ? 1 : 0.5;
-      const bw = Math.max(1.5, w / WAVEFORM_BARS - gap);
+      const bars = peaks.length || WAVEFORM_BARS;
+      const gap = w / bars > 3 ? 1 : 0.5;
+      const bw = Math.max(1.5, w / bars - gap);
       const s = accentCssVars(getThemeState());
 
       const renderLayer = (cvs: HTMLCanvasElement, fillStyle: string) => {

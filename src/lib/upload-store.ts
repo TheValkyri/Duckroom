@@ -14,6 +14,7 @@ import {
   type VideoAnalysisResult,
 } from "../services/media-analysis";
 import { calculateFileSha256, extractAudioMetadata, extractVideoThumbnail } from "./metadata";
+import { extractWaveformPeaksFromFile } from "./waveform-peaks";
 import { parseLrc } from "./lyrics-formatter";
 import { syncLibraryWithS3, createAlbum, albums } from "../data/library";
 
@@ -321,6 +322,15 @@ async function processLocalPreAnalysis(itemId: string) {
       extractedLyrics = audioMeta.lyrics;
       if (audioMeta.trackNo) trackNoStr = String(audioMeta.trackNo);
       if (audioMeta.year) yearStr = audioMeta.year;
+
+      try {
+        const peaks = await extractWaveformPeaksFromFile(item.file);
+        if (peaks && peaks.length === 128) {
+          (localAnalysis as any).waveformPeaks = peaks;
+        }
+      } catch {
+        // Non-blocking fallback
+      }
     } else {
       extractedCoverUrl = await extractVideoThumbnail(item.file);
     }

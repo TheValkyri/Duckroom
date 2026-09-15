@@ -25,6 +25,7 @@ const trackSchema = z.object({
   cover: z.string().optional(),
   year: z.number().int().optional(),
   lyrics: z.array(lyricLine).default([]),
+  waveformPeaks: z.array(z.number()).optional(),
 });
 const albumSchema = z.object({
   id: z.string().min(1),
@@ -234,7 +235,7 @@ export async function getPublicMasterLibraryInternal() {
     db
       .from("tracks")
       .select(
-        "id,title,artist,album_id,track_no,duration_seconds,format,bit_depth,sample_rate,size_mb,storage_key,cover_storage_key,year,lyrics,lyrics_source,visibility,version,updated_at,status,track_files(file_size_bytes,sha256,sample_rate,bit_depth,container,codec,duration_seconds,verified_at)",
+        "id,title,artist,album_id,track_no,duration_seconds,format,bit_depth,sample_rate,size_mb,storage_key,cover_storage_key,year,lyrics,lyrics_source,visibility,version,updated_at,status,track_files(file_size_bytes,sha256,sample_rate,bit_depth,container,codec,duration_seconds,waveform_peaks,replaygain_track_gain_db,replaygain_album_gain_db,verified_at)",
       )
       .eq("visibility", "public")
       .neq("status", "trash")
@@ -379,6 +380,10 @@ export async function getPublicMasterLibraryInternal() {
         typeof masterFile?.replaygain_track_gain_db === "number" ? masterFile.replaygain_track_gain_db : undefined,
       rgAlbumDb:
         typeof masterFile?.replaygain_album_gain_db === "number" ? masterFile.replaygain_album_gain_db : undefined,
+      waveformPeaks:
+        Array.isArray(masterFile?.waveform_peaks) && masterFile.waveform_peaks.length > 0
+          ? masterFile.waveform_peaks
+          : undefined,
       version: t.version,
       updated_at: t.updated_at,
       status: t.status,

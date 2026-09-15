@@ -26,9 +26,9 @@ const PEAKS_CACHE = new Map<string, Uint8Array>();
 const PEAKS_CACHE_LIMIT = 8;
 const inflight = new Map<string, Promise<Uint8Array | null>>();
 
-export const WAVEFORM_BARS = 96;
+export const WAVEFORM_BARS = 128;
 
-function downsampleToPeaks(channelData: Float32Array, bars: number): Uint8Array {
+export function downsampleToPeaks(channelData: Float32Array, bars: number = WAVEFORM_BARS): Uint8Array {
   const out = new Uint8Array(bars);
   const block = Math.max(1, Math.floor(channelData.length / bars));
   for (let i = 0; i < bars; i++) {
@@ -44,6 +44,74 @@ function downsampleToPeaks(channelData: Float32Array, bars: number): Uint8Array 
     out[i] = Math.min(255, Math.round(peak * 255));
   }
   return out;
+}
+
+/**
+ * Trích xuất 128 waveform peaks trực tiếp từ File/Blob audio trên client bằng Web Audio API.
+ * Chạy trong client pre-analysis trước khi upload để gán vào clientAnalysis.waveformPeaks.
+ */
+export async function extractWaveformPeaksFromFile(file: Blob | File): Promise<number[] | null> {
+  if (typeof window === "undefined") return null;
+  const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+  if (!AudioCtx) return null;
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const ctx = new AudioCtx();
+    try {
+      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+      const channel = audioBuffer.getChannelData(0);
+      const uint8Peaks = downsampleToPeaks(channel, WAVEFORM_BARS);
+      return Array.from(uint8Peaks);
+    } finally {
+      void ctx.close().catch(() => undefined);
+    }
+  } catch (err) {
+    console.warn("[Duckroom Waveform] Client peak extraction fallback:", err);
+    return null;
+  }
+}
+
+export interface TrackWithPeaks {
+  id?: string | undefined;
+  src?: string | undefined;
+  waveformPeaks?: number[] | null | undefined;
+}
+
+/**
+ * Lấy peaks cho track — Phase 2: Ưu tiên trả về ngay lập tức precomputed
+ * 128-byte peaks từ track.waveformPeaks (loại bỏ hoàn toàn việc tải 100MB FLAC
+ * và giải mã 184MB trong RAM). Chỉ fallback về decode client khi không có peaks.
+ */
+export async function fetchWaveformPeaks(track: TrackWithPeaks | null | undefined): Promise<Uint8Array | null> {
+  if (!track) return null;
+
+  // 0. Instant Cache Hit
+  if (track.id) {
+    const cached = PEAKS_CACHE.get(track.id);
+    if (cached) return cached;
+  }
+
+  // 1. Instant Fast-path: 128-byte Precomputed Peaks từ database
+  if (track.waveformPeaks && Array.isArray(track.waveformPeaks) && track.waveformPeaks.length > 0) {
+    const peaks = new Uint8Array(track.waveformPeaks.length);
+    for (let i = 0; i < track.waveformPeaks.length; i++) {
+      const v = track.waveformPeaks[i] ?? 0;
+      peaks[i] = Math.max(0, Math.min(255, Math.round(Number(v) || 0)));
+    }
+    if (track.id) {
+      PEAKS_CACHE.set(track.id, peaks);
+      if (PEAKS_CACHE.size > PEAKS_CACHE_LIMIT) {
+        const oldest = PEAKS_CACHE.keys().next().value;
+        if (oldest !== undefined) PEAKS_CACHE.delete(oldest);
+      }
+    }
+    return peaks;
+  }
+
+  // 2. Fallback: decode client-side chỉ khi chưa có precomputed peaks
+  if (!track.id || !track.src) return null;
+  return getTrackPeaks(track.id, track.src);
 }
 
 /** Lấy peaks cho track — trả promise cache-aware; null khi không tính được

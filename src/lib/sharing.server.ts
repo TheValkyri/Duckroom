@@ -1,4 +1,4 @@
-﻿import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getSupabaseAdmin } from "./supabase";
@@ -208,7 +208,7 @@ export async function resolveShareLinkInternal(data: { token: string }) {
     const result = await db
       .from("tracks")
       .select(
-        "id,title,artist,album_id,year,format,bit_depth,sample_rate,duration_seconds,storage_key,cover_storage_key,lyrics,visibility,track_files(sample_rate,bit_depth,container,codec,duration_seconds,verified_at)",
+        "id,title,artist,album_id,year,format,bit_depth,sample_rate,duration_seconds,storage_key,cover_storage_key,lyrics,visibility,track_files(sample_rate,bit_depth,container,codec,duration_seconds,waveform_peaks,verified_at)",
       )
       .eq("id", share.resource_id)
       .maybeSingle();
@@ -226,6 +226,7 @@ export async function resolveShareLinkInternal(data: { token: string }) {
         bit_depth: masterFile?.bit_depth ?? raw["bit_depth"],
         sample_rate: masterFile?.sample_rate ?? raw["sample_rate"],
         duration_seconds: masterFile?.duration_seconds ?? raw["duration_seconds"],
+        waveform_peaks: masterFile?.waveform_peaks ?? null,
       };
     }
     storageKey = (result.data?.storage_key as string | undefined) ?? null;

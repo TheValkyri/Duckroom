@@ -48,6 +48,8 @@ export interface AudioAnalysisResult {
   replayGainTrackDb: number | null;
   /** ReplayGain album gain in dB parsed from tags; null = not present (never fabricated). */
   replayGainAlbumDb: number | null;
+  /** Precomputed 128-point waveform peaks (0-255); null/undefined = not present. */
+  waveformPeaks?: number[] | null | undefined;
   sha256?: string | undefined;
   parserVersion: string;
   analysisStatus: AnalysisStatus;

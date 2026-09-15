@@ -228,6 +228,24 @@ const EXT_TO_CONTAINER_MAP: Record<string, string[]> = {
   mov: ["MP4", "MOV"],
 };
 
+/**
+ * Ingests and validates client-declared waveform peaks.
+ * Contract: Array of exactly 128 integers, values clamped to [0, 255].
+ * Returns null if missing or invalid.
+ */
+export function validateWaveformPeaks(peaks: unknown): number[] | null {
+  if (!Array.isArray(peaks) || peaks.length !== 128) {
+    return null;
+  }
+  const clamped = new Array<number>(128);
+  for (let i = 0; i < 128; i++) {
+    const v = peaks[i];
+    if (typeof v !== "number" || !Number.isFinite(v)) return null;
+    clamped[i] = Math.max(0, Math.min(255, Math.round(v)));
+  }
+  return clamped;
+}
+
 // ==========================================
 // INTERNAL INGESTION LOGIC
 // ==========================================
@@ -959,9 +977,18 @@ export async function verifyAndAnalyzeServerUploadInternal(
     matchedEntityId = (matched as any).id;
   }
 
-  const safeAnalysis = sanitizeAnalysisResult(analysisResult);
+  const rawPeaks = data.clientAnalysis?.waveformPeaks ?? analysisResult?.waveformPeaks;
+  const validatedPeaks = validateWaveformPeaks(rawPeaks);
+  if (validatedPeaks && analysisResult) {
+    analysisResult.waveformPeaks = validatedPeaks;
+  }
+
+  const safeAnalysis: any = sanitizeAnalysisResult(analysisResult) || {};
   safeAnalysis.sha256 = serverSha256;
   safeAnalysis.sha256_verification_source = sha256VerificationSource;
+  if (validatedPeaks) {
+    safeAnalysis.waveformPeaks = validatedPeaks;
+  }
 
   // WP-2 companion: the final review transition is status-guarded so a
   // session cancelled mid-verify cannot be resurrected to waiting_review
@@ -1568,6 +1595,7 @@ export async function finalizeIngestionCommitInternal(data: FinalizeIngestionCom
           sha256: session.server_sha256 || analysis.sha256 || null,
           replaygain_track_gain_db: analysis.replayGainTrackDb ?? null,
           replaygain_album_gain_db: analysis.replayGainAlbumDb ?? null,
+          waveform_peaks: validateWaveformPeaks(analysis.waveformPeaks ?? analysis.waveform_peaks) ?? null,
           verified_at: new Date().toISOString(),
         },
         { onConflict: "storage_key" },

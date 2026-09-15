@@ -32,6 +32,8 @@ export type Track = {
   rgTrackDb?: number | undefined;
   /** ReplayGain album gain (dB) from authoritative server analysis; undefined = unknown. */
   rgAlbumDb?: number | undefined;
+  /** Precomputed 128-point waveform peaks (0-255); undefined = not precomputed. */
+  waveformPeaks?: number[] | undefined;
   version?: number | undefined;
   updated_at?: string | undefined;
   status?: ("active" | "trash" | "archived") | undefined;

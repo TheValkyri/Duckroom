@@ -6,7 +6,6 @@ import { fetchTrackArtworkUrl } from "../../lib/s3";
 import { springGentle, springSnappy, tapScale, tweenFast } from "../../lib/motion";
 import { usePlayer, usePlayerTime } from "../../lib/player";
 import { cn } from "../../lib/utils";
-import { Visualizer } from "../Visualizer";
 import { SeekBar, TransportControls } from "./Controls";
 import { QueuePanel } from "./QueuePanel";
 import { QueueSheet } from "./QueueSheet";
@@ -278,9 +277,6 @@ export function PlayerBar() {
 
           {/* Right: Controls & Volume (Stretched to far right) */}
           <div className="flex items-center justify-end gap-3 min-w-0">
-            <div className="hidden h-6 w-24 shrink-0 items-center overflow-hidden xl:flex">
-              <Visualizer playing={isPlaying} bars={18} height={24} className="size-full" />
-            </div>
             <motion.button
               aria-label="Hòa âm Crossfade"
               title={`Hòa trộn bài (Crossfade): ${
