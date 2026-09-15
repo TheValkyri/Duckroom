@@ -678,7 +678,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // ---- Primary source sync (handover-aware) -------------------------------
   useEffect(() => {
     const el = primaryAudioRef.current;
-    if (!el || !current || !current.src) return;
+    if (!el || !current) return;
     if (isFollower) {
       el.pause();
       return;
@@ -1115,7 +1115,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const el = primaryAudioRef.current;
       if (el) {
         el.currentTime = 0;
-        if (decision.action === "restart-current" && current?.src) {
+        if (decision.action === "restart-current" && (current?.src || el.src)) {
           void el.play().catch(() => undefined);
         }
       }

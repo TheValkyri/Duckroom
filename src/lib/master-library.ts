@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getSupabaseAdmin } from "./supabase";
 import { requireOwnerMiddleware, serverSecurityMiddleware } from "./auth-guard";
 import { getS3ServerClient } from "./s3-functions";
-import { BUCKET_NAME } from "./s3-constants";
+import { ARTWORK_URL_TTL_SECONDS, BUCKET_NAME } from "./s3-constants";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { validateStorageKey } from "./auth-guard";
@@ -219,7 +219,7 @@ function setCachedSignedUrl(key: string, inline: boolean, url: string) {
       }
     }
   }
-  signedUrlCache.set(cacheKey, { url, expiresAt: Date.now() + 72_000_000 });
+  signedUrlCache.set(cacheKey, { url, expiresAt: Date.now() + 5 * 3600 * 1000 });
 }
 
 export async function getPublicMasterLibraryInternal() {
@@ -281,7 +281,7 @@ export async function getPublicMasterLibraryInternal() {
           Key: cleanKey,
           ...(inline ? { ResponseContentDisposition: "inline" } : {}),
         }),
-        { expiresIn: 86400 },
+        { expiresIn: ARTWORK_URL_TTL_SECONDS },
       );
       if (signed) setCachedSignedUrl(cleanKey, inline, signed);
       return signed;
@@ -370,7 +370,7 @@ export async function getPublicMasterLibraryInternal() {
       bitDepth,
       sampleRate,
       sizeMB,
-      src: (await sign(t.storage_key, true)) ?? "",
+      src: "",
       cover: await sign(t.cover_storage_key),
       year: t.year ?? undefined,
       lyrics: t.lyrics ?? [],
@@ -452,7 +452,7 @@ export async function getPublicMasterLibraryInternal() {
       codec,
       bitrate: v.bitrate,
       sizeMB,
-      src: (await sign(v.storage_key, true)) ?? "",
+      src: "",
       version: v.version,
       updated_at: v.updated_at,
       status: v.status,

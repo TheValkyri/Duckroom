@@ -16,30 +16,46 @@ import { useAuth } from "../lib/useAuth";
 import { useDuckroomRole } from "../lib/useRole";
 import { useMemberLibraryContext } from "../lib/member-library-context";
 import { cn } from "../lib/utils";
+import { getPublicLibrarySummaryServer } from "../lib/ssr-loaders";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Duckroom — Kho nhạc lossless riêng" },
-      {
-        name: "description",
-        content:
-          "Nghe và lưu trữ bản thu FLAC 24-bit cùng MV bản gốc: trộn bài, lặp lại, lời bài hát theo thời gian thực.",
-      },
-      { property: "og:site_name", content: "Duckroom" },
-      { property: "og:title", content: "Duckroom — Kho nhạc lossless riêng" },
-      {
-        property: "og:description",
-        content:
-          "Nghe và lưu trữ bản thu FLAC 24-bit cùng MV bản gốc: trộn bài, lặp lại, lời bài hát theo thời gian thực.",
-      },
-      { property: "og:image", content: "https://duckroom.vercel.app/og-image.jpg" },
-      { property: "og:image:width", content: "1200" },
-      { property: "og:image:height", content: "675" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:image", content: "https://duckroom.vercel.app/og-image.jpg" },
-    ],
-  }),
+  loader: async () => {
+    try {
+      const summary = await getPublicLibrarySummaryServer();
+      return { summary };
+    } catch (err) {
+      console.warn("[Duckroom Route] Failed to load library summary for index:", err);
+      return { summary: undefined };
+    }
+  },
+  head: ({ loaderData }) => {
+    const s = loaderData?.summary;
+    const albumCount = s?.totalAlbums ?? s?.albums?.length ?? 0;
+    const trackCount = s?.totalTracks ?? s?.tracks?.length ?? 0;
+    const videoCount = s?.totalVideos ?? s?.videos?.length ?? 0;
+    const desc =
+      albumCount > 0
+        ? `Kho nhạc cá nhân lossless: ${albumCount} album, ${trackCount} bài hát, ${videoCount} MV master 24-bit.`
+        : "Nghe và lưu trữ bản thu FLAC 24-bit cùng MV bản gốc: trộn bài, lặp lại, lời bài hát theo thời gian thực.";
+    const ogImage = s?.primaryCover || s?.albums?.[0]?.cover || "https://duckroom.vercel.app/og-image.jpg";
+    return {
+      meta: [
+        { title: "Duckroom — Kho nhạc lossless riêng" },
+        { name: "description", content: desc },
+        { property: "og:site_name", content: "Duckroom" },
+        { property: "og:type", content: "website" },
+        { property: "og:title", content: "Duckroom — Kho nhạc lossless riêng" },
+        { property: "og:description", content: desc },
+        { property: "og:image", content: ogImage },
+        { property: "og:image:width", content: "1200" },
+        { property: "og:image:height", content: "675" },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: "Duckroom — Kho nhạc lossless riêng" },
+        { name: "twitter:description", content: desc },
+        { name: "twitter:image", content: ogImage },
+      ],
+    };
+  },
   component: Index,
 });
 
@@ -156,8 +172,21 @@ function SingleMiniCard({ track, onPlay }: { track: Track; onPlay: () => void })
 
 function Index() {
   const { playQueue } = usePlayerActions();
+  const { summary } = Route.useLoaderData();
   const isPlaying = usePlayerIsPlaying();
-  const { tracks, albums, videos, status } = useLibrary();
+  const { tracks: clientTracks, albums: clientAlbums, videos: clientVideos, status } = useLibrary();
+  const albums = useMemo(
+    () => (clientAlbums.length > 0 ? clientAlbums : summary?.albums || []),
+    [clientAlbums, summary?.albums],
+  );
+  const tracks = useMemo(
+    () => (clientTracks.length > 0 ? clientTracks : summary?.tracks || []),
+    [clientTracks, summary?.tracks],
+  );
+  const videos = useMemo(
+    () => (clientVideos.length > 0 ? clientVideos : summary?.videos || []),
+    [clientVideos, summary?.videos],
+  );
   const { isLoggedIn } = useAuth();
   const { isOwner } = useDuckroomRole();
   const member = useMemberLibraryContext();

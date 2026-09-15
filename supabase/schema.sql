@@ -19,9 +19,9 @@
 --   20260904 history_idempotency
 -- NEVER derive security conclusions from this file — read the migration chain.
 --
--- LEGACY BASELINE NOTE (AD-16): tracks / albums / videos are NOT created by
--- the migration chain NOR by this snapshot — the chain ALTERs a pre-existing
--- legacy v1 schema. A brand-new project needs that baseline first.
+-- LEGACY BASELINE NOTE (AD-16 - RESOLVED): tracks / albums / videos baseline
+-- DDL is codified in supabase/migrations/00000000_duckroom_v1_baseline.sql.
+-- Fresh database projects bootstrap cleanly from migration 00000000 onwards.
 -- ============================================================================
 
 -- >>> BEGIN 20260819_duckroom_v2_core.sql

@@ -223,10 +223,19 @@ export async function syncLibraryWithS3(force = false): Promise<{ albums: Album[
     // Empty array is a valid library state - do NOT treat as error
     albums.length = 0;
     albums.push(...sortAlbumsDeterministically((canonical.albums as Album[]) || []));
+    const canonicalTracks = ((canonical.tracks as unknown as Track[]) || []).map((t) => ({
+      ...t,
+      src: t.src ?? "",
+    }));
     tracks.length = 0;
-    tracks.push(...sortTracksDeterministically((canonical.tracks as unknown as Track[]) || [], albums));
+    tracks.push(...sortTracksDeterministically(canonicalTracks, albums));
+
+    const canonicalVideos = ((canonical.videos as unknown as Video[]) || []).map((v) => ({
+      ...v,
+      src: v.src ?? "",
+    }));
     videos.length = 0;
-    videos.push(...((canonical.videos as unknown as Video[]) || []));
+    videos.push(...canonicalVideos);
 
     librarySyncStatus = "ready";
     librarySyncError = null;

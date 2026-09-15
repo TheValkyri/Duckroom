@@ -3,6 +3,8 @@ import { S3Client } from "@aws-sdk/client-s3";
 import * as s3Functions from "../lib/s3-functions";
 import * as supabaseModule from "../lib/supabase";
 import { validateVisualAssetKey } from "../lib/auth-guard";
+import { ARTWORK_URL_TTL_SECONDS, PRESIGNED_URL_TTL_SECONDS } from "../lib/s3-constants";
+import * as masterLibrary from "../lib/master-library";
 
 describe("Server Security Boundaries & Failure Safety", () => {
   const originalEnv = process.env;
@@ -101,7 +103,96 @@ describe("Server Security Boundaries & Failure Safety", () => {
       const res = await s3Functions.getTrackArtworkUrlInternal("public-track", "guest");
 
       expect(res.assetUrl).toBeDefined();
-      expect(res.expiresIn).toBe(86400);
+      expect(res.expiresIn).toBe(21600);
+      expect(res.expiresIn).toBe(ARTWORK_URL_TTL_SECONDS);
+    });
+
+    it("signs playback URL for authorized public track with 900s TTL", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          select: () => ({
+            eq: () => ({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { id: "public-track", storage_key: "audio/track.flac", visibility: "public" },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      const res = await s3Functions.getTrackPlaybackUrlInternal("public-track", "guest");
+
+      expect(res.playbackUrl).toBeDefined();
+      expect(res.expiresIn).toBe(900);
+      expect(res.expiresIn).toBe(PRESIGNED_URL_TTL_SECONDS);
+    });
+
+    it("signs playback URL for authorized public video with 900s TTL", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          select: () => ({
+            eq: () => ({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { id: "public-video", storage_key: "videos/video.mp4", visibility: "public" },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      const res = await s3Functions.getVideoPlaybackUrlInternal("public-video", "guest");
+
+      expect(res.playbackUrl).toBeDefined();
+      expect(res.expiresIn).toBe(900);
+      expect(res.expiresIn).toBe(PRESIGNED_URL_TTL_SECONDS);
+    });
+
+    it("signs artwork URL for authorized public album with 21600s TTL", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          select: () => ({
+            eq: () => ({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { id: "public-album", cover_storage_key: "artworks/album.jpg", visibility: "public" },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      const res = await s3Functions.getAlbumArtworkUrlInternal("public-album", "guest");
+
+      expect(res.assetUrl).toBeDefined();
+      expect(res.expiresIn).toBe(21600);
+      expect(res.expiresIn).toBe(ARTWORK_URL_TTL_SECONDS);
+    });
+
+    it("signs thumbnail URL for authorized public video with 21600s TTL", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          select: () => ({
+            eq: () => ({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { id: "public-video", thumb_storage_key: "thumbnails/video.jpg", visibility: "public" },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      const res = await s3Functions.getVideoThumbnailUrlInternal("public-video", "guest");
+
+      expect(res.assetUrl).toBeDefined();
+      expect(res.expiresIn).toBe(21600);
+      expect(res.expiresIn).toBe(ARTWORK_URL_TTL_SECONDS);
     });
 
     it("rejects playback URL for owner-only track requested by regular member", async () => {
@@ -287,6 +378,141 @@ describe("Server Security Boundaries & Failure Safety", () => {
 
       const result = await s3Functions.getLibraryManifestInternal();
       expect(result).toEqual(mockManifest);
+    });
+  });
+
+  describe("Lazy Playback URL Signing & Visual Asset Signing (R4)", () => {
+    it("returns empty string for track and video src while signing covers and thumbnails", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "albums") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  neq: () => ({
+                    order: () =>
+                      Promise.resolve({
+                        data: [
+                          {
+                            id: "album-1",
+                            title: "Album 1",
+                            artist: "Artist 1",
+                            year: 2024,
+                            cover_storage_key: "artworks/album1.jpg",
+                            accent: "oklch(0.5 0.2 240)",
+                            note: "",
+                            visibility: "public",
+                            version: 1,
+                            updated_at: new Date().toISOString(),
+                            status: "active",
+                          },
+                        ],
+                        error: null,
+                      }),
+                  }),
+                }),
+              }),
+            };
+          }
+          if (table === "tracks") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  neq: () => ({
+                    order: () =>
+                      Promise.resolve({
+                        data: [
+                          {
+                            id: "track-1",
+                            title: "Track 1",
+                            artist: "Artist 1",
+                            album_id: "album-1",
+                            track_no: 1,
+                            duration_seconds: 180,
+                            format: "FLAC",
+                            bit_depth: 24,
+                            sample_rate: 96000,
+                            size_mb: 45.2,
+                            storage_key: "audio/track-1/master.flac",
+                            cover_storage_key: "artworks/track1.jpg",
+                            year: 2024,
+                            lyrics: [],
+                            lyrics_source: null,
+                            visibility: "public",
+                            version: 1,
+                            updated_at: new Date().toISOString(),
+                            status: "active",
+                            track_files: [],
+                          },
+                        ],
+                        error: null,
+                      }),
+                  }),
+                }),
+              }),
+            };
+          }
+          if (table === "videos") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  neq: () => ({
+                    order: () =>
+                      Promise.resolve({
+                        data: [
+                          {
+                            id: "video-1",
+                            title: "Video 1",
+                            artist: "Artist 1",
+                            year: 2024,
+                            thumb_storage_key: "thumbnails/video1.jpg",
+                            storage_key: "videos/video-1/master.mp4",
+                            duration_seconds: 240,
+                            resolution: "1080p",
+                            codec: "h264",
+                            bitrate: "5000k",
+                            size_mb: 150,
+                            visibility: "public",
+                            version: 1,
+                            updated_at: new Date().toISOString(),
+                            status: "active",
+                            video_files: [],
+                          },
+                        ],
+                        error: null,
+                      }),
+                  }),
+                }),
+              }),
+            };
+          }
+          return {};
+        }),
+      };
+
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      const lib = await masterLibrary.getPublicMasterLibraryInternal();
+
+      expect(lib.tracks).toHaveLength(1);
+      const firstTrack = lib.tracks[0];
+      expect(firstTrack).toBeDefined();
+      expect(firstTrack?.src).toBe("");
+      expect(firstTrack?.cover).toBeDefined();
+      expect(firstTrack?.cover).toContain("artworks/track1.jpg");
+
+      expect(lib.videos).toHaveLength(1);
+      const firstVideo = lib.videos[0];
+      expect(firstVideo).toBeDefined();
+      expect(firstVideo?.src).toBe("");
+      expect(firstVideo?.thumb).toBeDefined();
+      expect(firstVideo?.thumb).toContain("thumbnails/video1.jpg");
+
+      expect(lib.albums).toHaveLength(1);
+      const firstAlbum = lib.albums[0];
+      expect(firstAlbum).toBeDefined();
+      expect(firstAlbum?.cover).toBeDefined();
+      expect(firstAlbum?.cover).toContain("artworks/album1.jpg");
     });
   });
 });

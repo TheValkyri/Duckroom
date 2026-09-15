@@ -34,26 +34,46 @@ import { usePlayer, usePlayerActions, usePlayerIsCurrent, usePlayerIsPlaying } f
 import { useDuckroomRole } from "../lib/useRole";
 import { useLibrary } from "../lib/useLibrary";
 import { cn } from "../lib/utils";
+import { getPublicLibrarySummaryServer } from "../lib/ssr-loaders";
+import { AlbumsSkeleton } from "../components/LibrarySkeleton";
 
 export const Route = createFileRoute("/singles")({
-  head: () => ({
-    meta: [
-      { title: "Đĩa đơn & Single — Duckroom" },
-      {
-        name: "description",
-        content: "Toàn bộ các bản phát hành đĩa đơn (Single & EP) Lossless 24-bit trong kho Duckroom.",
-      },
-      { property: "og:site_name", content: "Duckroom" },
-      { property: "og:title", content: "Đĩa đơn & Single — Duckroom" },
-      {
-        property: "og:description",
-        content: "Toàn bộ các bản phát hành đĩa đơn (Single & EP) Lossless 24-bit trong kho Duckroom.",
-      },
-      { property: "og:image", content: "https://duckroom.vercel.app/og-image.jpg" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:image", content: "https://duckroom.vercel.app/og-image.jpg" },
-    ],
-  }),
+  loader: async () => {
+    try {
+      const summary = await getPublicLibrarySummaryServer();
+      return { summary };
+    } catch (err) {
+      console.warn("[Duckroom Route] Failed to load library summary for singles:", err);
+      return { summary: undefined };
+    }
+  },
+  head: ({ loaderData }) => {
+    const s = loaderData?.summary;
+    const count = s?.totalSingles ?? s?.tracks?.length ?? 0;
+    const desc =
+      count > 0
+        ? `Tuyển tập ${count} đĩa đơn (Single & EP) Lossless 24-bit trong kho Duckroom.`
+        : "Toàn bộ các bản phát hành đĩa đơn (Single & EP) Lossless 24-bit trong kho Duckroom.";
+    const singleCover =
+      s?.tracks?.find((t: any) => !t.albumId || t.albumId === "singles")?.cover ||
+      s?.primaryCover ||
+      "https://duckroom.vercel.app/og-image.jpg";
+    return {
+      meta: [
+        { title: "Đĩa đơn & Single — Duckroom" },
+        { name: "description", content: desc },
+        { property: "og:site_name", content: "Duckroom" },
+        { property: "og:type", content: "music.song" },
+        { property: "og:title", content: "Đĩa đơn & Single — Duckroom" },
+        { property: "og:description", content: desc },
+        { property: "og:image", content: singleCover },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: "Đĩa đơn & Single — Duckroom" },
+        { name: "twitter:description", content: desc },
+        { name: "twitter:image", content: singleCover },
+      ],
+    };
+  },
   component: SinglesPage,
 });
 
@@ -247,8 +267,13 @@ function SingleCard({
 }
 
 function SinglesPage() {
+  const { summary } = Route.useLoaderData();
   const { playQueue } = usePlayerActions();
-  const { tracks } = useLibrary();
+  const { tracks: clientTracks, status } = useLibrary();
+  const tracks = useMemo(
+    () => (clientTracks.length > 0 ? clientTracks : summary?.tracks || []),
+    [clientTracks, summary?.tracks],
+  );
   const { isOwner } = useDuckroomRole();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
@@ -300,6 +325,11 @@ function SinglesPage() {
     },
     [playQueue, filteredSingles],
   );
+
+  const isInitialHydrating = (status === "idle" || status === "syncing") && singles.length === 0;
+  if (isInitialHydrating) {
+    return <AlbumsSkeleton />;
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-12">

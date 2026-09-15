@@ -18,7 +18,7 @@ import {
   validateVisualAssetKey,
 } from "./auth-guard";
 import { getOptionalServerEnv, requireServerEnv } from "./server-env";
-import { BUCKET_NAME } from "./s3-constants";
+import { PRESIGNED_URL_TTL_SECONDS, ARTWORK_URL_TTL_SECONDS, BUCKET_NAME } from "./s3-constants";
 export { BUCKET_NAME };
 
 export function getS3ServerClient() {
@@ -109,8 +109,8 @@ export async function getTrackPlaybackUrlInternal(
     Key: track.storage_key,
     ResponseContentDisposition: "inline",
   });
-  const playbackUrl = await getSignedUrl(s3, command, { expiresIn: 86400 });
-  return { playbackUrl, expiresIn: 86400 };
+  const playbackUrl = await getSignedUrl(s3, command, { expiresIn: PRESIGNED_URL_TTL_SECONDS });
+  return { playbackUrl, expiresIn: PRESIGNED_URL_TTL_SECONDS };
 }
 
 /**
@@ -162,13 +162,13 @@ export async function getVideoPlaybackUrlInternal(
     Key: video.storage_key,
     ResponseContentDisposition: "inline",
   });
-  const playbackUrl = await getSignedUrl(s3, command, { expiresIn: 86400 });
-  return { playbackUrl, expiresIn: 86400 };
+  const playbackUrl = await getSignedUrl(s3, command, { expiresIn: PRESIGNED_URL_TTL_SECONDS });
+  return { playbackUrl, expiresIn: PRESIGNED_URL_TTL_SECONDS };
 }
 
 /**
  * Domain-driven Playback URL Resolver for Videos Server RPC:
- * Resolves videoId -> Supabase DB row -> checks visibility -> signs storage_key for <= 86400s.
+ * Resolves videoId -> Supabase DB row -> checks visibility -> signs storage_key for <= 900s.
  */
 export const getVideoPlaybackUrlServer = createServerFn({ method: "POST" })
   .middleware([serverSecurityMiddleware, optionalAuthMiddleware])
@@ -205,7 +205,7 @@ export async function getTrackArtworkUrlInternal(
   }
 
   if (!track.cover_storage_key) {
-    return { assetUrl: "", expiresIn: 86400 };
+    return { assetUrl: "", expiresIn: ARTWORK_URL_TTL_SECONDS };
   }
 
   validateVisualAssetKey(track.cover_storage_key);
@@ -215,13 +215,13 @@ export async function getTrackArtworkUrlInternal(
     Key: track.cover_storage_key,
     ResponseContentDisposition: "inline",
   });
-  const assetUrl = await getSignedUrl(s3, command, { expiresIn: 86400 });
-  return { assetUrl, expiresIn: 86400 };
+  const assetUrl = await getSignedUrl(s3, command, { expiresIn: ARTWORK_URL_TTL_SECONDS });
+  return { assetUrl, expiresIn: ARTWORK_URL_TTL_SECONDS };
 }
 
 /**
  * Domain-driven Artwork URL Resolver for Tracks Server RPC:
- * Resolves trackId -> Supabase DB row -> checks visibility against user role -> signs cover_storage_key for <= 86400s.
+ * Resolves trackId -> Supabase DB row -> checks visibility against user role -> signs cover_storage_key for <= 21600s.
  */
 export const getTrackArtworkUrlServer = createServerFn({ method: "POST" })
   .middleware([serverSecurityMiddleware, optionalAuthMiddleware])
@@ -258,7 +258,7 @@ export async function getAlbumArtworkUrlInternal(
   }
 
   if (!album.cover_storage_key) {
-    return { assetUrl: "", expiresIn: 86400 };
+    return { assetUrl: "", expiresIn: ARTWORK_URL_TTL_SECONDS };
   }
 
   validateVisualAssetKey(album.cover_storage_key);
@@ -268,13 +268,13 @@ export async function getAlbumArtworkUrlInternal(
     Key: album.cover_storage_key,
     ResponseContentDisposition: "inline",
   });
-  const assetUrl = await getSignedUrl(s3, command, { expiresIn: 86400 });
-  return { assetUrl, expiresIn: 86400 };
+  const assetUrl = await getSignedUrl(s3, command, { expiresIn: ARTWORK_URL_TTL_SECONDS });
+  return { assetUrl, expiresIn: ARTWORK_URL_TTL_SECONDS };
 }
 
 /**
  * Domain-driven Artwork URL Resolver for Albums Server RPC:
- * Resolves albumId -> Supabase DB row -> checks visibility against user role -> signs cover_storage_key for <= 86400s.
+ * Resolves albumId -> Supabase DB row -> checks visibility against user role -> signs cover_storage_key for <= 21600s.
  */
 export const getAlbumArtworkUrlServer = createServerFn({ method: "POST" })
   .middleware([serverSecurityMiddleware, optionalAuthMiddleware])
@@ -311,7 +311,7 @@ export async function getVideoThumbnailUrlInternal(
   }
 
   if (!video.thumb_storage_key) {
-    return { assetUrl: "", expiresIn: 86400 };
+    return { assetUrl: "", expiresIn: ARTWORK_URL_TTL_SECONDS };
   }
 
   validateVisualAssetKey(video.thumb_storage_key);
@@ -321,13 +321,13 @@ export async function getVideoThumbnailUrlInternal(
     Key: video.thumb_storage_key,
     ResponseContentDisposition: "inline",
   });
-  const assetUrl = await getSignedUrl(s3, command, { expiresIn: 86400 });
-  return { assetUrl, expiresIn: 86400 };
+  const assetUrl = await getSignedUrl(s3, command, { expiresIn: ARTWORK_URL_TTL_SECONDS });
+  return { assetUrl, expiresIn: ARTWORK_URL_TTL_SECONDS };
 }
 
 /**
  * Domain-driven Thumbnail URL Resolver for Videos Server RPC:
- * Resolves videoId -> Supabase DB row -> checks visibility against user role -> signs thumb_storage_key for <= 900s.
+ * Resolves videoId -> Supabase DB row -> checks visibility against user role -> signs thumb_storage_key for <= 21600s.
  */
 export const getVideoThumbnailUrlServer = createServerFn({ method: "POST" })
   .middleware([serverSecurityMiddleware, optionalAuthMiddleware])

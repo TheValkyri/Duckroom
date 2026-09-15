@@ -1,27 +1,49 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Film, Play, RefreshCw, UploadCloud } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { formatTime, syncLibraryWithS3 } from "../data/library";
 import { listContainerVariants, listItemVariants, springSnappy, tapScale } from "../lib/motion";
 import { useLibrary } from "../lib/useLibrary";
 import { useAuth } from "../lib/useAuth";
 import { cn } from "../lib/utils";
 import { VideoThumb } from "../components/VideoThumb";
+import { getPublicLibrarySummaryServer } from "../lib/ssr-loaders";
 
 export const Route = createFileRoute("/videos/")({
-  head: () => ({
-    meta: [
-      { title: "MV — Duckroom" },
-      { name: "description", content: "Kho MV và live session lưu ở master gốc trong Duckroom." },
-      { property: "og:site_name", content: "Duckroom" },
-      { property: "og:title", content: "MV — Duckroom" },
-      { property: "og:description", content: "Kho MV và live session lưu ở master gốc." },
-      { property: "og:image", content: "https://duckroom.vercel.app/og-image.jpg" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:image", content: "https://duckroom.vercel.app/og-image.jpg" },
-    ],
-  }),
+  loader: async () => {
+    try {
+      const summary = await getPublicLibrarySummaryServer();
+      return { summary };
+    } catch (err) {
+      console.warn("[Duckroom Route] Failed to load library summary for videos:", err);
+      return { summary: undefined };
+    }
+  },
+  head: ({ loaderData }) => {
+    const s = loaderData?.summary;
+    const count = s?.totalVideos ?? s?.videos?.length ?? 0;
+    const desc =
+      count > 0
+        ? `Kho ${count} MV và live session lưu ở master gốc trong Duckroom.`
+        : "Kho MV và live session lưu ở master gốc trong Duckroom.";
+    const ogImage = s?.videos?.[0]?.thumb || "https://duckroom.vercel.app/og-image.jpg";
+    return {
+      meta: [
+        { title: "MV — Duckroom" },
+        { name: "description", content: desc },
+        { property: "og:site_name", content: "Duckroom" },
+        { property: "og:type", content: "video.other" },
+        { property: "og:title", content: "MV — Duckroom" },
+        { property: "og:description", content: desc },
+        { property: "og:image", content: ogImage },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: "MV — Duckroom" },
+        { name: "twitter:description", content: desc },
+        { name: "twitter:image", content: ogImage },
+      ],
+    };
+  },
   component: VideosPage,
 });
 
@@ -55,9 +77,36 @@ function VideoCard({ v }: { v: any }) {
 }
 
 function VideosPage() {
-  const { videos } = useLibrary();
+  const { summary } = Route.useLoaderData();
+  const { videos: clientVideos, status } = useLibrary();
+  const videos = useMemo(
+    () => (clientVideos.length > 0 ? clientVideos : summary?.videos || []),
+    [clientVideos, summary?.videos],
+  );
   const { isLoggedIn } = useAuth();
   const [isSyncing, setIsSyncing] = useState(false);
+
+  const isInitialHydrating = (status === "idle" || status === "syncing") && videos.length === 0;
+  if (isInitialHydrating) {
+    return (
+      <div role="status" aria-label="Đang tải danh sách video" className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-12">
+        <div className="pb-6 border-b border-border/60">
+          <div className="h-3 w-40 rounded-full bg-muted" />
+          <div className="mt-3 h-10 w-52 rounded-xl md:h-12 bg-muted" />
+          <div className="mt-3 h-3 w-64 rounded-full bg-muted" />
+        </div>
+        <div className="mt-6 grid gap-4 sm:mt-10 sm:gap-8 md:grid-cols-2">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="animate-pulse">
+              <div className="aspect-video w-full rounded-xl bg-muted" />
+              <div className="mt-3 h-5 w-3/4 rounded-md bg-muted" />
+              <div className="mt-1.5 h-3 w-1/2 rounded-md bg-muted" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const handleSyncS3 = async () => {
     if (!isLoggedIn) return;

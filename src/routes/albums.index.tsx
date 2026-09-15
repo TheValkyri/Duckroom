@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Disc3, Image as ImageIcon, Loader2, Play, Plus, Scissors, Trash2, UploadCloud, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { albumTracks, albums, createAlbum, deleteAlbum, type Album } from "../data/library";
 import { usePlayerActions } from "../lib/player";
 import { ArtworkCropModal } from "../components/ArtworkCropModal";
@@ -17,20 +17,42 @@ import {
 } from "../lib/motion";
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
 import { cn } from "../lib/utils";
+import { getPublicLibrarySummaryServer } from "../lib/ssr-loaders";
 
 export const Route = createFileRoute("/albums/")({
-  head: () => ({
-    meta: [
-      { title: "Albums — Duckroom" },
-      { name: "description", content: "Tất cả album trong kho lưu trữ Duckroom, master nguyên gốc." },
-      { property: "og:site_name", content: "Duckroom" },
-      { property: "og:title", content: "Albums — Duckroom" },
-      { property: "og:description", content: "Tất cả album trong kho lưu trữ Duckroom, master nguyên gốc." },
-      { property: "og:image", content: "https://duckroom.vercel.app/og-image.jpg" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:image", content: "https://duckroom.vercel.app/og-image.jpg" },
-    ],
-  }),
+  loader: async () => {
+    try {
+      const summary = await getPublicLibrarySummaryServer();
+      return { summary };
+    } catch (err) {
+      console.warn("[Duckroom Route] Failed to load library summary for albums:", err);
+      return { summary: undefined };
+    }
+  },
+  head: ({ loaderData }) => {
+    const s = loaderData?.summary;
+    const count = s?.totalAlbums ?? s?.albums?.length ?? 0;
+    const desc =
+      count > 0
+        ? `Tuyển tập ${count} album trong kho lưu trữ Duckroom, master nguyên gốc.`
+        : "Tất cả album trong kho lưu trữ Duckroom, master nguyên gốc.";
+    const ogImage = s?.albums?.[0]?.cover || "https://duckroom.vercel.app/og-image.jpg";
+    return {
+      meta: [
+        { title: "Albums — Duckroom" },
+        { name: "description", content: desc },
+        { property: "og:site_name", content: "Duckroom" },
+        { property: "og:type", content: "music.album" },
+        { property: "og:title", content: "Albums — Duckroom" },
+        { property: "og:description", content: desc },
+        { property: "og:image", content: ogImage },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: "Albums — Duckroom" },
+        { name: "twitter:description", content: desc },
+        { name: "twitter:image", content: ogImage },
+      ],
+    };
+  },
   component: AlbumsPage,
 });
 
@@ -363,8 +385,13 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
 import { useLibrary } from "../lib/useLibrary";
 
 function AlbumsPage() {
+  const { summary } = Route.useLoaderData();
   const { playQueue } = usePlayerActions();
-  const { albums, status } = useLibrary();
+  const { albums: clientAlbums, status } = useLibrary();
+  const albums = useMemo(
+    () => (clientAlbums.length > 0 ? clientAlbums : summary?.albums || []),
+    [clientAlbums, summary?.albums],
+  );
   const { isOwner } = useDuckroomRole();
   const [showCreate, setShowCreate] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);

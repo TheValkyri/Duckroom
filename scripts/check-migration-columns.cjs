@@ -54,11 +54,9 @@ for (const f of files) {
   }
 }
 
-// ---- Pass 1.5: LEGACY BASELINE (documented contract, AD-16) -------------
-// The chain NEVER creates tracks/albums/videos — it ALTERs a pre-existing
-// legacy v1 schema (proven live 2026-08-25). These are the baseline columns
-// the chain's statements actually reference. A brand-new Supabase project
-// needs this baseline created first (tracked OPEN gap).
+// ---- Pass 1.5: LEGACY BASELINE (documented contract, AD-16 - RESOLVED) ---
+// Defined in 00000000_duckroom_v1_baseline.sql. Kept as a static assertion
+// to guarantee that core baseline columns remain present in the chain.
 const LEGACY_BASELINE = {
   tracks: [
     "id",

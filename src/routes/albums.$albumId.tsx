@@ -1,7 +1,7 @@
-import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, isNotFound, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Disc3, ListPlus, Pencil, Play, Shuffle, Trash2, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { TrackRow } from "../components/TrackRow";
 import { EditAlbumModal } from "../components/EditAlbumModal";
 import {
@@ -27,27 +27,46 @@ import {
 } from "../lib/motion";
 import { useDuckroomRole } from "../lib/useRole";
 import { ShareMenu } from "../components/ShareMenu";
+import { AlbumsSkeleton } from "../components/LibrarySkeleton";
+import { getAlbumByIdSsrServer } from "../lib/ssr-loaders";
 import { useLibrary } from "../lib/useLibrary";
 import { usePlayerActions } from "../lib/player";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/albums/$albumId")({
-  loader: ({ params }) => {
-    const album = albumById(params.albumId);
-    return { album, albumId: params.albumId };
+  loader: async ({ params }) => {
+    try {
+      const data = await getAlbumByIdSsrServer({ data: { albumId: params.albumId } });
+      if (!data?.album) {
+        throw notFound();
+      }
+      return { album: data.album, tracks: data.tracks, albumId: params.albumId };
+    } catch (err: any) {
+      if (isNotFound(err) || err?.isNotFound || err?.status === 404 || err?.message?.includes("notFound")) {
+        throw err;
+      }
+      console.warn("[Duckroom Route] Failed to load album SSR data:", err);
+      return { album: undefined, tracks: undefined, albumId: params.albumId };
+    }
   },
   head: ({ loaderData }) => {
-    const t = loaderData?.album?.title ?? "Album";
-    const cover = loaderData?.album?.cover || "https://duckroom.vercel.app/og-image.jpg";
+    const a = loaderData?.album;
+    const t = a?.title ?? "Album";
+    const artist = a?.artist ? ` — ${a.artist}` : "";
+    const cover = a?.cover || "https://duckroom.vercel.app/og-image.jpg";
+    const desc = a ? `Nghe album ${a.title}${artist} ở chất lượng gốc, không nén lại.` : "Nghe album ở chất lượng gốc.";
     return {
       meta: [
-        { title: `${t} — Duckroom` },
-        { name: "description", content: `Nghe album ${t} ở chất lượng gốc, không nén lại.` },
+        { title: `${t}${artist} — Duckroom` },
+        { name: "description", content: desc },
         { property: "og:site_name", content: "Duckroom" },
+        { property: "og:type", content: "music.album" },
         { property: "og:title", content: `${t} — Duckroom` },
-        { property: "og:description", content: `Nghe album ${t} ở chất lượng gốc.` },
+        { property: "og:description", content: desc },
         { property: "og:image", content: cover },
         { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: `${t} — Duckroom` },
+        { name: "twitter:description", content: desc },
         { name: "twitter:image", content: cover },
       ],
     };
@@ -182,8 +201,8 @@ function AddTracksModal({
 }
 
 function AlbumPage() {
-  const { album: loadedAlbum, albumId: paramAlbumId } = Route.useLoaderData();
-  const { tracks, albums, refresh } = useLibrary();
+  const { album: loadedAlbum, tracks: loadedTracks, albumId: paramAlbumId } = Route.useLoaderData();
+  const { tracks, albums, refresh, status } = useLibrary();
   const { playQueue } = usePlayerActions();
   const { isOwner } = useDuckroomRole();
   const navigate = useNavigate();
@@ -192,22 +211,28 @@ function AlbumPage() {
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
 
-  const album = loadedAlbum || albumById(paramAlbumId);
-  if (!album) {
-    throw notFound();
-  }
+  // Reset image loading states on route transition between albums
+  useEffect(() => {
+    setImgLoaded(false);
+    setImgError(false);
+  }, [paramAlbumId]);
 
-  const list = albumTracks(album.id);
+  const album = loadedAlbum || albumById(paramAlbumId);
+
+  const clientList = albumTracks(album?.id || "");
+  const list = useMemo(() => {
+    return clientList.length > 0 ? clientList : loadedTracks || [];
+  }, [clientList, loadedTracks]);
   const total = list.reduce((a, t) => a + t.duration, 0);
-  const currentIds = new Set(list.map((t) => t.id));
+  const currentIds = useMemo(() => new Set(list.map((t) => t.id)), [list]);
 
   const handleDeleteAlbum = useCallback(async () => {
-    if (!isOwner) return;
+    if (!isOwner || !album) return;
     if (confirm(`Chuyển album "${album.title}" vào thùng rác?`)) {
       await deleteAlbum(album.id);
       void navigate({ to: "/albums" });
     }
-  }, [isOwner, album.title, album.id, navigate]);
+  }, [isOwner, album, navigate]);
 
   const handleRemoveFromAlbum = useCallback(
     async (trackId: string) => {
@@ -233,6 +258,13 @@ function AlbumPage() {
     },
     [playQueue, list],
   );
+
+  if (!album) {
+    if (status === "syncing" || status === "idle") {
+      return <AlbumsSkeleton />;
+    }
+    throw notFound();
+  }
 
   return (
     <div className="relative">

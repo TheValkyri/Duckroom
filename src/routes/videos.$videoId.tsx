@@ -1,4 +1,4 @@
-import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, isNotFound, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Maximize2, Minimize2, Pause, Play, Trash2, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { deleteVideo, formatTime, videoById } from "../data/library";
@@ -7,24 +7,45 @@ import { ShareMenu } from "../components/ShareMenu";
 import { useLibrary } from "../lib/useLibrary";
 import { usePlayerActions } from "../lib/player";
 import { cn } from "../lib/utils";
+import { fetchVideoPlaybackUrl } from "../lib/s3";
+import { getVideoByIdSsrServer } from "../lib/ssr-loaders";
 
 export const Route = createFileRoute("/videos/$videoId")({
-  loader: ({ params }) => {
-    const video = videoById(params.videoId);
-    return { video, videoId: params.videoId };
+  loader: async ({ params }) => {
+    try {
+      const video = await getVideoByIdSsrServer({ data: { videoId: params.videoId } });
+      if (!video) {
+        throw notFound();
+      }
+      return { video, videoId: params.videoId };
+    } catch (err: any) {
+      if (isNotFound(err) || err?.isNotFound || err?.status === 404 || err?.message?.includes("notFound")) {
+        throw err;
+      }
+      console.warn("[Duckroom Route] Failed to load video SSR data:", err);
+      return { video: undefined, videoId: params.videoId };
+    }
   },
   head: ({ loaderData }) => {
-    const t = loaderData?.video?.title ?? "Video";
-    const thumb = loaderData?.video?.thumb || "https://duckroom.vercel.app/og-image.jpg";
+    const v = loaderData?.video;
+    const t = v?.title ?? "Video";
+    const artist = v?.artist ? ` — ${v.artist}` : "";
+    const thumb = v?.thumb || "https://duckroom.vercel.app/og-image.jpg";
+    const desc = v
+      ? `Xem ${v.title}${artist} ở độ phân giải và bitrate gốc.`
+      : "Xem video ở độ phân giải và bitrate gốc.";
     return {
       meta: [
-        { title: `${t} — Duckroom` },
-        { name: "description", content: `Xem ${t} ở độ phân giải và bitrate gốc.` },
+        { title: `${t}${artist} — Duckroom` },
+        { name: "description", content: desc },
         { property: "og:site_name", content: "Duckroom" },
+        { property: "og:type", content: "video.other" },
         { property: "og:title", content: `${t} — Duckroom` },
-        { property: "og:description", content: `Xem ${t} ở độ phân giải và bitrate gốc.` },
+        { property: "og:description", content: desc },
         { property: "og:image", content: thumb },
         { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: `${t} — Duckroom` },
+        { name: "twitter:description", content: desc },
         { name: "twitter:image", content: thumb },
       ],
     };
@@ -34,22 +55,20 @@ export const Route = createFileRoute("/videos/$videoId")({
 
 function VideoPage() {
   const { video: loadedVideo, videoId: paramVideoId } = Route.useLoaderData();
-  const { videos } = useLibrary();
+  const { videos, status } = useLibrary();
   const { pause: pauseAudioPlayer } = usePlayerActions();
   const { isOwner } = useDuckroomRole();
   const navigate = useNavigate();
 
   const video = loadedVideo || videoById(paramVideoId);
-  if (!video) {
-    throw notFound();
-  }
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
-  const [videoDuration, setVideoDuration] = useState(video.duration);
+  const [videoDuration, setVideoDuration] = useState(video?.duration || 0);
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [playbackUrl, setPlaybackUrl] = useState<string>(video?.src || "");
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -60,9 +79,36 @@ function VideoPage() {
   const timeLabelRef = useRef(0);
   const [timeLabel, setTimeLabel] = useState(0);
 
+  // Reset video playback state and DOM element when navigating between videos
+  useEffect(() => {
+    setPlaybackUrl(video?.src || "");
+    setHasStarted(false);
+    setIsPlaying(false);
+    setVideoDuration(video?.duration || 0);
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
+    }
+  }, [paramVideoId, video?.id, video?.src, video?.duration]);
+
+  // Lazy resolution of signed playback URL on-demand (R4)
+  useEffect(() => {
+    let active = true;
+    if (!playbackUrl && video?.id) {
+      void fetchVideoPlaybackUrl(video.id).then((url) => {
+        if (active && url) {
+          setPlaybackUrl(url);
+        }
+      });
+    }
+    return () => {
+      active = false;
+    };
+  }, [video?.id, playbackUrl]);
+
   // Fail-closed: only a real signed playback URL is usable. There is no
   // /api/stream route in this app — a fabricated URL would just 404.
-  const videoSrc = video.src || "";
+  const videoSrc = playbackUrl || video?.src || "";
 
   /** BẬT controls + hẹn giờ tự ẩn sau 2.6s (kiểu YouTube/ hệ TV).
    *  Fix 2026-09-01: trước đây control bar chỉ hiện qua group-hover —
@@ -96,16 +142,26 @@ function VideoPage() {
   }, []);
 
   const handleDeleteVideo = async () => {
-    if (!isOwner) return;
+    if (!isOwner || !video) return;
     if (confirm(`Bạn có chắc chắn muốn xóa MV "${video.title}" khỏi Pikamc S3 không?`)) {
       await deleteVideo(video.id);
       void navigate({ to: "/videos" });
     }
   };
 
-  const handlePlayVideo = () => {
+  const handlePlayVideo = async () => {
     pauseAudioPlayer(); // Stop audio player if it's currently playing
     setHasStarted(true);
+    let targetSrc = videoSrc;
+    if (!targetSrc && video?.id) {
+      targetSrc = await fetchVideoPlaybackUrl(video.id);
+      if (targetSrc) {
+        setPlaybackUrl(targetSrc);
+        if (videoRef.current) {
+          videoRef.current.src = targetSrc;
+        }
+      }
+    }
     if (videoRef.current) {
       if (videoRef.current.paused) {
         void videoRef.current.play().then(() => setIsPlaying(true));
@@ -125,6 +181,19 @@ function VideoPage() {
       }
     }
   };
+
+  if (!video) {
+    if (status === "syncing" || status === "idle") {
+      return (
+        <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-12 animate-pulse">
+          <div className="h-6 w-32 bg-muted rounded mb-6" />
+          <div className="aspect-video w-full rounded-xl bg-muted" />
+          <div className="h-8 w-64 bg-muted rounded mt-6" />
+        </div>
+      );
+    }
+    throw notFound();
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-12">
