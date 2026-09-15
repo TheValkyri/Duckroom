@@ -10,7 +10,12 @@ import {
 import { getS3ServerClient } from "./s3-functions";
 import { BUCKET_NAME } from "./s3-constants";
 import { getSupabaseAdmin } from "./supabase";
-import { requireOwnerMiddleware, serverSecurityMiddleware } from "./auth-guard";
+import {
+  requireFreshOwnerMiddleware,
+  requireOwnerMiddleware,
+  serverSecurityMiddleware,
+  uploadRateLimitMiddleware,
+} from "./auth-guard";
 import { analyzeMediaBuffer, sanitizeAnalysisResult } from "../services/media-analysis";
 import { analyzeImageBuffer } from "../services/media-analysis/image-analyzer";
 import { streamSha256 } from "../services/media-analysis/common";
@@ -594,10 +599,11 @@ export async function verifyAndAnalyzeServerUploadInternal(
     throw new IngestionVerificationError(msg);
   }
 
-  // 2+3 merged. Stream the S3 object ONCE: compute authoritative SHA-256
-  // incrementally while capturing the leading analysis window (≤2MB)
+  // 2+3 merged. Stream the S3 object: compute authoritative SHA-256
+  // while capturing the leading 2MB analysis window for fast server-side inspection
   const ANALYSIS_PREFIX_BYTES = 2097152;
-  let serverSha256 = session.client_sha256 || "";
+  let serverSha256 = "";
+  let sha256VerificationSource: "server" | "client" = "server";
   let analysisHeaderBuffer: Uint8Array | undefined = undefined;
 
   if (s3DirectNetworkAvailable) {
@@ -647,15 +653,78 @@ export async function verifyAndAnalyzeServerUploadInternal(
     }
   }
 
-  // WP-3 (P0): never fabricate a hash. If the server could not hash the
-  // object, the integrity verdict can only be as strong as the client
-  // declared hash — and if there is none at all, verification fails closed.
-  if (!serverSha256) {
-    if (session.client_sha256) {
-      serverSha256 = session.client_sha256;
-    } else {
-      const msg =
-        "Không thể xác minh tính toàn vẹn tệp: máy chủ không đọc được tệp từ kho lưu trữ và máy khách không cung cấp mã SHA-256.";
+  // Fast prefix streaming fallback: if full download timed out but direct network is available,
+  // stream the 2MB header prefix using an S3 Range request for server-side media analysis.
+  if (!analysisHeaderBuffer && s3DirectNetworkAvailable) {
+    try {
+      const rangeEnd = Math.max(0, Math.min(actualSizeBytes, ANALYSIS_PREFIX_BYTES) - 1);
+      const rangeObj = await s3.send(
+        new GetObjectCommand({
+          Bucket: BUCKET_NAME,
+          Key: session.staging_storage_key,
+          Range: `bytes=0-${rangeEnd}`,
+        }),
+      );
+      const rBody: any = rangeObj.Body;
+      if (rBody && typeof rBody[Symbol.asyncIterator] === "function") {
+        const rChunks: Uint8Array[] = [];
+        let rCaptured = 0;
+        for await (const chunk of rBody) {
+          const buf: Uint8Array = chunk;
+          if (rCaptured < ANALYSIS_PREFIX_BYTES) {
+            rChunks.push(buf);
+            rCaptured += buf.length;
+          }
+        }
+        const rLen = Math.min(rCaptured, ANALYSIS_PREFIX_BYTES);
+        analysisHeaderBuffer = new Uint8Array(rLen);
+        let rOff = 0;
+        for (const rc of rChunks) {
+          if (rOff >= rLen) break;
+          const take = Math.min(rc.length, rLen - rOff);
+          analysisHeaderBuffer.set(rc.subarray(0, take), rOff);
+          rOff += take;
+        }
+      } else if (rBody && typeof rBody.transformToByteArray === "function") {
+        const rAll = await rBody.transformToByteArray();
+        analysisHeaderBuffer = rAll.subarray(0, Math.min(rAll.length, ANALYSIS_PREFIX_BYTES));
+      }
+    } catch {
+      // Range header prefix is an optional fallback
+    }
+  }
+
+  // Authoritative SHA-256 determination & source attribution (Phase 1 — P1.3):
+  // - "server": authoritatively calculated by streaming S3 bytes through SHA-256 hash.
+  // - "client": provided by client transfer declaration when direct S3 server download is unavailable.
+  if (serverSha256) {
+    sha256VerificationSource = "server";
+  } else if (session.client_sha256 && session.client_sha256.trim()) {
+    serverSha256 = session.client_sha256.trim().toLowerCase();
+    sha256VerificationSource = "client";
+  } else {
+    // Fail closed: neither server hashing nor client sha256 is available
+    const msg =
+      "Không thể xác minh tính toàn vẹn tệp: máy chủ không đọc được tệp từ kho lưu trữ và máy khách không cung cấp mã SHA-256.";
+    await db
+      .from("upload_sessions")
+      .update({
+        status: "verification_failed",
+        stage: "cleanup_pending",
+        error_message: msg,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.sessionId);
+    throw new IngestionVerificationError(msg);
+  }
+
+  // Fail closed on hash mismatch without silent fallback:
+  // If server calculated SHA-256 and client provided SHA-256, mismatch strictly fails verification.
+  if (sha256VerificationSource === "server" && session.client_sha256) {
+    const clientHash = session.client_sha256.trim().toLowerCase();
+    const computedHash = serverSha256.trim().toLowerCase();
+    if (clientHash !== computedHash) {
+      const msg = `Mã kiểm tra SHA-256 máy chủ (${computedHash}) không khớp với mã máy khách (${clientHash}). Tệp có thể bị hỏng trong quá trình tải lên.`;
       await db
         .from("upload_sessions")
         .update({
@@ -667,21 +736,6 @@ export async function verifyAndAnalyzeServerUploadInternal(
         .eq("id", data.sessionId);
       throw new IngestionVerificationError(msg);
     }
-  }
-
-  // Integrity gate: corruption in transit must fail closed.
-  if (session.client_sha256 && session.client_sha256 !== serverSha256) {
-    const msg = `Mã kiểm tra SHA-256 máy chủ (${serverSha256}) không khớp với mã máy khách (${session.client_sha256}). Tệp có thể bị hỏng trong quá trình tải lên.`;
-    await db
-      .from("upload_sessions")
-      .update({
-        status: "verification_failed",
-        stage: "cleanup_pending",
-        error_message: msg,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", data.sessionId);
-    throw new IngestionVerificationError(msg);
   }
 
   // 3b. Multi-Range Targeted Media Analysis (header already captured above, or client-provided analysis).
@@ -720,6 +774,7 @@ export async function verifyAndAnalyzeServerUploadInternal(
 
       analysisResult = await analyzeMediaBuffer(headerBuffer, session.expected_filename, actualSizeBytes, tailBuffer);
       analysisResult.sha256 = serverSha256;
+      analysisResult.sha256_verification_source = sha256VerificationSource;
     } catch (analysisErr) {
       if (!analysisResult) {
         throw new IngestionVerificationError(
@@ -905,6 +960,8 @@ export async function verifyAndAnalyzeServerUploadInternal(
   }
 
   const safeAnalysis = sanitizeAnalysisResult(analysisResult);
+  safeAnalysis.sha256 = serverSha256;
+  safeAnalysis.sha256_verification_source = sha256VerificationSource;
 
   // WP-2 companion: the final review transition is status-guarded so a
   // session cancelled mid-verify cannot be resurrected to waiting_review
@@ -934,6 +991,7 @@ export async function verifyAndAnalyzeServerUploadInternal(
       ...session,
       status: "waiting_review",
       server_sha256: serverSha256,
+      sha256_verification_source: sha256VerificationSource,
       actual_size_bytes: actualSizeBytes,
       analysis_result: safeAnalysis,
       duplicate_status: duplicateStatus,
@@ -945,6 +1003,7 @@ export async function verifyAndAnalyzeServerUploadInternal(
     },
     analysis: safeAnalysis,
     serverSha256,
+    sha256VerificationSource,
     actualSizeBytes,
     duplicateStatus,
     matchedEntity: matched ?? null,
@@ -1849,7 +1908,7 @@ export async function cancelUploadSessionInternal(data: { sessionId: string }, a
 // ==========================================
 
 export const createUploadSessionServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(
     z.object({
       expectedFilename: z.string().min(1),
@@ -1866,7 +1925,7 @@ export const createUploadSessionServer = createServerFn({ method: "POST" })
   });
 
 export const getUploadPresignedUrlServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware, uploadRateLimitMiddleware])
   .validator(
     z.object({
       sessionId: z.string().min(1),
@@ -1879,7 +1938,7 @@ export const getUploadPresignedUrlServer = createServerFn({ method: "POST" })
   });
 
 export const verifyAndAnalyzeServerUpload = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(
     z.object({
       sessionId: z.string().min(1),
@@ -1893,7 +1952,7 @@ export const verifyAndAnalyzeServerUpload = createServerFn({ method: "POST" })
   });
 
 export const approveUploadSessionServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(
     z.object({
       sessionId: z.string().min(1),
@@ -1906,7 +1965,7 @@ export const approveUploadSessionServer = createServerFn({ method: "POST" })
   });
 
 export const finalizeIngestionCommitServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(
     z.object({
       sessionId: z.string().min(1),
@@ -1929,7 +1988,7 @@ export const finalizeIngestionCommitServer = createServerFn({ method: "POST" })
   });
 
 export const retryStagingCleanupServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(z.object({ sessionId: z.string().min(1) }))
   .handler(async ({ context, data }) => {
     const actorUserId = (context as { auth?: { userId?: string } })?.auth?.userId;
@@ -1937,7 +1996,7 @@ export const retryStagingCleanupServer = createServerFn({ method: "POST" })
   });
 
 export const cancelUploadSessionServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(z.object({ sessionId: z.string().min(1) }))
   .handler(async ({ context, data }) => {
     const actorUserId = (context as { auth?: { userId?: string } })?.auth?.userId;
@@ -2031,7 +2090,7 @@ export async function recoverUploadSessionForRetryInternal(data: { sessionId: st
 }
 
 export const recoverUploadSessionForRetryServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(z.object({ sessionId: z.string().min(1) }))
   .handler(async ({ context, data }) => {
     const actorUserId = (context as { auth?: { userId?: string } })?.auth?.userId;

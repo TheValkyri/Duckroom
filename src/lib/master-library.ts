@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSupabaseAdmin } from "./supabase";
-import { requireOwnerMiddleware, serverSecurityMiddleware } from "./auth-guard";
+import { requireFreshOwnerMiddleware, requireOwnerMiddleware, serverSecurityMiddleware } from "./auth-guard";
 import { getS3ServerClient } from "./s3-functions";
 import { ARTWORK_URL_TTL_SECONDS, BUCKET_NAME } from "./s3-constants";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
@@ -147,7 +147,7 @@ export const getMasterLibraryRevisionServer = createServerFn({ method: "GET" })
   .handler(async () => getMasterLibraryRevisionInternal());
 
 export const replaceMasterLibraryServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(
     z.object({
       tracks: z.array(trackSchema),

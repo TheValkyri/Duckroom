@@ -2579,4 +2579,231 @@ describe("Phase 3 — Media Ingestion & Recoverable Distributed Workflow Tests",
       expect(res.stagingCleanupPending).toBe(false);
     });
   });
+
+  describe("8. Phase 1 Hardening: SHA-256 Attribution & Fail-Closed Mismatch (P1.3)", () => {
+    it("attributes sha256_verification_source as 'server' when computed from S3 bytes", async () => {
+      const mockSession = {
+        id: "session-sha-server",
+        owner_id: "user-owner-1",
+        status: "uploaded",
+        stage: "upload",
+        resource_kind: "track",
+        expected_filename: "test.wav",
+        expected_extension: "wav",
+        expected_mime: "audio/wav",
+        expected_size_bytes: 44,
+        staging_storage_key: "staging/test.wav",
+        client_sha256: null,
+      };
+
+      const wavHeader = new Uint8Array(44);
+      wavHeader.set([0x52, 0x49, 0x46, 0x46], 0); // RIFF
+      wavHeader.set([0x57, 0x41, 0x56, 0x45], 8); // WAVE
+      wavHeader.set([0x66, 0x6d, 0x74, 0x20], 12); // fmt
+
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "upload_sessions") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  single: vi.fn().mockResolvedValue({ data: mockSession, error: null }),
+                }),
+              }),
+              update: () => ({
+                eq: () => ({
+                  in: vi.fn().mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+            };
+          }
+          return {
+            select: () => ({
+              eq: () => ({
+                neq: () => ({
+                  order: () => ({
+                    limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+                  }),
+                }),
+              }),
+            }),
+          };
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      async function* mockStream() {
+        yield wavHeader;
+      }
+
+      vi.spyOn(s3FunctionsModule, "getS3ServerClient").mockReturnValue({
+        send: vi.fn().mockImplementation((cmd: any) => {
+          if (cmd.constructor.name === "HeadObjectCommand") {
+            return Promise.resolve({ ContentLength: 44 });
+          }
+          if (cmd.constructor.name === "GetObjectCommand") {
+            return Promise.resolve({ Body: mockStream() });
+          }
+          return Promise.resolve({});
+        }),
+      } as any);
+
+      const res = await verifyAndAnalyzeServerUploadInternal({ sessionId: "session-sha-server" }, "user-owner-1");
+      expect(res.sha256VerificationSource).toBe("server");
+      expect(res.session.sha256_verification_source).toBe("server");
+      expect(res.analysis.sha256_verification_source).toBe("server");
+      expect(res.serverSha256).toHaveLength(64);
+    });
+
+    it("fails closed without silent fallback when server SHA-256 and client SHA-256 do not match", async () => {
+      const mockSession = {
+        id: "session-sha-mismatch",
+        owner_id: "user-owner-1",
+        status: "uploaded",
+        stage: "upload",
+        resource_kind: "track",
+        expected_filename: "test.wav",
+        expected_extension: "wav",
+        expected_mime: "audio/wav",
+        expected_size_bytes: 44,
+        staging_storage_key: "staging/test.wav",
+        client_sha256: "0000000000000000000000000000000000000000000000000000000000000000",
+      };
+
+      const wavHeader = new Uint8Array(44);
+      wavHeader.set([0x52, 0x49, 0x46, 0x46], 0); // RIFF
+      wavHeader.set([0x57, 0x41, 0x56, 0x45], 8); // WAVE
+      wavHeader.set([0x66, 0x6d, 0x74, 0x20], 12); // fmt
+
+      let updatedStatus = "";
+      let updatedError = "";
+
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          select: () => ({
+            eq: () => ({
+              single: vi.fn().mockResolvedValue({ data: mockSession, error: null }),
+            }),
+          }),
+          update: vi.fn().mockImplementation((patch: any) => {
+            updatedStatus = patch.status;
+            updatedError = patch.error_message;
+            return {
+              eq: () => ({
+                in: vi.fn().mockResolvedValue({ data: null, error: null }),
+              }),
+            };
+          }),
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      async function* mockStream() {
+        yield wavHeader;
+      }
+
+      vi.spyOn(s3FunctionsModule, "getS3ServerClient").mockReturnValue({
+        send: vi.fn().mockImplementation((cmd: any) => {
+          if (cmd.constructor.name === "HeadObjectCommand") {
+            return Promise.resolve({ ContentLength: 44 });
+          }
+          if (cmd.constructor.name === "GetObjectCommand") {
+            return Promise.resolve({ Body: mockStream() });
+          }
+          return Promise.resolve({});
+        }),
+      } as any);
+
+      await expect(
+        verifyAndAnalyzeServerUploadInternal({ sessionId: "session-sha-mismatch" }, "user-owner-1"),
+      ).rejects.toThrow(/không khớp với mã máy khách/i);
+
+      expect(updatedStatus).toBe("verification_failed");
+      expect(updatedError).toMatch(/Mã kiểm tra SHA-256 máy chủ/i);
+    });
+
+    it("attributes sha256_verification_source as 'client' when S3 direct download times out", async () => {
+      const clientHash = "a".repeat(64);
+      const mockSession = {
+        id: "session-sha-client",
+        owner_id: "user-owner-1",
+        status: "uploaded",
+        stage: "upload",
+        resource_kind: "track",
+        expected_filename: "test.wav",
+        expected_extension: "wav",
+        expected_mime: "audio/wav",
+        expected_size_bytes: 44,
+        staging_storage_key: "staging/test.wav",
+        client_sha256: clientHash,
+      };
+
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "upload_sessions") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  single: vi.fn().mockResolvedValue({ data: mockSession, error: null }),
+                }),
+              }),
+              update: () => ({
+                eq: () => ({
+                  in: vi.fn().mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+            };
+          }
+          return {
+            select: () => ({
+              eq: () => ({
+                neq: () => ({
+                  order: () => ({
+                    limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+                  }),
+                }),
+              }),
+            }),
+          };
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      vi.spyOn(s3FunctionsModule, "getS3ServerClient").mockReturnValue({
+        send: vi.fn().mockImplementation((cmd: any) => {
+          if (cmd.constructor.name === "HeadObjectCommand") {
+            const timeoutErr: any = new Error("ETIMEDOUT");
+            timeoutErr.code = "ETIMEDOUT";
+            throw timeoutErr;
+          }
+          if (cmd.constructor.name === "GetObjectCommand") {
+            const timeoutErr: any = new Error("ETIMEDOUT");
+            timeoutErr.code = "ETIMEDOUT";
+            throw timeoutErr;
+          }
+          return Promise.resolve({});
+        }),
+      } as any);
+
+      const clientAnalysis = {
+        kind: "audio",
+        container: "WAV",
+        durationSeconds: 10,
+        sampleRate: 44100,
+        bitDepth: 16,
+        channels: 2,
+        format: "WAV",
+      };
+
+      const res = await verifyAndAnalyzeServerUploadInternal(
+        { sessionId: "session-sha-client", clientAnalysis },
+        "user-owner-1",
+      );
+
+      expect(res.sha256VerificationSource).toBe("client");
+      expect(res.serverSha256).toBe(clientHash);
+      expect(res.session.sha256_verification_source).toBe("client");
+      expect(res.analysis.sha256).toBe(clientHash);
+    });
+  });
 });

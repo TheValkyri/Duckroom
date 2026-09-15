@@ -1,6 +1,19 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { verifyMemberAuthorization } from "./auth.server";
 import { getAccessToken } from "./useAuth";
+import { requireServerEnv } from "./server-env";
+
+export {
+  playbackRateLimitMiddleware,
+  shareLinkRateLimitMiddleware,
+  uploadRateLimitMiddleware,
+  createRateLimitMiddleware,
+  extractClientIp,
+  RATE_LIMIT_CONFIGS,
+  checkRateLimit,
+  assertRateLimit,
+  clearRateLimiter,
+} from "./rate-limit";
 
 const ALLOWED_EXTENSIONS = new Set([
   "flac",
@@ -111,8 +124,6 @@ export function validateVisualAssetKey(key: string, mode: "read" | "write" = "re
   }
 }
 
-import { requireServerEnv } from "./server-env";
-
 /**
  * Server security middleware verifying backend configuration and server environment invariants.
  * Fails closed immediately if server security secrets are unconfigured.
@@ -124,6 +135,7 @@ export const serverSecurityMiddleware = createMiddleware({ type: "function" }).s
 
 /**
  * Optional Auth middleware: resolves user identity if token provided, but allows Guest (unauthenticated) through.
+ * Read path: leverages 60s in-memory session LRU cache.
  */
 export const optionalAuthMiddleware = createMiddleware({ type: "function" })
   .client(async ({ next }) => {
@@ -143,13 +155,14 @@ export const optionalAuthMiddleware = createMiddleware({ type: "function" })
       isAdmin: false,
     };
     if (passedToken) {
-      auth = await verifyMemberAuthorization(undefined, passedToken);
+      auth = await verifyMemberAuthorization(undefined, passedToken, { fresh: false });
     }
     return next({ context: { auth } });
   });
 
 /**
- * Server middleware enforcing REAL Supabase Auth Member Authorization.
+ * Server middleware enforcing Supabase Auth Member Authorization.
+ * Read path: leverages 60s in-memory session LRU cache.
  */
 export const requireMemberMiddleware = createMiddleware({ type: "function" })
   .client(async ({ next }) => {
@@ -163,7 +176,7 @@ export const requireMemberMiddleware = createMiddleware({ type: "function" })
   })
   .server(async ({ next, context }) => {
     const passedToken = (context as { authToken?: string | null })?.authToken || null;
-    const auth = await verifyMemberAuthorization(undefined, passedToken);
+    const auth = await verifyMemberAuthorization(undefined, passedToken, { fresh: false });
 
     if (!auth.isAuthorized) {
       throw new Response(JSON.stringify({ error: auth.error || "Unauthorized: Member login required" }), {
@@ -176,7 +189,36 @@ export const requireMemberMiddleware = createMiddleware({ type: "function" })
   });
 
 /**
- * Server middleware enforcing Owner role authorization for destructive/admin operations.
+ * Server middleware enforcing FRESH Supabase Auth Member Authorization.
+ * Bypasses in-memory session cache for write mutations / role elevation.
+ */
+export const requireFreshMemberMiddleware = createMiddleware({ type: "function" })
+  .client(async ({ next }) => {
+    const token = typeof window !== "undefined" ? await getAccessToken() : null;
+    return next({
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      sendContext: {
+        authToken: token,
+      },
+    });
+  })
+  .server(async ({ next, context }) => {
+    const passedToken = (context as { authToken?: string | null })?.authToken || null;
+    const auth = await verifyMemberAuthorization(undefined, passedToken, { fresh: true });
+
+    if (!auth.isAuthorized) {
+      throw new Response(JSON.stringify({ error: auth.error || "Unauthorized: Member login required" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    return next({ context: { auth } });
+  });
+
+/**
+ * Server middleware enforcing Owner role authorization.
+ * Read path: leverages 60s in-memory session LRU cache.
  */
 export const requireOwnerMiddleware = createMiddleware({ type: "function" })
   .client(async ({ next }) => {
@@ -188,7 +230,37 @@ export const requireOwnerMiddleware = createMiddleware({ type: "function" })
   })
   .server(async ({ next, context }) => {
     const passedToken = (context as { authToken?: string | null })?.authToken || null;
-    const auth = await verifyMemberAuthorization(undefined, passedToken);
+    const auth = await verifyMemberAuthorization(undefined, passedToken, { fresh: false });
+    if (!auth.isAuthorized) {
+      throw new Response(JSON.stringify({ error: auth.error || "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (auth.role !== "owner") {
+      throw new Response(JSON.stringify({ error: "Forbidden: Owner role required" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return next({ context: { auth } });
+  });
+
+/**
+ * Server middleware enforcing FRESH Owner role authorization for write mutations / destructive actions.
+ * Enforces live check against Supabase Auth & database profiles table (bypasses cache).
+ */
+export const requireFreshOwnerMiddleware = createMiddleware({ type: "function" })
+  .client(async ({ next }) => {
+    const token = typeof window !== "undefined" ? await getAccessToken() : null;
+    return next({
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      sendContext: { authToken: token },
+    });
+  })
+  .server(async ({ next, context }) => {
+    const passedToken = (context as { authToken?: string | null })?.authToken || null;
+    const auth = await verifyMemberAuthorization(undefined, passedToken, { fresh: true });
     if (!auth.isAuthorized) {
       throw new Response(JSON.stringify({ error: auth.error || "Unauthorized" }), {
         status: 401,

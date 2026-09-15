@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSupabaseAdmin } from "../lib/supabase";
-import { requireOwnerMiddleware, serverSecurityMiddleware } from "../lib/auth-guard";
+import { requireFreshOwnerMiddleware, requireOwnerMiddleware, serverSecurityMiddleware } from "../lib/auth-guard";
 
 /**
  * Spotify Bridge (Master Plan §14)
@@ -469,7 +469,7 @@ export async function linkExternalIdentityInternal(
 }
 
 export const linkExternalIdentityServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(linkValidator)
   .handler(async ({ context, data }) => {
     const actorUserId = (context as { auth?: { userId?: string | null } })?.auth?.userId ?? null;

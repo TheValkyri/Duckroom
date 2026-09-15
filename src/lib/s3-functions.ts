@@ -12,8 +12,11 @@ import { z } from "zod";
 import { getSupabaseAdmin } from "./supabase";
 import {
   optionalAuthMiddleware,
+  playbackRateLimitMiddleware,
+  requireFreshOwnerMiddleware,
   requireOwnerMiddleware,
   serverSecurityMiddleware,
+  uploadRateLimitMiddleware,
   validateStorageKey,
   validateVisualAssetKey,
 } from "./auth-guard";
@@ -56,7 +59,7 @@ export function getS3ServerClient() {
  * Strictly OWNER ONLY.
  */
 export const requestPresignedUploadUrlServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware, uploadRateLimitMiddleware])
   .validator((data: { key: string; contentType: string }) => {
     validateStorageKey(data.key, "write");
     return data;
@@ -118,7 +121,7 @@ export async function getTrackPlaybackUrlInternal(
  * Resolves trackId -> Supabase DB row -> checks visibility against user role -> signs storage_key for <= 900s.
  */
 export const getTrackPlaybackUrlServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, optionalAuthMiddleware])
+  .middleware([serverSecurityMiddleware, optionalAuthMiddleware, playbackRateLimitMiddleware])
   .validator(z.object({ trackId: z.string().min(1) }))
   .handler(async ({ context, data }) => {
     const role = (context as { auth?: { role?: string } })?.auth?.role || "guest";
@@ -171,7 +174,7 @@ export async function getVideoPlaybackUrlInternal(
  * Resolves videoId -> Supabase DB row -> checks visibility -> signs storage_key for <= 900s.
  */
 export const getVideoPlaybackUrlServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, optionalAuthMiddleware])
+  .middleware([serverSecurityMiddleware, optionalAuthMiddleware, playbackRateLimitMiddleware])
   .validator(z.object({ videoId: z.string().min(1) }))
   .handler(async ({ context, data }) => {
     const role = (context as { auth?: { role?: string } })?.auth?.role || "guest";
@@ -439,7 +442,7 @@ export async function deleteTrackDomainInternal(
  * Strictly OWNER ONLY.
  */
 export const deleteTrackDomainServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(z.object({ trackId: z.string().min(1), expectedVersion: z.number().int().min(1) }))
   .handler(async ({ context, data }) => {
     const userId = (context as { auth?: { userId?: string | null } })?.auth?.userId;
@@ -545,7 +548,7 @@ export async function deleteVideoDomainInternal(
  * Strictly OWNER ONLY.
  */
 export const deleteVideoDomainServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(z.object({ videoId: z.string().min(1), expectedVersion: z.number().int().min(1) }))
   .handler(async ({ context, data }) => {
     const userId = (context as { auth?: { userId?: string | null } })?.auth?.userId;
@@ -576,7 +579,7 @@ export async function deleteS3ObjectInternal(key: string): Promise<boolean> {
  * Strictly OWNER ONLY.
  */
 export const deleteS3ObjectServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator((data: { key: string }) => {
     validateStorageKey(data.key, "read");
     return data;

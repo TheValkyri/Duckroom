@@ -1,9 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSupabaseAdmin } from "./supabase";
-import { requireMemberMiddleware, serverSecurityMiddleware } from "./auth-guard";
+import { requireFreshMemberMiddleware, requireMemberMiddleware, serverSecurityMiddleware } from "./auth-guard";
 
-const memberMiddleware = [serverSecurityMiddleware, requireMemberMiddleware] as const;
+export const memberMiddleware = [serverSecurityMiddleware, requireMemberMiddleware] as const;
+export const memberReadMiddleware = memberMiddleware;
+export const memberMutationMiddleware = [serverSecurityMiddleware, requireFreshMemberMiddleware] as const;
 
 type MemberContext = { auth?: { userId?: string | null } | null };
 
@@ -318,16 +320,16 @@ export async function saveUserPreferencesInternal(
 // ==========================================
 
 export const listUserLibraryServer = createServerFn({ method: "GET" })
-  .middleware(memberMiddleware)
+  .middleware(memberReadMiddleware)
   .handler(async ({ context }) => listUserLibraryInternal(requireUserId(context)));
 
 export const toggleFavoriteServer = createServerFn({ method: "POST" })
-  .middleware(memberMiddleware)
+  .middleware(memberMutationMiddleware)
   .validator(z.object({ trackId: z.string().min(1), favorite: z.boolean() }))
   .handler(async ({ context, data }) => toggleFavoriteInternal(data, requireUserId(context)));
 
 export const createPlaylistServer = createServerFn({ method: "POST" })
-  .middleware(memberMiddleware)
+  .middleware(memberMutationMiddleware)
   .validator(
     z.object({
       name: z.string().trim().min(1).max(100),
@@ -337,12 +339,12 @@ export const createPlaylistServer = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => createPlaylistInternal(data, requireUserId(context)));
 
 export const deletePlaylistServer = createServerFn({ method: "POST" })
-  .middleware(memberMiddleware)
+  .middleware(memberMutationMiddleware)
   .validator(z.object({ playlistId: z.string().uuid() }))
   .handler(async ({ context, data }) => deletePlaylistInternal(data, requireUserId(context)));
 
 export const renamePlaylistServer = createServerFn({ method: "POST" })
-  .middleware(memberMiddleware)
+  .middleware(memberMutationMiddleware)
   .validator(
     z.object({
       playlistId: z.string().uuid(),
@@ -352,17 +354,17 @@ export const renamePlaylistServer = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => renamePlaylistInternal(data, requireUserId(context)));
 
 export const addTrackToPlaylistServer = createServerFn({ method: "POST" })
-  .middleware(memberMiddleware)
+  .middleware(memberMutationMiddleware)
   .validator(z.object({ playlistId: z.string().uuid(), trackId: z.string().min(1) }))
   .handler(async ({ context, data }) => addTrackToPlaylistInternal(data, requireUserId(context)));
 
 export const removeTrackFromPlaylistServer = createServerFn({ method: "POST" })
-  .middleware(memberMiddleware)
+  .middleware(memberMutationMiddleware)
   .validator(z.object({ playlistId: z.string().uuid(), trackId: z.string().min(1) }))
   .handler(async ({ context, data }) => removeTrackFromPlaylistInternal(data, requireUserId(context)));
 
 export const savePlaybackStateServer = createServerFn({ method: "POST" })
-  .middleware(memberMiddleware)
+  .middleware(memberMutationMiddleware)
   .validator(
     z.object({
       trackId: z.string().nullable(),
@@ -377,7 +379,7 @@ export const savePlaybackStateServer = createServerFn({ method: "POST" })
  * state without paying for favorites/playlists/history.
  */
 export const getPlaybackStateServer = createServerFn({ method: "GET" })
-  .middleware(memberMiddleware)
+  .middleware(memberReadMiddleware)
   .handler(async ({ context }) => {
     const userId = requireUserId(context);
     const db = getSupabaseAdmin();
@@ -397,7 +399,7 @@ export const getPlaybackStateServer = createServerFn({ method: "GET" })
   });
 
 export const appendPlaybackHistoryServer = createServerFn({ method: "POST" })
-  .middleware(memberMiddleware)
+  .middleware(memberMutationMiddleware)
   .validator(
     z.object({
       trackId: z.string().min(1),
@@ -411,7 +413,7 @@ export const appendPlaybackHistoryServer = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => appendPlaybackHistoryInternal(data, requireUserId(context)));
 
 export const reorderPlaylistServer = createServerFn({ method: "POST" })
-  .middleware(memberMiddleware)
+  .middleware(memberMutationMiddleware)
   .validator(
     z.object({
       playlistId: z.string().uuid(),
@@ -421,11 +423,11 @@ export const reorderPlaylistServer = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => reorderPlaylistInternal(data, requireUserId(context)));
 
 export const getUserPreferencesServer = createServerFn({ method: "GET" })
-  .middleware(memberMiddleware)
+  .middleware(memberReadMiddleware)
   .handler(async ({ context }) => getUserPreferencesInternal(requireUserId(context)));
 
 export const saveUserPreferencesServer = createServerFn({ method: "POST" })
-  .middleware(memberMiddleware)
+  .middleware(memberMutationMiddleware)
   .validator(
     z.object({
       theme: z.enum(["dark", "light"]).optional(),

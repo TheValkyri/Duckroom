@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSupabaseAdmin } from "./supabase";
-import { requireOwnerMiddleware, serverSecurityMiddleware } from "./auth-guard";
+import { requireFreshOwnerMiddleware, serverSecurityMiddleware } from "./auth-guard";
 import { extractS3KeyFromUrl } from "./s3-key";
 
 export class ConcurrencyConflictError extends Error {
@@ -692,7 +692,7 @@ export async function restoreVideoDomainInternal(videoId: string, expectedVersio
 // ==========================================
 
 export const createAlbumDomainServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(
     z.object({
       id: z.string().optional(),
@@ -710,7 +710,7 @@ export const createAlbumDomainServer = createServerFn({ method: "POST" })
   });
 
 export const updateAlbumDomainServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(
     z.object({
       id: z.string().min(1),
@@ -729,7 +729,7 @@ export const updateAlbumDomainServer = createServerFn({ method: "POST" })
   });
 
 export const trashAlbumDomainServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(
     z.object({
       albumId: z.string().min(1),
@@ -742,7 +742,7 @@ export const trashAlbumDomainServer = createServerFn({ method: "POST" })
   });
 
 export const createTrackDomainServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(
     z.object({
       id: z.string().optional(),
@@ -768,7 +768,7 @@ export const createTrackDomainServer = createServerFn({ method: "POST" })
   });
 
 export const updateTrackDomainServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(
     z.object({
       id: z.string().min(1),
@@ -795,7 +795,7 @@ export const updateTrackDomainServer = createServerFn({ method: "POST" })
   });
 
 export const trashTrackDomainServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(
     z.object({
       trackId: z.string().min(1),
@@ -808,7 +808,7 @@ export const trashTrackDomainServer = createServerFn({ method: "POST" })
   });
 
 export const createVideoDomainServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(
     z.object({
       id: z.string().optional(),
@@ -830,7 +830,7 @@ export const createVideoDomainServer = createServerFn({ method: "POST" })
   });
 
 export const updateVideoDomainServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(
     z.object({
       id: z.string().min(1),
@@ -853,7 +853,7 @@ export const updateVideoDomainServer = createServerFn({ method: "POST" })
   });
 
 export const trashVideoDomainServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(
     z.object({
       videoId: z.string().min(1),

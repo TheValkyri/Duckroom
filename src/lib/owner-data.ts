@@ -12,7 +12,7 @@ import {
   saveLibraryManifestServer,
 } from "./s3-functions";
 import { BUCKET_NAME } from "./s3-constants";
-import { requireOwnerMiddleware, serverSecurityMiddleware } from "./auth-guard";
+import { requireFreshOwnerMiddleware, requireOwnerMiddleware, serverSecurityMiddleware } from "./auth-guard";
 import { extractS3KeyFromUrl } from "./s3-key";
 
 export const getOwnerHealthServer = createServerFn({ method: "GET" })
@@ -168,7 +168,7 @@ export const scanOrphanS3ObjectsServer = createServerFn({ method: "GET" })
   });
 
 export const cleanupOrphanS3ObjectsServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(z.object({ keys: z.array(z.string().min(1)) }))
   .handler(async ({ context, data }) => {
     const actorUserId = (context as { auth?: { userId?: string } })?.auth?.userId;
@@ -221,7 +221,7 @@ export const cleanupOrphanS3ObjectsServer = createServerFn({ method: "POST" })
   });
 
 export const createBackupSnapshotServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .handler(async () => {
     const db = getSupabaseAdmin();
     const [albums, tracks, videos] = await Promise.all([
@@ -320,11 +320,19 @@ export async function setUserRoleInternal(
   } catch {
     // audit failure không chặn mutation đã commit
   }
+
+  try {
+    const { invalidateAuthUser } = await import("./auth.server");
+    invalidateAuthUser(data.userId);
+  } catch {
+    // Non-blocking in case of environment isolation
+  }
+
   return { success: true, userId: data.userId, role: data.role };
 }
 
 export const setUserRoleServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(
     z.object({
       userId: z.string().min(1).max(128),
@@ -513,7 +521,7 @@ export async function revokeShareByIdInternal(
 }
 
 export const revokeShareByIdServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
   .validator(z.object({ shareId: z.string().min(1).max(128) }))
   .handler(async ({ context, data }) => {
     const actorUserId = (context as { auth?: { userId?: string | null } })?.auth?.userId ?? null;

@@ -1,6 +1,11 @@
-﻿import { createServerFn } from "@tanstack/react-start";
+import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { optionalAuthMiddleware, requireMemberMiddleware, serverSecurityMiddleware } from "./auth-guard";
+import {
+  optionalAuthMiddleware,
+  requireFreshMemberMiddleware,
+  serverSecurityMiddleware,
+  shareLinkRateLimitMiddleware,
+} from "./auth-guard";
 
 /**
  * CLIENT-SAFE share RPC wrappers (Master Plan §13).
@@ -21,7 +26,7 @@ type ShareActorContext = { auth?: { userId?: string | null; role?: string | null
 
 /** Creates a shareable link (/s/:token). The raw token is returned exactly once. */
 export const createShareLinkServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, optionalAuthMiddleware])
+  .middleware([serverSecurityMiddleware, optionalAuthMiddleware, shareLinkRateLimitMiddleware])
   .validator(
     z.object({
       resourceType: z.enum(["track", "album", "video", "playlist"]),
@@ -46,7 +51,7 @@ export const resolveShareLinkServer = createServerFn({ method: "GET" })
 
 /** Revokes an existing share link (owner: any; member: own). */
 export const revokeShareLinkServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireMemberMiddleware])
+  .middleware([serverSecurityMiddleware, requireFreshMemberMiddleware])
   .validator(z.object({ token: z.string().min(8) }))
   .handler(async ({ context, data }) => {
     const { revokeShareLinkInternal } = await import("./sharing.server");
