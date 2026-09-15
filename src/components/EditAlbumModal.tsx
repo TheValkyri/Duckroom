@@ -23,6 +23,9 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
   const [artist, setArtist] = useState(album.artist);
   const [year, setYear] = useState(album.year ? album.year.toString() : new Date().getFullYear().toString());
   const [note, setNote] = useState(album.note || "");
+  const [displayPriority, setDisplayPriority] = useState(
+    typeof album.display_priority === "number" ? album.display_priority.toString() : "999",
+  );
   const [coverUrl, setCoverUrl] = useState("");
   const [artworkFile, setArtworkFile] = useState<File | null>(null);
 
@@ -120,6 +123,7 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
       }
 
       setUploadStatus("Đang cập nhật thông tin album...");
+      const parsedPriority = parseInt(displayPriority, 10);
       const updated = await updateAlbum(album.id, {
         expectedVersion: album.version,
         title: title.trim(),
@@ -127,6 +131,7 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
         year: parseInt(year, 10) || new Date().getFullYear(),
         cover: finalCover,
         note: note.trim(),
+        displayPriority: isNaN(parsedPriority) ? undefined : parsedPriority,
       });
 
       if (updated) {
@@ -307,6 +312,20 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
                   className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">
+                Thứ tự ưu tiên hiển thị (display_priority: 1, 2, 3... - số nhỏ xếp trước)
+              </label>
+              <input
+                type="number"
+                disabled={isSaving}
+                placeholder="999"
+                value={displayPriority}
+                onChange={(e) => setDisplayPriority(e.target.value)}
+                className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+              />
             </div>
 
             <div>

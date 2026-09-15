@@ -35,6 +35,7 @@ const albumSchema = z.object({
   cover: z.string(),
   accent: z.string(),
   note: z.string(),
+  display_priority: z.number().int().optional(),
 });
 const videoSchema = z.object({
   id: z.string().min(1),
@@ -228,10 +229,12 @@ export async function getPublicMasterLibraryInternal() {
   const [albums, tracks, videos] = await Promise.all([
     db
       .from("albums")
-      .select("id,title,artist,year,cover_storage_key,accent,note,visibility,version,updated_at,status")
+      .select(
+        "id,title,artist,year,cover_storage_key,accent,note,visibility,version,updated_at,status,display_priority",
+      )
       .eq("visibility", "public")
       .neq("status", "trash")
-      .order("year", { ascending: false }),
+      .order("display_priority", { ascending: true }),
     db
       .from("tracks")
       .select(
@@ -292,40 +295,6 @@ export async function getPublicMasterLibraryInternal() {
     }
   };
 
-  function getAlbumPriority(album: { id?: string; title?: string }): number {
-    const title = (album.title || "").toLowerCase().trim();
-    const id = (album.id || "").toLowerCase().trim();
-
-    // 1. HVL (MCK)
-    if (title === "hvl" || title.includes("hvl") || id.includes("hvl")) return 1;
-    // 2. Đánh Đổi (Obito)
-    if (
-      title === "đánh đổi" ||
-      title === "danh doi" ||
-      title.includes("đánh đổi") ||
-      title.includes("danh doi") ||
-      id.includes("danh-doi")
-    ) {
-      return 2;
-    }
-    // 3. Bảy (HAZEL)
-    if (title === "bảy" || title === "bay" || title.includes("bảy") || title.includes("bay") || id.includes("bay")) {
-      return 3;
-    }
-    // 4. Trái Tim Băng Bổ (Dangrangto)
-    if (
-      title.includes("trái tim") ||
-      title.includes("trai tim") ||
-      title.includes("băng b") ||
-      title.includes("bang b") ||
-      id.includes("trai-tim")
-    ) {
-      return 4;
-    }
-
-    return 999;
-  }
-
   const albumRows = await mapConcurrent(albums.data ?? [], 20, async (a) => ({
     id: a.id,
     title: a.title,
@@ -334,14 +303,15 @@ export async function getPublicMasterLibraryInternal() {
     cover: (await sign(a.cover_storage_key)) ?? "",
     accent: a.accent,
     note: a.note,
+    display_priority: typeof a.display_priority === "number" ? a.display_priority : 999,
     version: a.version,
     updated_at: a.updated_at,
     status: a.status,
   }));
 
   albumRows.sort((a, b) => {
-    const pA = getAlbumPriority(a);
-    const pB = getAlbumPriority(b);
+    const pA = a.display_priority ?? 999;
+    const pB = b.display_priority ?? 999;
     if (pA !== pB) return pA - pB;
     return (b.year || 0) - (a.year || 0) || a.title.localeCompare(b.title);
   });

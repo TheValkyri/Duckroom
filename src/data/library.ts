@@ -47,6 +47,7 @@ export type Album = {
   cover: string;
   accent: string; // oklch, dùng cho nền động
   note: string;
+  display_priority?: number | undefined;
   version?: number | undefined;
   updated_at?: string | undefined;
   status?: ("active" | "trash" | "archived") | undefined;
@@ -102,44 +103,10 @@ export let librarySyncStatus: LibrarySyncStatus = "idle";
 export let librarySyncError: string | null = null;
 export let isLibraryStale = false;
 
-export function getAlbumPriority(album: { id?: string | undefined; title?: string | undefined }): number {
-  const title = (album.title || "").toLowerCase().trim();
-  const id = (album.id || "").toLowerCase().trim();
-
-  // 1. HVL (MCK)
-  if (title === "hvl" || title.includes("hvl") || id.includes("hvl")) return 1;
-  // 2. Đánh Đổi (Obito)
-  if (
-    title === "đánh đổi" ||
-    title === "danh doi" ||
-    title.includes("đánh đổi") ||
-    title.includes("danh doi") ||
-    id.includes("danh-doi")
-  ) {
-    return 2;
-  }
-  // 3. Bảy (HAZEL)
-  if (title === "bảy" || title === "bay" || title.includes("bảy") || title.includes("bay") || id.includes("bay")) {
-    return 3;
-  }
-  // 4. Trái Tim Băng Bổ (Dangrangto)
-  if (
-    title.includes("trái tim") ||
-    title.includes("trai tim") ||
-    title.includes("băng b") ||
-    title.includes("bang b") ||
-    id.includes("trai-tim")
-  ) {
-    return 4;
-  }
-
-  return 999;
-}
-
 export function sortAlbumsDeterministically(albumList: Album[]): Album[] {
   return [...albumList].sort((a, b) => {
-    const pA = getAlbumPriority(a);
-    const pB = getAlbumPriority(b);
+    const pA = a.display_priority ?? 999;
+    const pB = b.display_priority ?? 999;
     if (pA !== pB) return pA - pB;
     return (b.year || 0) - (a.year || 0) || a.title.localeCompare(b.title);
   });
@@ -355,6 +322,7 @@ export async function createAlbum(data: {
     cover: created.cover_storage_key || "",
     accent: created.accent,
     note: created.note || "",
+    display_priority: typeof created.display_priority === "number" ? created.display_priority : 999,
     version: created.version,
     updated_at: created.updated_at,
     status: created.status as any,
@@ -374,6 +342,7 @@ export async function updateAlbum(
     cover?: string | undefined;
     accent?: string | undefined;
     note?: string | undefined;
+    displayPriority?: number | undefined;
   },
 ): Promise<Album> {
   const current = albums.find((a) => a.id === albumId);
@@ -404,6 +373,8 @@ export async function updateAlbum(
     cover: cleanCover,
     accent: updated.accent,
     note: updated.note || "",
+    display_priority:
+      typeof updated.display_priority === "number" ? updated.display_priority : (current?.display_priority ?? 999),
     version: updated.version,
     updated_at: updated.updated_at,
     status: updated.status as any,

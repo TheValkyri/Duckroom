@@ -110,7 +110,9 @@ export async function getAlbumByIdSsrInternal(albumId: string): Promise<AlbumSsr
     Promise.all([
       db
         .from("albums")
-        .select("id,title,artist,year,cover_storage_key,accent,note,visibility,version,updated_at,status")
+        .select(
+          "id,title,artist,year,cover_storage_key,accent,note,visibility,version,updated_at,status,display_priority",
+        )
         .eq("id", cleanId)
         .neq("status", "trash")
         .maybeSingle(),
@@ -148,6 +150,7 @@ export async function getAlbumByIdSsrInternal(albumId: string): Promise<AlbumSsr
     cover: coverUrl,
     accent: a.accent || "oklch(0.65 0.15 240)",
     note: a.note || "",
+    display_priority: typeof a.display_priority === "number" ? a.display_priority : 999,
     version: a.version,
     updated_at: a.updated_at,
     status: a.status,

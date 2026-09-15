@@ -52,6 +52,7 @@ export interface CreateAlbumInput {
   cover?: string | undefined;
   accent?: string | undefined;
   note?: string | undefined;
+  displayPriority?: number | undefined;
 }
 
 export interface UpdateAlbumInput {
@@ -63,6 +64,7 @@ export interface UpdateAlbumInput {
   cover?: string | undefined;
   accent?: string | undefined;
   note?: string | undefined;
+  displayPriority?: number | undefined;
 }
 
 export async function createAlbumDomainInternal(data: CreateAlbumInput, actorUserId?: string) {
@@ -77,6 +79,7 @@ export async function createAlbumDomainInternal(data: CreateAlbumInput, actorUse
     cover_storage_key: cleanCover,
     accent: data.accent || `oklch(0.${Math.floor(Math.random() * 3) + 3} 0.1 ${Math.floor(Math.random() * 360)})`,
     note: data.note ? data.note.trim() : "",
+    display_priority: data.displayPriority ?? 999,
     version: 1,
     status: "active",
     updated_at: new Date().toISOString(),
@@ -117,6 +120,7 @@ export async function updateAlbumDomainInternal(data: UpdateAlbumInput, actorUse
   if (data.cover !== undefined) updates["cover_storage_key"] = keyFromValue(data.cover) ?? data.cover;
   if (data.accent !== undefined) updates["accent"] = data.accent;
   if (data.note !== undefined) updates["note"] = data.note.trim();
+  if (data.displayPriority !== undefined) updates["display_priority"] = data.displayPriority;
 
   const { data: updated, error } = await db
     .from("albums")
@@ -702,6 +706,7 @@ export const createAlbumDomainServer = createServerFn({ method: "POST" })
       cover: z.string().optional(),
       accent: z.string().optional(),
       note: z.string().optional(),
+      displayPriority: z.number().int().optional(),
     }),
   )
   .handler(async ({ context, data }) => {
@@ -721,6 +726,7 @@ export const updateAlbumDomainServer = createServerFn({ method: "POST" })
       cover: z.string().optional(),
       accent: z.string().optional(),
       note: z.string().optional(),
+      displayPriority: z.number().int().optional(),
     }),
   )
   .handler(async ({ context, data }) => {

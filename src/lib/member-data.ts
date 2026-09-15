@@ -219,6 +219,68 @@ export async function appendPlaybackHistoryInternal(
   return { success: true, duplicate: !row || row.length === 0 };
 }
 
+export interface PlaybackHistoryEntry {
+  id: number;
+  track_id: string;
+  started_at: string;
+  ended_at: string | null;
+  seconds_played: number;
+  completed: boolean;
+}
+
+export interface PlaybackHistoryResult {
+  items: PlaybackHistoryEntry[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+/**
+ * §12.3 Cursor-based pagination for playback history (Phase 3.2).
+ * Supports cursor (started_at ISO timestamp string) and limit (1-100, default 50).
+ */
+export interface PlaybackHistoryOptions {
+  cursor?: string | null | undefined;
+  limit?: number | undefined;
+}
+
+/**
+ * §12.3 Cursor-based pagination for playback history (Phase 3.2).
+ * Supports cursor (started_at ISO timestamp string) and limit (1-100, default 50).
+ */
+export async function getPlaybackHistoryInternal(
+  options: PlaybackHistoryOptions | undefined | null,
+  userId: string,
+): Promise<PlaybackHistoryResult> {
+  const db = getSupabaseAdmin();
+  const limit = options?.limit && options.limit > 0 ? Math.min(100, options.limit) : 50;
+
+  let query = db
+    .from("playback_history")
+    .select("id, track_id, started_at, ended_at, seconds_played, completed")
+    .eq("user_id", userId)
+    .order("started_at", { ascending: false });
+
+  if (options?.cursor) {
+    query = query.lt("started_at", options.cursor);
+  }
+
+  query = query.limit(limit + 1);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  const rows = (data ?? []) as PlaybackHistoryEntry[];
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  const lastItem = hasMore && items.length > 0 ? items[items.length - 1] : undefined;
+  const nextCursor = lastItem ? lastItem.started_at : null;
+
+  return {
+    items,
+    nextCursor,
+    hasMore,
+  };
+}
+
 /**
  * §12.2 Reorder — atomic server-side rewrite via RPC (audit fix #6).
  * The SQL function validates ownership + exact membership and rewrites ALL
@@ -411,6 +473,18 @@ export const appendPlaybackHistoryServer = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ context, data }) => appendPlaybackHistoryInternal(data, requireUserId(context)));
+
+export const getPlaybackHistoryServer = createServerFn({ method: "GET" })
+  .middleware(memberReadMiddleware)
+  .validator(
+    z
+      .object({
+        cursor: z.string().optional(),
+        limit: z.number().int().min(1).max(100).optional(),
+      })
+      .optional(),
+  )
+  .handler(async ({ context, data }) => getPlaybackHistoryInternal(data, requireUserId(context)));
 
 export const reorderPlaylistServer = createServerFn({ method: "POST" })
   .middleware(memberMutationMiddleware)

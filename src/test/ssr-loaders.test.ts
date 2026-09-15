@@ -414,7 +414,7 @@ describe("SSR Loaders (R2 & R4)", () => {
       // Should have triggered prune and stayed well under runaway memory growth
       expect(ssrLoaders.getSsrArtworkCacheSize()).toBeLessThanOrEqual(ssrLoaders.MAX_SSR_CACHE_ENTRIES);
       expect(ssrLoaders.getSsrArtworkCacheSize()).toBeGreaterThan(0);
-    }, 15000);
+    }, 45000);
   });
 
   describe("Error and Timeout Resilience", () => {

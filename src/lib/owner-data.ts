@@ -701,3 +701,58 @@ export async function verifyBackupSnapshotInternal(): Promise<SnapshotVerifyResu
 export const verifyBackupSnapshotServer = createServerFn({ method: "GET" })
   .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
   .handler(async () => verifyBackupSnapshotInternal());
+
+export async function updateAlbumDisplayPriorityInternal(
+  data: { albumId: string; displayPriority: number },
+  actorUserId?: string | null,
+): Promise<{ success: boolean; albumId: string; displayPriority: number }> {
+  const db = getSupabaseAdmin();
+
+  const { data: target, error: fetchError } = await db
+    .from("albums")
+    .select("id,display_priority")
+    .eq("id", data.albumId)
+    .maybeSingle();
+
+  if (fetchError) throw new Error(fetchError.message);
+  if (!target) throw new Error("Album không tồn tại.");
+
+  const prevPriority = target.display_priority;
+  if (prevPriority === data.displayPriority) {
+    return { success: true, albumId: data.albumId, displayPriority: data.displayPriority };
+  }
+
+  const { error: updateError } = await db
+    .from("albums")
+    .update({ display_priority: data.displayPriority, updated_at: new Date().toISOString() })
+    .eq("id", data.albumId);
+
+  if (updateError) throw new Error(updateError.message);
+
+  try {
+    await db.from("audit_logs").insert({
+      actor_user_id: actorUserId ?? null,
+      action: "album.priority_updated",
+      resource_type: "album",
+      resource_id: data.albumId,
+      metadata: { from: prevPriority, to: data.displayPriority },
+    });
+  } catch {
+    // audit failure does not block mutation
+  }
+
+  return { success: true, albumId: data.albumId, displayPriority: data.displayPriority };
+}
+
+export const updateAlbumDisplayPriorityServer = createServerFn({ method: "POST" })
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
+  .validator(
+    z.object({
+      albumId: z.string().min(1).max(128),
+      displayPriority: z.number().int(),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    const actorUserId = (context as { auth?: { userId?: string | null } })?.auth?.userId ?? null;
+    return updateAlbumDisplayPriorityInternal(data, actorUserId);
+  });

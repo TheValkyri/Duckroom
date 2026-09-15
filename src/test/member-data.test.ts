@@ -3,6 +3,7 @@ import {
   addTrackToPlaylistInternal,
   appendPlaybackHistoryInternal,
   deletePlaylistInternal,
+  getPlaybackHistoryInternal,
   listUserLibraryInternal,
   removeTrackFromPlaylistInternal,
   savePlaybackStateInternal,
@@ -18,11 +19,11 @@ import * as supabaseModule from "../lib/supabase";
 describe("Member Library Data Layer (production member-data.ts)", () => {
   const USER = "user-member-1";
 
-  function makeDb() {
+  function makeDb(tableData?: Record<string, any>) {
     const calls: { table: string; op: string; args?: unknown[] }[] = [];
     const ok = (data: unknown = null) => Promise.resolve({ data, error: null });
 
-    const chain = (table: string, terminal: () => ReturnType<typeof ok> = () => ok()) => {
+    const chain = (table: string, terminal: () => ReturnType<typeof ok> = () => ok(tableData?.[table] ?? null)) => {
       const builder: any = {};
       const method = (name: string) => {
         builder[name] = (...args: unknown[]) => {
@@ -30,7 +31,8 @@ describe("Member Library Data Layer (production member-data.ts)", () => {
           return builder;
         };
       };
-      ["select", "eq", "neq", "order", "limit", "delete", "update"].forEach(method);
+      ["select", "eq", "neq", "order", "limit", "delete", "update", "lt"].forEach(method);
+      builder.then = (resolve: any, reject: any) => terminal().then(resolve, reject);
       builder.upsert = (...args: unknown[]) => {
         calls.push({ table, op: "upsert", args });
         return Promise.resolve({ data: null, error: null });
@@ -375,6 +377,99 @@ describe("Member Library Data Layer (production member-data.ts)", () => {
       await expect(removeTrackFromPlaylistInternal({ playlistId: "pX", trackId: "t1" }, USER)).rejects.toThrow(
         /không có quyền|không tồn tại/i,
       );
+    });
+  });
+
+  describe("getPlaybackHistoryInternal — cursor-based pagination (Phase 3.2)", () => {
+    const mockRow = (id: number, startedAt: string) => ({
+      id,
+      track_id: `track-${id}`,
+      started_at: startedAt,
+      ended_at: null,
+      seconds_played: 180,
+      completed: true,
+    });
+
+    it("queries with default limit 50 (+1 lookahead = 51) and returns result without cursor", async () => {
+      const rows = Array.from({ length: 10 }, (_, i) =>
+        mockRow(i + 1, `2026-09-15T12:${String(i).padStart(2, "0")}:00.000Z`),
+      );
+      const { db, calls } = makeDb({ playback_history: rows });
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(db as any);
+
+      const result = await getPlaybackHistoryInternal(undefined, USER);
+
+      expect(result.items).toHaveLength(10);
+      expect(result.hasMore).toBe(false);
+      expect(result.nextCursor).toBeNull();
+
+      const limitCall = calls.find((c) => c.table === "playback_history" && c.op === "limit");
+      expect(limitCall?.args?.[0]).toBe(51);
+
+      const eqUserCall = calls.find((c) => c.table === "playback_history" && c.op === "eq");
+      expect(eqUserCall?.args).toEqual(["user_id", USER]);
+    });
+
+    it("detects hasMore and computes nextCursor when rows exceed limit", async () => {
+      // Requested limit = 2. Rows returned = 3 (limit + 1).
+      const rows = [
+        mockRow(1, "2026-09-15T12:00:00.000Z"),
+        mockRow(2, "2026-09-15T11:00:00.000Z"),
+        mockRow(3, "2026-09-15T10:00:00.000Z"),
+      ];
+      const { db } = makeDb({ playback_history: rows });
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(db as any);
+
+      const result = await getPlaybackHistoryInternal({ limit: 2 }, USER);
+
+      expect(result.items).toHaveLength(2);
+      expect(result.items.map((i) => i.id)).toEqual([1, 2]);
+      expect(result.hasMore).toBe(true);
+      expect(result.nextCursor).toBe("2026-09-15T11:00:00.000Z");
+    });
+
+    it("applies lt('started_at', cursor) when cursor is provided", async () => {
+      const cursor = "2026-09-15T11:00:00.000Z";
+      const rows = [mockRow(3, "2026-09-15T10:00:00.000Z")];
+      const { db, calls } = makeDb({ playback_history: rows });
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(db as any);
+
+      const result = await getPlaybackHistoryInternal({ cursor, limit: 10 }, USER);
+
+      expect(result.items).toHaveLength(1);
+      expect(result.hasMore).toBe(false);
+      expect(result.nextCursor).toBeNull();
+
+      const ltCall = calls.find((c) => c.table === "playback_history" && c.op === "lt");
+      expect(ltCall?.args).toEqual(["started_at", cursor]);
+    });
+
+    it("returns empty result when no playback history exists", async () => {
+      const { db } = makeDb({ playback_history: [] });
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(db as any);
+
+      const result = await getPlaybackHistoryInternal({ limit: 20 }, USER);
+
+      expect(result.items).toEqual([]);
+      expect(result.hasMore).toBe(false);
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it("propagates database error when fetch fails", async () => {
+      const failingDb = {
+        from: () => ({
+          select: () => ({
+            eq: () => ({
+              order: () => ({
+                limit: () => Promise.resolve({ data: null, error: new Error("Database timeout") }),
+              }),
+            }),
+          }),
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(failingDb as any);
+
+      await expect(getPlaybackHistoryInternal(undefined, USER)).rejects.toThrow("Database timeout");
     });
   });
 });

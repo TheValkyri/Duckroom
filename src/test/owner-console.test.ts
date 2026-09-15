@@ -3,6 +3,7 @@ import {
   revokeShareByIdInternal,
   scanDuplicateMastersInternal,
   setUserRoleInternal,
+  updateAlbumDisplayPriorityInternal,
   verifyBackupSnapshotInternal,
 } from "../lib/owner-data";
 import * as supabaseModule from "../lib/supabase";
@@ -239,5 +240,48 @@ describe("verifyBackupSnapshotInternal — §24 snapshot verification (read-only
     const res = await verifyBackupSnapshotInternal();
     expect(res.drift).toEqual({ tracks: 0, albums: 0, videos: 0 });
     expect(res.message).toMatch(/khớp hoàn toàn/);
+  });
+});
+
+describe("updateAlbumDisplayPriorityInternal — database-driven album display priority (Phase 3.1)", () => {
+  it("updates display_priority for an existing album and creates audit log", async () => {
+    const db = makeDb({
+      albums: { data: { id: "alb-1", display_priority: 999 } },
+    });
+    vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(db);
+
+    const res = await updateAlbumDisplayPriorityInternal({ albumId: "alb-1", displayPriority: 1 }, "owner-user-id");
+
+    expect(res).toEqual({ success: true, albumId: "alb-1", displayPriority: 1 });
+    expect(db.__captured["albums.update"]).toMatchObject({ display_priority: 1 });
+    expect(db.__captured["audit_logs.insert"]).toMatchObject({
+      action: "album.priority_updated",
+      resource_id: "alb-1",
+      metadata: { from: 999, to: 1 },
+    });
+  });
+
+  it("is a no-op if display_priority is already the same value", async () => {
+    const db = makeDb({
+      albums: { data: { id: "alb-1", display_priority: 2 } },
+    });
+    vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(db);
+
+    const res = await updateAlbumDisplayPriorityInternal({ albumId: "alb-1", displayPriority: 2 }, "owner-user-id");
+
+    expect(res).toEqual({ success: true, albumId: "alb-1", displayPriority: 2 });
+    expect(db.__captured["albums.update"]).toBeUndefined();
+    expect(db.__captured["audit_logs.insert"]).toBeUndefined();
+  });
+
+  it("throws error when album does not exist", async () => {
+    const db = makeDb({
+      albums: { data: null },
+    });
+    vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(db);
+
+    await expect(updateAlbumDisplayPriorityInternal({ albumId: "nonexistent", displayPriority: 1 })).rejects.toThrow(
+      "Album không tồn tại.",
+    );
   });
 });
