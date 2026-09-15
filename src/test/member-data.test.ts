@@ -462,7 +462,9 @@ describe("Member Library Data Layer (production member-data.ts)", () => {
       expect(result.nextCursor).toBeNull();
 
       const orCall = calls.find((c) => c.table === "playback_history" && c.op === "or");
-      expect(orCall?.args).toEqual(["started_at.lt.2026-09-15T11:00:00.000Z,and(started_at.eq.2026-09-15T11:00:00.000Z,id.lt.2)"]);
+      expect(orCall?.args).toEqual([
+        "started_at.lt.2026-09-15T11:00:00.000Z,and(started_at.eq.2026-09-15T11:00:00.000Z,id.lt.2)",
+      ]);
     });
 
     it("returns empty result when no playback history exists", async () => {
