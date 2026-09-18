@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { extractS3KeyFromUrl } from "../s3-key";
+import { logger } from "../logger";
 
 export class ConcurrencyConflictError extends Error {
   code = "STALE_REVISION" as const;
@@ -50,6 +51,7 @@ export async function safeAuditLog(db: SupabaseClient, entry: AuditLogEntry): Pr
   try {
     await db.from("audit_logs").insert(entry);
   } catch (err) {
+    logger.warn("audit", "Failed to write audit log", { action: entry.action, resourceId: entry.resource_id }, err);
     console.warn("[AUDIT] Failed to write audit log:", entry.action, entry.resource_id, err);
   }
 }
