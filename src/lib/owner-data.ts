@@ -14,6 +14,7 @@ import {
 import { BUCKET_NAME } from "./s3-constants";
 import { requireFreshOwnerMiddleware, requireOwnerMiddleware, serverSecurityMiddleware } from "./auth-guard";
 import { extractS3KeyFromUrl } from "./s3-key";
+import { safeAuditLog } from "./domain-mutations/common";
 
 export const getOwnerHealthServer = createServerFn({ method: "GET" })
   .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
@@ -198,24 +199,20 @@ export const cleanupOrphanS3ObjectsServer = createServerFn({ method: "POST" })
       }
     }
 
-    try {
-      await db.from("audit_logs").insert({
-        actor_user_id: actorUserId ?? null,
-        action: "storage.orphan_cleanup",
-        resource_type: "storage",
-        resource_id: "orphan-batch",
-        metadata: {
-          requested: data.keys.length,
-          deleted: deleted.length,
-          failed: failed.length,
-          skipped_stale: skippedStale.length,
-          deleted_keys: deleted.slice(0, 50),
-          failed_keys: failed.slice(0, 50),
-        },
-      });
-    } catch {
-      // audit failure must not block cleanup reporting
-    }
+    await safeAuditLog(db, {
+      actor_user_id: actorUserId ?? null,
+      action: "storage.orphan_deleted",
+      resource_type: "storage",
+      resource_id: "orphan-batch",
+      metadata: {
+        requested: data.keys.length,
+        deleted: deleted.length,
+        failed: failed.length,
+        skipped_stale: skippedStale.length,
+        deleted_keys: deleted.slice(0, 50),
+        failed_keys: failed.slice(0, 50),
+      },
+    });
 
     return { success: true, deletedCount: deleted.length, failed, skippedStale };
   });
@@ -309,23 +306,19 @@ export async function setUserRoleInternal(
   const { error } = await db.from("profiles").update({ role: data.role }).eq("user_id", data.userId);
   if (error) throw new Error(error.message);
 
-  try {
-    await db.from("audit_logs").insert({
-      actor_user_id: actorUserId ?? null,
-      action: "user.role_changed",
-      resource_type: "profile",
-      resource_id: data.userId,
-      metadata: { from: target.role, to: data.role },
-    });
-  } catch {
-    // audit failure không chặn mutation đã commit
-  }
+  await safeAuditLog(db, {
+    actor_user_id: actorUserId ?? null,
+    action: "user.role_changed",
+    resource_type: "profile",
+    resource_id: data.userId,
+    metadata: { from: target.role, to: data.role },
+  });
 
   try {
     const { invalidateAuthUser } = await import("./auth.server");
     invalidateAuthUser(data.userId);
-  } catch {
-    // Non-blocking in case of environment isolation
+  } catch (authErr) {
+    console.warn("[AUTH] Failed to invalidate auth user cache:", data.userId, authErr);
   }
 
   return { success: true, userId: data.userId, role: data.role };
@@ -506,17 +499,13 @@ export async function revokeShareByIdInternal(
     .eq("id", data.shareId);
   if (error) throw new Error(error.message);
 
-  try {
-    await db.from("audit_logs").insert({
-      actor_user_id: actorUserId ?? null,
-      action: "share.revoked",
-      resource_type: "share_links",
-      resource_id: data.shareId,
-      metadata: { via: "owner_console" },
-    });
-  } catch {
-    // audit failure không chặn thu hồi
-  }
+  await safeAuditLog(db, {
+    actor_user_id: actorUserId ?? null,
+    action: "share.revoked",
+    resource_type: "share_links",
+    resource_id: data.shareId,
+    metadata: { via: "owner_console" },
+  });
   return { success: true, shareId: data.shareId };
 }
 
@@ -729,17 +718,13 @@ export async function updateAlbumDisplayPriorityInternal(
 
   if (updateError) throw new Error(updateError.message);
 
-  try {
-    await db.from("audit_logs").insert({
-      actor_user_id: actorUserId ?? null,
-      action: "album.priority_updated",
-      resource_type: "album",
-      resource_id: data.albumId,
-      metadata: { from: prevPriority, to: data.displayPriority },
-    });
-  } catch {
-    // audit failure does not block mutation
-  }
+  await safeAuditLog(db, {
+    actor_user_id: actorUserId ?? null,
+    action: "album.priority_updated",
+    resource_type: "album",
+    resource_id: data.albumId,
+    metadata: { from: prevPriority, to: data.displayPriority },
+  });
 
   return { success: true, albumId: data.albumId, displayPriority: data.displayPriority };
 }

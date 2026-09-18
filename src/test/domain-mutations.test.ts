@@ -753,4 +753,32 @@ describe("Global master-library revision guard", () => {
       ),
     ).rejects.toThrow(/STALE_LIBRARY_REVISION/);
   });
+
+  describe("safeAuditLog Reliability & Fail-Open Semantics", () => {
+    it("emits console.warn when audit_logs insert fails without throwing error", async () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const mockDb = {
+        from: vi.fn().mockReturnValue({
+          insert: vi.fn().mockRejectedValue(new Error("Postgres audit table down")),
+        }),
+      } as any;
+
+      await expect(
+        domainMutations.safeAuditLog(mockDb, {
+          actor_user_id: "user-123",
+          action: "album.update",
+          resource_type: "album",
+          resource_id: "album-abc",
+        }),
+      ).resolves.toBeUndefined();
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[AUDIT] Failed to write audit log:",
+        "album.update",
+        "album-abc",
+        expect.any(Error),
+      );
+      warnSpy.mockRestore();
+    });
+  });
 });
