@@ -19,12 +19,10 @@ import {
   ShieldCheck,
   UploadCloud,
   User,
-  X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
-import { pageVariants, springSnappy, tapScale } from "../lib/motion";
-import { getIngestionStoreState, subscribeIngestionStore, type IngestionStoreState } from "../lib/upload-store";
+import { springSnappy, tapScale } from "../lib/motion";
 import { useAuth } from "../lib/useAuth";
 import { useDuckroomRole } from "../lib/useRole";
 import { cn } from "../lib/utils";
@@ -35,6 +33,9 @@ import { CommandPalette } from "./CommandPalette";
 import { ensureThemeApplied } from "../lib/theme";
 import { NowPlaying } from "./player/NowPlaying";
 import { PlayerBar } from "./player/PlayerBar";
+import { ModernDuckLogo, GlobalUploadBanner, UploadNavDot, MobileMoreSheet } from "./shell";
+
+export { ModernDuckLogo } from "./shell";
 
 // Perf fix 2026-08-25: thu/mở sidebar dùng CSS transition width thuần thay vì
 // framer-motion. Animation JS (animate={{width}}) re-render + set style mỗi
@@ -68,100 +69,6 @@ const bottomNav = [
   { to: "/my-library", label: "Kho của tôi", icon: Heart, match: "prefix" },
   { to: "/videos", label: "MV", icon: Film, match: "prefix" },
 ] as const;
-
-export function ModernDuckLogo({ className = "size-8" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 40 40" fill="none" className={className}>
-      {/* Duck Beak */}
-      <path d="M26 18C29 18 34 19.5 35 22C33.5 24.5 28 24 26 23.5V18Z" fill="url(#duck-beak-grad)" />
-      {/* Duck Head & Neck */}
-      <path
-        d="M12 28C12 20 16 12 23 12C26.5 12 28.5 14.5 28.5 18C28.5 23 23 25 21 28C19.5 30 16 32 12 28Z"
-        fill="currentColor"
-        className="text-foreground"
-      />
-      {/* DJ Headphone Band */}
-      <path d="M13 8C18 5 27 5 31 10" stroke="var(--primary)" strokeWidth="3.5" strokeLinecap="round" />
-      {/* DJ Ear Cup */}
-      <rect x="9" y="13" width="6" height="10" rx="3" fill="var(--primary)" />
-      {/* Duck Eye */}
-      <circle cx="21" cy="16" r="2" fill="var(--background)" />
-      {/* Gradients */}
-      <defs>
-        <linearGradient id="duck-beak-grad" x1="26" y1="18" x2="35" y2="24" gradientUnits="userSpaceOnUse">
-          <stop stopColor="oklch(0.75 0.22 55)" />
-          <stop offset="1" stopColor="oklch(0.65 0.2 40)" />
-        </linearGradient>
-      </defs>
-    </svg>
-  );
-}
-
-function GlobalUploadBanner() {
-  const [ingestionState, setIngestionState] = useState<IngestionStoreState>(getIngestionStoreState);
-  const location = useLocation();
-
-  useEffect(() => {
-    return subscribeIngestionStore(setIngestionState);
-  }, []);
-
-  const activeIngestion = ingestionState.items.find(
-    (i) => i.stage === "uploading" || i.stage === "verifying_server" || i.stage === "committing",
-  );
-
-  if (!activeIngestion || location.pathname === "/upload") return null;
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: -20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -20, scale: 0.95 }}
-        className="fixed top-4 right-4 z-50 flex items-center gap-3 bg-card/95 border border-primary/40 text-foreground px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-md max-w-sm mt-[var(--safe-top)]"
-      >
-        <Loader2 className="size-5 animate-spin text-primary shrink-0" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between text-xs font-semibold mb-1">
-            <span className="truncate">{activeIngestion.metadata.title || activeIngestion.file.name}</span>
-            <span className="text-primary tabular-nums">{activeIngestion.progressPercent}%</span>
-          </div>
-          <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
-            <div
-              className="bg-primary h-full transition-all duration-300 rounded-full"
-              style={{ width: `${activeIngestion.progressPercent}%` }}
-            />
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-1 truncate">{activeIngestion.progressText}</p>
-        </div>
-        <Link
-          to="/upload"
-          className="text-xs bg-primary/20 text-primary hover:bg-primary/30 px-2.5 py-1 rounded-full font-medium transition-colors shrink-0"
-        >
-          Xem
-        </Link>
-      </motion.div>
-    </AnimatePresence>
-  );
-}
-
-function UploadNavDot() {
-  const [hasActive, setHasActive] = useState(() => {
-    const s = getIngestionStoreState();
-    return s.items.some((i) => i.stage === "uploading" || i.stage === "verifying_server" || i.stage === "committing");
-  });
-
-  useEffect(() => {
-    return subscribeIngestionStore((s) => {
-      const active = s.items.some(
-        (i) => i.stage === "uploading" || i.stage === "verifying_server" || i.stage === "committing",
-      );
-      setHasActive(active);
-    });
-  }, []);
-
-  if (!hasActive) return null;
-  return <span className="ml-auto size-2 rounded-full bg-primary animate-pulse shrink-0 z-10" />;
-}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -533,77 +440,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       </nav>
 
       {/* More Sheet — các đích phụ của bottom nav (kéo lên, đóng bằng kéo
-          xuống/nút) — same pattern QueueSheet. */}
-      <AnimatePresence>
-        {moreOpen && (
-          <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 32 }}
-            drag="y"
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.5 }}
-            onDragEnd={(_, info) => {
-              if (info.offset.y > 100 || (info.velocity.y > 600 && info.offset.y > 24)) setMoreOpen(false);
-            }}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Xem thêm mục điều hướng"
-            className="fixed inset-x-0 bottom-0 z-[70] flex flex-col rounded-t-[28px] border-t border-white/10 bg-card/95 backdrop-blur-md pb-safe lg:hidden"
-          >
-            <div className="flex cursor-grab justify-center pt-2.5 pb-1 active:cursor-grabbing" aria-hidden>
-              <div className="h-1.5 w-10 rounded-full bg-white/25" />
-            </div>
-            <div className="flex items-center justify-between px-5 pt-1.5 pb-2">
-              <h2 className="font-display text-lg font-semibold">Khám phá</h2>
-              <button
-                onClick={() => setMoreOpen(false)}
-                aria-label="Đóng bảng xem thêm"
-                className="text-muted-foreground hover:text-foreground hover:bg-white/10 grid size-11 place-items-center rounded-full transition-colors cursor-pointer"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2 px-4 pb-4">
-              {[
-                { to: "/albums", label: "Albums", icon: Disc3, desc: "Bộ sưu tập đĩa" },
-                { to: "/singles", label: "Đĩa đơn", icon: Disc, desc: "Single & EP" },
-                { to: "/stats", label: "Thống kê", icon: BarChart3, desc: "Số liệu nghe của bạn" },
-                ...(isOwner
-                  ? [
-                      { to: "/upload", label: "Tải lên", icon: UploadCloud, desc: "Trung tâm tiếp nhận" },
-                      { to: "/admin", label: "Owner Console", icon: ShieldCheck, desc: "Quản trị hệ thống" },
-                    ]
-                  : []),
-              ].map(({ to, label, icon: Icon, desc }) => (
-                <Link
-                  key={to}
-                  to={to}
-                  onClick={() => setMoreOpen(false)}
-                  className="border-border bg-background/50 flex min-h-20 flex-col items-start justify-center gap-1 rounded-2xl border p-4 transition-colors hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
-                >
-                  <Icon className="text-primary size-5" />
-                  <span className="text-sm font-semibold">{label}</span>
-                  <span className="text-muted-foreground text-xs">{desc}</span>
-                </Link>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      <AnimatePresence>
-        {moreOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[65] bg-black/50 lg:hidden"
-            onClick={() => setMoreOpen(false)}
-            aria-hidden
-          />
-        )}
-      </AnimatePresence>
+          xuống/nút) — extracted into MobileMoreSheet */}
+      <MobileMoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} isOwner={isOwner} />
 
       {/* Main Content Area
           Mobile: pt-14 (top header) + đủ khoảng trống cho bottom dock
