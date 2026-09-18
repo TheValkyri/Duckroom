@@ -10,7 +10,15 @@ import { LyricsPane } from "./Lyrics";
  * Surface dùng glass (blur 12px) trên nền ambient — sheet là MỘT bề mặt
  * liền, không phải khung viền.
  */
-export function PhoneLyricsSheet({ open, onClose, trackTitle }: { open: boolean; onClose: () => void; trackTitle: string }) {
+export function PhoneLyricsSheet({
+  open,
+  onClose,
+  trackTitle,
+}: {
+  open: boolean;
+  onClose: () => void;
+  trackTitle: string;
+}) {
   // Đóng bằng: nút X, hoặc kéo HANDLE xuống (pointer thủ công).
   // Vào/ra bằng CSS keyframes (PERF + fix bug motion: AnimatePresence lồng
   // trong NowPlaying giữ transform y:100% mãi mãi — QA bắt được

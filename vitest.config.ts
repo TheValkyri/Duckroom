@@ -23,5 +23,12 @@ export default defineConfig({
     // Keep unhandled rejections visible: a rejected server-fn promise must
     // fail the run instead of disappearing (fail-closed testing posture).
     dangerouslyIgnoreUnhandledErrors: false,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      reportsDirectory: "./coverage",
+      include: ["src/lib/**/*.ts", "src/services/**/*.ts"],
+      exclude: ["src/test/**", "**/*.d.ts"],
+    },
   },
 });

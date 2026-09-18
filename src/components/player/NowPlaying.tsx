@@ -529,4 +529,3 @@ export function NowPlaying() {
     </AnimatePresence>
   );
 }
-
