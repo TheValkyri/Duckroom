@@ -186,6 +186,8 @@ function CommandPaletteModal({ onClose }: { onClose: () => void }) {
       role="dialog"
       aria-modal="true"
       aria-label="Bảng lệnh Duckroom"
+      tabIndex={-1}
+      onKeyDown={onKeyDown}
     >
       <motion.div
         initial={{ opacity: 0, y: 10, scale: 0.985 }}

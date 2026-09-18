@@ -20,6 +20,8 @@ dist-ssr
 .env.*
 !.env.example
 coverage/
+playwright-report/
+test-results/
 .cache/
 .turbo/
 

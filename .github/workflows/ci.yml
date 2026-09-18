@@ -54,3 +54,9 @@ jobs:
       # strings are NOT leaks and must not fail the gate.
       - name: Secret-leak scan on client bundle
         run: npm run scan:secrets
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E smoke tests
+        run: npm run test:e2e

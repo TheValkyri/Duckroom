@@ -100,6 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Belt-and-suspenders: đảm bảo inline vars khớp store sau khi hydrate
   // (init-script đã chạy trước trong <head>; gọi lại 1 lần vô hại).
   useEffect(() => {
+    document.documentElement.setAttribute("data-hydrated", "true");
     ensureThemeApplied();
   }, []);
 
@@ -146,6 +147,23 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="flex flex-col gap-1.5 relative">
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            aria-label="Tìm nhanh trong Duckroom"
+            title={collapsed ? "Tìm nhanh (Ctrl K)" : undefined}
+            className="flex items-center gap-3.5 rounded-xl px-3 py-2.5 text-sm font-medium border border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/40 cursor-pointer transition-colors"
+          >
+            <Search className="size-5 shrink-0 text-primary/70" />
+            {!collapsed && (
+              <span className="flex items-center justify-between flex-1">
+                <span>Tìm kiếm</span>
+                <kbd className="text-[10px] font-mono border border-border/70 px-1.5 py-0.5 rounded text-muted-foreground/80">
+                  Ctrl K
+                </kbd>
+              </span>
+            )}
+          </button>
           {visibleNav.map(({ to, label, icon: Icon }) => {
             const isActive = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
             return (
