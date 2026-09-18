@@ -1,4 +1,4 @@
-# CURRENT VERIFICATION — single source of current truth (2026-08-31)
+# CURRENT VERIFICATION — single source of current truth (2026-09-18)
 
 > Quy tắc: tài liệu này là NƠI DUY NHẤT giữ test count + phase status HIỆN TẠI.
 > Các file `FINAL_*_AUDIT.md` / `PHASE_*_MATRIX.md` là evidence theo thời điểm
@@ -10,37 +10,38 @@
 - Phases 8–11: implemented TRƯỚC kế hoạch (feature-creep đã được ghi nhận và
   đóng băng — không mở rộng thêm; xem HISTORY.md).
 - **MOBILE UI OVERRUN (2026-08-31): COMPLETE in-repo** — mobile-first shell
-  (bottom nav, mini-player, sheets, safe-areas), zero desktop regression,
-  docs in `MOBILE_UI_CONTEXT_AUDIT / MOBILE_UI_ARCHITECTURE / MOBILE_UI_QA /
-MOBILE_RESPONSIVE_MATRIX / FINAL_MOBILE_UI_RELEASE_REPORT`.
-- **PERF/PLAYBACK/LYRICS/LOADING HARDENING PASS (2026-09-04): COMPLETE
-  in-repo** — WP1–WP7 theo feedback round (audio stall, lyrics jitter,
-  initial-load "khựng 2–3s", iOS PWA background, artwork perf). Chi tiết
-  AD-17/AD-18 trong ARCHITECTURE_DECISIONS.md.
-- **EDGE-FREE CHROME REDESIGN + BELOW-FOLD PAINT (2026-09-04, commit 2):
-  COMPLETE in-repo** — bỏ đường kẻ cứng (border) trên toàn bộ bề mặt
-  docked (top bar, bottom nav, mini-player, desktop player bar, sidebar,
-  QueuePanel) thay bằng bóng mềm 1 lớp đọc token (`edge-shadow-t/b/l/r`
-  — AD-19); section divider trang content chuyển sang spacing tự nhiên;
-  `defer-paint` (content-visibility:auto + contain-intrinsic-size) cho
-  section dưới fold (recent tracks, videos, library list 76+ rows);
-  hero LCP ảnh `fetchpriority=high + loading=eager`.
-- Release-ready = **NO** — vẫn còn 3 external gates (live Supabase/rotation/S3).
+  (bottom nav, mini-player, sheets, safe-areas), zero desktop regression.
+- **PERF/PLAYBACK/LYRICS/LOADING HARDENING PASS (2026-09-04): COMPLETE in-repo** — WP1–WP7 (AD-17/AD-18).
+- **EDGE-FREE CHROME REDESIGN + BELOW-FOLD PAINT (2026-09-04): COMPLETE in-repo** — AD-19/AD-20.
+- **PHASE 0 ARCHITECTURAL OVERHAUL (2026-09-15): COMPLETE in-repo** —
+  Khôi phục baseline DDL (AD-16 resolved: `00000000_duckroom_v1_baseline.sql`),
+  xóa sổ SSR 404 (`src/lib/ssr-loaders.ts`), căn chỉnh TTL presigned URL (15m/6h),
+  lazy signing (`src: ""`) giải phóng S3 HMAC concurrency.
+- **PHASE 1 SECURITY HARDENING (2026-09-15): COMPLETE in-repo** —
+  Sliding-window IP rate limiter (`src/lib/rate-limit.ts`), 60s SHA-256 hashed in-memory auth cache,
+  fresh authorization middleware cho toàn bộ 16 write mutations, ingestion Range clamping.
+- **PHASE 2 MEDIA PERFORMANCE (2026-09-15): COMPLETE in-repo** —
+  128-byte precomputed waveform peaks (`waveform_peaks` column), cứu iOS background audio (gỡ
+  visualizer khỏi PlayerBar, toggle riêng trong NowPlaying), TanStack Query v5 state sync, crossfade preload reuse.
+- **PHASE 3 ARCHITECTURE SUSTAINABILITY (2026-09-15): COMPLETE in-repo** —
+  DB-driven album display priority (`display_priority` column + seeds, xóa bỏ hardcoded logic),
+  cursor-based playback history pagination với composite tie-breaker (`started_at_id`).
+- Release-ready = **NO (CONDITIONAL)** — mã nguồn đạt chuẩn production, chờ đóng 2 external gates trực tiếp từ owner (apply SQL migrations Phase 2+3 trên Supabase và credential rotation).
 
 ## Environment
 
 - Node v24.16.0 · npm 11.13.0 · lockfileVersion 3
 - QA browser: Chrome 151 via CDP @ 360/375/390/412/430/768 + 1280/1440/1920
 
-## Gates (2026-09-04, working copy, sau chrome-redesign + defer-paint)
+## Gates (2026-09-18, sau Phase 0–3 Architectural Overhaul)
 
 | Gate                   | Kết quả                                                                                                            |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `npx tsc --noEmit`     | PASS (0 errors)                                                                                                    |
-| `npx eslint .`         | PASS (0 errors / 22 warnings pre-existing)                                                                         |
-| `npm test`             | **PASS 363/363 across 30 files** (guard mobile-ui-shell cập nhật theo contract mới: dock borderless + edge-shadow) |
-| `npm run build`        | PASS (1.25 MB gzip; bundle CSS chứa edge-shadow-*/defer-paint/content-visibility — đã verify output)               |
-| `npm run scan:secrets` | CLEAN (74 client files)                                                                                            |
+| `npx tsc --noEmit`     | **PASS** (0 errors)                                                                                                |
+| `npx eslint .`         | **PASS** (0 errors / 15 warnings fast-refresh Shadcn)                                                               |
+| `npm test`             | **PASS 472/472 across 37 files** (100% xanh)                                                                       |
+| `npm run build`        | **PASS** (5.98 MB total, 1.3 MB gzip — Vite client + Nitro SSR Vercel preset)                                      |
+| `npm run scan:secrets` | **CLEAN** (80 client files đã quét, 0 rò rỉ secret)                                                                |
 
 ## Perf/playback/lyrics/loading pass (2026-09-04) — thay đổi chính
 
@@ -76,10 +77,13 @@ MOBILE_RESPONSIVE_MATRIX / FINAL_MOBILE_UI_RELEASE_REPORT`.
 - Còn hở môi trường (không phải code): audio autoplay bị chặn với gesture
   synthetic (engine đã recovery sạch); chưa có thiết bị notch thật.
 
-## External gates (vẫn chặn public release)
+## External gates (chờ thao tác từ owner để đạt full release-ready)
 
-1. Apply migrations 20260819 → 20260904 lên live Supabase + security matrix.
-2. Rotate credentials đã từng lộ.
-3. Live S3 verification (presign/orphan/snapshot).
-4. Real-device perf pass §26.4 (mobile matrix giờ có harness CDP tái sử dụng
-   được: `scripts/cdp-qa.mjs` + `scripts/qa-plans/`).
+1. **Apply live SQL migrations**:
+   - `00000000_duckroom_v1_baseline.sql` (baseline DDL cho fresh project)
+   - `20260916_duckroom_v2_waveform_peaks.sql`: `ALTER TABLE public.track_files ADD COLUMN IF NOT EXISTS waveform_peaks SMALLINT[];`
+   - `20260917_duckroom_v2_album_priority.sql`: `ALTER TABLE public.albums ADD COLUMN IF NOT EXISTS display_priority INTEGER NOT NULL DEFAULT 999;` + seed updates.
+2. **Rotate credentials đã từng lộ**:
+   - Supabase Service Role Key + Cloudflare R2 / AWS S3 keys. Cập nhật biến môi trường trên Vercel.
+3. **Live S3 verification**: presign/orphan/snapshot verification trên bucket thật sau khi rotate keys.
+4. **Real-device perf pass**: Automation Playwright Chromium headless chạy trong CI; kiểm thử thủ công trên thiết bị vật lý iOS Safari/PWA.

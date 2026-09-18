@@ -292,7 +292,7 @@ reducedMotion="user"` (§18) — persisting it would create two competing
 - **Testing evidence**: checker exit 0 (128 refs / 22 tables) sau fix; trước
   fix bắt đúng 1 phantom.
 
-## AD-16 — Chain đòi LEGACY BASELINE: tracks/albums/videos không được tạo
+## AD-16 — Chain đòi LEGACY BASELINE: tracks/albums/videos không được tạo (RESOLVED)
 
 - **Requirement**: fresh-bootstrap safety (Master Plan §34/§35).
 - **Discovery (live, 2026-08-25)**: chain KHÔNG tạo tracks/albums/videos —
@@ -301,14 +301,12 @@ reducedMotion="user"` (§18) — persisting it would create two competing
   chạy được. Một Supabase project mới tinh khiết sẽ fail ngay ALTER đầu tiên
   (relation does not exist). Các audit trước đánh dấu fresh-bootstrap
   UNVERIFIED — nay được chứng minh bằng thực tế.
-- **Chosen design (hiện tại)**: ghi nhận contract rõ ràng: chain yêu cầu
-  legacy baseline; checker chứa LEGACY_BASELINE map (các cột mà chain thực
-  sự tham chiếu) để static validation có ý nghĩa; schema.sql boundary header
-  bổ sung cảnh báo.
-- **OPEN gap**: tạo baseline DDL cho project mới (supabase/baseline-v1.sql) —
-  cần schema v1 gốc chính xác, không đoán; tracked trong handoff.
-- **Impact**: không đổi behavior với DB hiện có; biến điều ngầm định thành
-  explicit contract.
+- **Resolution (2026-09-15, Commit `0f0e41e`)**: Tạo migration baseline
+  `supabase/migrations/00000000_duckroom_v1_baseline.sql` khai báo đầy đủ DDL
+  `CREATE TABLE IF NOT EXISTS` cho 3 bảng cốt lõi (`albums`, `tracks`, `videos`),
+  khóa chính, foreign keys, index và kích hoạt `ENABLE ROW LEVEL SECURITY`.
+  Validator `scripts/check-migration-columns.cjs` đã cập nhật và pass 100% 21 migrations.
+- **Impact**: Fresh Postgres bootstrap thành công từ rỗng hoàn toàn, không còn phụ thuộc schema ẩn.
 
 ---
 
@@ -522,3 +520,48 @@ contain-intrinsic-size: auto 600px }` đặt trên CONTAINER section dưới
 - **Testing**: bundle CSS production verified chứa `content-visibility:
 auto` + `contain-intrinsic-size`; full suite 363/363 (không thay đổi
   hành vi quan sát được từ JS).
+
+---
+
+# ARCHITECTURAL OVERHAUL & HARDENING (2026-09-15 — 2026-09-18) — ADRs AD-21..AD-23
+
+## AD-21 — Architectural Overhaul Phases 0–3: SSR Loaders, Security & Media Foundation
+
+- **Problem**:
+  1. SSR 404 on dynamic routes (`/albums/$albumId`, `/videos/$videoId`) caused by reading client-only in-memory arrays during server rendering.
+  2. Presigned URL TTL mismatches (24h hardcoded vs 15m/6h documented).
+  3. Eager signing of all ~170 audio/video storage keys on every library fetch, creating cold-start latency.
+  4. Absence of rate limiting on serverless mutation endpoints.
+  5. Auth role check latency on every server function call without caching.
+  6. Waveform rendering downloading full ~100MB FLAC files on mobile browsers.
+  7. Hardcoded album display priorities in code.
+  8. Offset pagination causing duplicate skips on dense playback history timestamps.
+- **Chosen Design**:
+  - **SSR Loaders** (`src/lib/ssr-loaders.ts`): Server functions querying Postgres directly with 6s timeout wrapper and bounded LRU cache (1000 items, 20% eviction).
+  - **TTL Constants** (`src/lib/s3-constants.ts`): `PRESIGNED_URL_TTL_SECONDS = 900` (15m), `ARTWORK_URL_TTL_SECONDS = 21600` (6h).
+  - **Lazy Signing**: Return `src: ""` in library response; player fetches signed URL on-demand on first Play.
+  - **Sliding-Window Rate Limiter** (`src/lib/rate-limit.ts`): Sliding-window counter per client IP with Retry-After header.
+  - **Auth Cache** (`src/lib/auth.server.ts`): In-memory SHA-256 token hash cache (60s TTL, 200 entries) for read paths; all mutation endpoints bypass cache (`requireFreshOwnerMiddleware`, `requireFreshMemberMiddleware`).
+  - **128-Byte Waveform Peaks**: Computed in browser during upload, stored in `track_files.waveform_peaks SMALLINT[]`, instant 0ms playback seekbar.
+  - **DB-Driven Priority**: `albums.display_priority INTEGER DEFAULT 999` replacing hardcoded sorting.
+  - **Composite Cursor Pagination**: History paginated by `started_at_id` composite cursor with `.or()` tie-breaker filter.
+- **Testing**: 472/472 tests pass across 37 test files; all quality gates green.
+
+## AD-22 — God-File Modular Decomposition with Backwards-Compatible Barrels
+
+- **Problem**: 5 core files exceeded maintainability thresholds (30KB–79KB, up to 2127 lines):
+  - `ingestion.ts` (2127 lines)
+  - `admin.tsx` (1341 lines)
+  - `NowPlaying.tsx` (779 lines)
+  - `domain-mutations.ts` (873 lines)
+  - `AppShell.tsx` (647 lines)
+- **Chosen Design**: Split each monolithic file into focused modules grouped into dedicated domain directories (`src/lib/ingestion/`, `src/components/admin/`, `src/lib/domain-mutations/`, `src/components/player/`, `src/components/shell/`).
+- **Invariance Rule**: Retain the original file path as a barrel re-export (`export * from './...'`) to guarantee 100% backwards compatibility for existing imports across the codebase without breaking external modules or tests.
+- **Testing**: Complete suite must pass at each decomposition stage.
+
+## AD-23 — Safe Audit Logging: Fail-Open Telemetry with Warning
+
+- **Problem**: 12 mutation operations in `domain-mutations.ts` and several in `owner-data.ts` silently swallowed audit logging errors (`catch { // Ignore audit log failure }`), leaving zero observability trail when audit persistence failed.
+- **Chosen Design**: Introduce `safeAuditLog(db, entry)` helper. If writing to `audit_logs` fails, emit structured `console.warn("[AUDIT] Failed to write audit log:", ...)` with action, resource ID, and error details, while maintaining fail-open semantics so legitimate user mutations are not blocked by secondary telemetry storage errors.
+- **Testing**: Unit tests verify `console.warn` is called when database audit insert rejects.
+
