@@ -782,3 +782,917 @@ describe("Global master-library revision guard", () => {
     });
   });
 });
+
+describe("Comprehensive Domain Mutations & OCC Lifecycle Tests", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe("Album Domain Mutations Lifecycle", () => {
+    it("createAlbumDomainInternal creates album with provided values and writes audit log", async () => {
+      const mockInsert = vi.fn().mockReturnValue({
+        select: () => ({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: "album-test-1",
+              title: "Test Album",
+              artist: "Artist X",
+              year: 2025,
+              cover_storage_key: "artworks/test.jpg",
+              accent: "oklch(0.5 0.1 120)",
+              note: "Test note",
+              display_priority: 1,
+              version: 1,
+              status: "active",
+            },
+            error: null,
+          }),
+        }),
+      });
+      const mockAuditInsert = vi.fn().mockResolvedValue({ error: null });
+
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "albums") return { insert: mockInsert };
+          if (table === "audit_logs") return { insert: mockAuditInsert };
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      const created = await domainMutations.createAlbumDomainInternal(
+        {
+          id: "album-test-1",
+          title: "  Test Album  ",
+          artist: "  Artist X  ",
+          year: 2025,
+          cover: "https://bucket.s3/artworks/test.jpg",
+          note: "Test note",
+          displayPriority: 1,
+        },
+        "user-admin-1",
+      );
+
+      expect(created.id).toBe("album-test-1");
+      expect(created.title).toBe("Test Album");
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "album-test-1",
+          title: "Test Album",
+          artist: "Artist X",
+          version: 1,
+          status: "active",
+        }),
+      );
+      expect(mockAuditInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor_user_id: "user-admin-1",
+          action: "album.create",
+          resource_type: "album",
+          resource_id: "album-test-1",
+        }),
+      );
+    });
+
+    it("createAlbumDomainInternal throws error if database insert fails", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          insert: () => ({
+            select: () => ({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: "Unique constraint violation" },
+              }),
+            }),
+          }),
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      await expect(
+        domainMutations.createAlbumDomainInternal({
+          title: "Failing Album",
+          artist: "Artist",
+        }),
+      ).rejects.toThrow(/Album creation failed: Unique constraint violation/i);
+    });
+
+    it("updateAlbumDomainInternal updates album and increments version", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "albums") {
+            return {
+              update: (updates: any) => ({
+                eq: (_c1: string, id: string) => ({
+                  eq: (_c2: string, ver: number) => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({
+                        data: {
+                          id,
+                          title: updates.title,
+                          version: ver + 1,
+                          status: "active",
+                        },
+                        error: null,
+                      }),
+                    }),
+                  }),
+                }),
+              }),
+            };
+          }
+          if (table === "audit_logs") {
+            return { insert: vi.fn().mockResolvedValue({ error: null }) };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      const updated = await domainMutations.updateAlbumDomainInternal({
+        id: "album-1",
+        expectedVersion: 2,
+        title: "Updated Album Title",
+      });
+
+      expect(updated.title).toBe("Updated Album Title");
+      expect(updated.version).toBe(3);
+    });
+
+    it("updateAlbumDomainInternal throws ConcurrencyConflictError when expectedVersion is stale", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "albums") {
+            return {
+              update: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                    }),
+                  }),
+                }),
+              }),
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { id: "album-stale", version: 4 },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      await expect(
+        domainMutations.updateAlbumDomainInternal({
+          id: "album-stale",
+          expectedVersion: 2,
+          title: "Stale update",
+        }),
+      ).rejects.toThrow(/Stale revision: Album album-stale is at version 4, expected 2/i);
+    });
+
+    it("updateAlbumDomainInternal throws ResourceNotFoundError when album does not exist", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "albums") {
+            return {
+              update: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                    }),
+                  }),
+                }),
+              }),
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+            };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      await expect(
+        domainMutations.updateAlbumDomainInternal({
+          id: "album-ghost",
+          expectedVersion: 1,
+          title: "Ghost update",
+        }),
+      ).rejects.toThrow(/Album album-ghost not found/i);
+    });
+
+    it("trashAlbumDomainInternal throws ConcurrencyConflictError on stale version", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "albums") {
+            return {
+              update: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                    }),
+                  }),
+                }),
+              }),
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { id: "album-trash-conflict", version: 5 },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      await expect(domainMutations.trashAlbumDomainInternal("album-trash-conflict", 2, "user-1")).rejects.toThrow(
+        /Stale revision: Album album-trash-conflict is at version 5, expected 2/i,
+      );
+    });
+
+    it("restoreAlbumDomainInternal restores active status and bumps version", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "albums") {
+            return {
+              update: (updates: any) => ({
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({
+                        data: {
+                          id: "album-restored",
+                          status: updates.status,
+                          deleted_at: updates.deleted_at,
+                          version: updates.version,
+                        },
+                        error: null,
+                      }),
+                    }),
+                  }),
+                }),
+              }),
+            };
+          }
+          if (table === "audit_logs") {
+            return { insert: vi.fn().mockResolvedValue({ error: null }) };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      const restored = await domainMutations.restoreAlbumDomainInternal("album-restored", 3, "user-admin");
+      expect(restored.status).toBe("active");
+      expect(restored.deleted_at).toBeNull();
+      expect(restored.version).toBe(4);
+    });
+
+    it("restoreAlbumDomainInternal throws ConcurrencyConflictError on stale expectedVersion", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "albums") {
+            return {
+              update: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                    }),
+                  }),
+                }),
+              }),
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { id: "album-restore-stale", version: 7 },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      await expect(domainMutations.restoreAlbumDomainInternal("album-restore-stale", 2, "user-admin")).rejects.toThrow(
+        /Stale revision: Album album-restore-stale is at version 7, expected 2/i,
+      );
+    });
+  });
+
+  describe("Track Domain Mutations Lifecycle", () => {
+    it("createTrackDomainInternal creates track with provided values and writes audit log", async () => {
+      const mockInsert = vi.fn().mockReturnValue({
+        select: () => ({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: "track-test-1",
+              title: "Test Track",
+              artist: "Artist Track",
+              album_id: "album-1",
+              track_no: 2,
+              duration_seconds: 240,
+              format: "FLAC",
+              bit_depth: 24,
+              sample_rate: 48000,
+              size_mb: 25.5,
+              storage_key: "audio/track.flac",
+              cover_storage_key: "artworks/track.jpg",
+              year: 2026,
+              lyrics: [],
+              lyrics_source: null,
+              version: 1,
+              status: "active",
+            },
+            error: null,
+          }),
+        }),
+      });
+      const mockAuditInsert = vi.fn().mockResolvedValue({ error: null });
+
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "tracks") return { insert: mockInsert };
+          if (table === "audit_logs") return { insert: mockAuditInsert };
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      const created = await domainMutations.createTrackDomainInternal(
+        {
+          id: "track-test-1",
+          title: "  Test Track  ",
+          artist: "Artist Track",
+          albumId: "album-1",
+          duration: 240,
+          trackNo: 2,
+          format: "FLAC",
+          bitDepth: 24,
+          sampleRate: 48000,
+          sizeMB: 25.5,
+          src: "https://s3/audio/track.flac",
+          cover: "https://s3/artworks/track.jpg",
+          year: 2026,
+        },
+        "user-owner-1",
+      );
+
+      expect(created.id).toBe("track-test-1");
+      expect(created.title).toBe("Test Track");
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "track-test-1",
+          title: "Test Track",
+          storage_key: "audio/track.flac",
+          version: 1,
+          status: "active",
+        }),
+      );
+      expect(mockAuditInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "track.create",
+          resource_type: "track",
+          resource_id: "track-test-1",
+        }),
+      );
+    });
+
+    it("createTrackDomainInternal throws error if database insert fails", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          insert: () => ({
+            select: () => ({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: "Storage constraint failed" },
+              }),
+            }),
+          }),
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      await expect(
+        domainMutations.createTrackDomainInternal({
+          title: "Failed Track",
+          artist: "Artist",
+          duration: 100,
+          trackNo: 1,
+        }),
+      ).rejects.toThrow(/Track creation failed: Storage constraint failed/i);
+    });
+
+    it("restoreTrackDomainInternal restores active status and bumps version", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "tracks") {
+            return {
+              update: (updates: any) => ({
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({
+                        data: {
+                          id: "track-restored",
+                          status: updates.status,
+                          deleted_at: updates.deleted_at,
+                          version: updates.version,
+                        },
+                        error: null,
+                      }),
+                    }),
+                  }),
+                }),
+              }),
+            };
+          }
+          if (table === "audit_logs") {
+            return { insert: vi.fn().mockResolvedValue({ error: null }) };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      const restored = await domainMutations.restoreTrackDomainInternal("track-restored", 4, "user-admin");
+      expect(restored.status).toBe("active");
+      expect(restored.deleted_at).toBeNull();
+      expect(restored.version).toBe(5);
+    });
+
+    it("restoreTrackDomainInternal throws ConcurrencyConflictError on stale expectedVersion", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "tracks") {
+            return {
+              update: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                    }),
+                  }),
+                }),
+              }),
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { id: "track-restore-stale", version: 8 },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      await expect(domainMutations.restoreTrackDomainInternal("track-restore-stale", 3, "user-admin")).rejects.toThrow(
+        /Stale revision: Track track-restore-stale is at version 8, expected 3/i,
+      );
+    });
+
+    it("restoreTrackDomainInternal throws ResourceNotFoundError when track does not exist", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "tracks") {
+            return {
+              update: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                    }),
+                  }),
+                }),
+              }),
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+            };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      await expect(domainMutations.restoreTrackDomainInternal("track-ghost", 1, "user-admin")).rejects.toThrow(
+        /Track track-ghost not found/i,
+      );
+    });
+  });
+
+  describe("Video Domain Mutations Lifecycle", () => {
+    it("createVideoDomainInternal creates video with provided values and writes audit log", async () => {
+      const mockInsert = vi.fn().mockReturnValue({
+        select: () => ({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: "video-test-1",
+              title: "Test Video",
+              artist: "Artist Video",
+              year: 2026,
+              thumb_storage_key: "videos/thumb.jpg",
+              storage_key: "videos/video.mp4",
+              duration_seconds: 180,
+              resolution: "1080p",
+              codec: "H.264",
+              bitrate: "5Mbps",
+              size_mb: 120,
+              version: 1,
+              status: "active",
+            },
+            error: null,
+          }),
+        }),
+      });
+      const mockAuditInsert = vi.fn().mockResolvedValue({ error: null });
+
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "videos") return { insert: mockInsert };
+          if (table === "audit_logs") return { insert: mockAuditInsert };
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      const created = await domainMutations.createVideoDomainInternal(
+        {
+          id: "video-test-1",
+          title: "Test Video",
+          artist: "Artist Video",
+          year: 2026,
+          thumb: "https://s3/videos/thumb.jpg",
+          src: "https://s3/videos/video.mp4",
+          duration: 180,
+          resolution: "1080p",
+          codec: "H.264",
+          bitrate: "5Mbps",
+          sizeMB: 120,
+        },
+        "user-owner-1",
+      );
+
+      expect(created.id).toBe("video-test-1");
+      expect(created.title).toBe("Test Video");
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "video-test-1",
+          thumb_storage_key: "videos/thumb.jpg",
+          storage_key: "videos/video.mp4",
+          version: 1,
+          status: "active",
+        }),
+      );
+      expect(mockAuditInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "video.create",
+          resource_type: "video",
+          resource_id: "video-test-1",
+        }),
+      );
+    });
+
+    it("createVideoDomainInternal throws error if database insert fails", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          insert: () => ({
+            select: () => ({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: "Database failure" },
+              }),
+            }),
+          }),
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      await expect(
+        domainMutations.createVideoDomainInternal({
+          title: "Failed Video",
+          artist: "Artist",
+        }),
+      ).rejects.toThrow(/Video creation failed: Database failure/i);
+    });
+
+    it("updateVideoDomainInternal updates video and increments version", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "videos") {
+            return {
+              update: (updates: any) => ({
+                eq: (_c1: string, id: string) => ({
+                  eq: (_c2: string, ver: number) => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({
+                        data: {
+                          id,
+                          title: updates.title,
+                          version: ver + 1,
+                          status: "active",
+                        },
+                        error: null,
+                      }),
+                    }),
+                  }),
+                }),
+              }),
+            };
+          }
+          if (table === "audit_logs") {
+            return { insert: vi.fn().mockResolvedValue({ error: null }) };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      const updated = await domainMutations.updateVideoDomainInternal({
+        id: "video-1",
+        expectedVersion: 1,
+        title: "Updated Video Title",
+      });
+
+      expect(updated.title).toBe("Updated Video Title");
+      expect(updated.version).toBe(2);
+    });
+
+    it("updateVideoDomainInternal throws ConcurrencyConflictError when expectedVersion is stale", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "videos") {
+            return {
+              update: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                    }),
+                  }),
+                }),
+              }),
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { id: "video-stale", version: 5 },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      await expect(
+        domainMutations.updateVideoDomainInternal({
+          id: "video-stale",
+          expectedVersion: 2,
+          title: "Stale Video Update",
+        }),
+      ).rejects.toThrow(/Stale revision: Video video-stale is at version 5, expected 2/i);
+    });
+
+    it("updateVideoDomainInternal throws ResourceNotFoundError when video does not exist", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "videos") {
+            return {
+              update: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                    }),
+                  }),
+                }),
+              }),
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+            };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      await expect(
+        domainMutations.updateVideoDomainInternal({
+          id: "video-ghost",
+          expectedVersion: 1,
+          title: "Ghost Video",
+        }),
+      ).rejects.toThrow(/Video video-ghost not found/i);
+    });
+
+    it("trashVideoDomainInternal marks video as trash and increments version", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "videos") {
+            return {
+              update: (updates: any) => ({
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({
+                        data: {
+                          id: "video-trash-1",
+                          status: updates.status,
+                          deleted_at: updates.deleted_at,
+                          version: updates.version,
+                        },
+                        error: null,
+                      }),
+                    }),
+                  }),
+                }),
+              }),
+            };
+          }
+          if (table === "audit_logs") {
+            return { insert: vi.fn().mockResolvedValue({ error: null }) };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      const trashed = await domainMutations.trashVideoDomainInternal("video-trash-1", 1, "user-admin");
+      expect(trashed.status).toBe("trash");
+      expect(trashed.deleted_at).toBeDefined();
+      expect(trashed.version).toBe(2);
+    });
+
+    it("trashVideoDomainInternal throws ConcurrencyConflictError on stale expectedVersion", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "videos") {
+            return {
+              update: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                    }),
+                  }),
+                }),
+              }),
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { id: "video-trash-conflict", version: 3 },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      await expect(domainMutations.trashVideoDomainInternal("video-trash-conflict", 1, "user-admin")).rejects.toThrow(
+        /Stale revision: Video video-trash-conflict is at version 3, expected 1/i,
+      );
+    });
+
+    it("restoreVideoDomainInternal restores video to active status and bumps version", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "videos") {
+            return {
+              update: (updates: any) => ({
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({
+                        data: {
+                          id: "video-restored",
+                          status: updates.status,
+                          deleted_at: updates.deleted_at,
+                          version: updates.version,
+                        },
+                        error: null,
+                      }),
+                    }),
+                  }),
+                }),
+              }),
+            };
+          }
+          if (table === "audit_logs") {
+            return { insert: vi.fn().mockResolvedValue({ error: null }) };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      const restored = await domainMutations.restoreVideoDomainInternal("video-restored", 3, "user-admin");
+      expect(restored.status).toBe("active");
+      expect(restored.deleted_at).toBeNull();
+      expect(restored.version).toBe(4);
+    });
+
+    it("restoreVideoDomainInternal throws ConcurrencyConflictError on stale expectedVersion", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "videos") {
+            return {
+              update: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                    }),
+                  }),
+                }),
+              }),
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { id: "video-restore-stale", version: 6 },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      await expect(domainMutations.restoreVideoDomainInternal("video-restore-stale", 2, "user-admin")).rejects.toThrow(
+        /Stale revision: Video video-restore-stale is at version 6, expected 2/i,
+      );
+    });
+
+    it("restoreVideoDomainInternal throws ResourceNotFoundError when video does not exist", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockImplementation((table: string) => {
+          if (table === "videos") {
+            return {
+              update: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                    }),
+                  }),
+                }),
+              }),
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+            };
+          }
+          return {};
+        }),
+      };
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
+
+      await expect(domainMutations.restoreVideoDomainInternal("video-ghost", 1, "user-admin")).rejects.toThrow(
+        /Video video-ghost not found/i,
+      );
+    });
+  });
+});
