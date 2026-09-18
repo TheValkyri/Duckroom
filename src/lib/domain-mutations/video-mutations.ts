@@ -9,6 +9,7 @@ import {
   keyFromValue,
   safeAuditLog,
 } from "./common";
+import type { VideoRow } from "../db-types";
 
 export interface CreateVideoInput {
   id?: string | undefined;
@@ -83,20 +84,20 @@ export async function updateVideoDomainInternal(data: UpdateVideoInput, actorUse
 
   const db = getSupabaseAdmin();
 
-  const updates: Record<string, any> = {
+  const updates: Partial<VideoRow> = {
     version: data.expectedVersion + 1,
     updated_at: new Date().toISOString(),
   };
-  if (data.title !== undefined) updates["title"] = data.title.trim();
-  if (data.artist !== undefined) updates["artist"] = data.artist.trim();
-  if (data.year !== undefined) updates["year"] = data.year;
-  if (data.thumb !== undefined) updates["thumb_storage_key"] = keyFromValue(data.thumb) ?? data.thumb;
-  if (data.duration !== undefined) updates["duration_seconds"] = Math.round(data.duration);
-  if (data.resolution !== undefined) updates["resolution"] = data.resolution;
-  if (data.codec !== undefined) updates["codec"] = data.codec;
-  if (data.bitrate !== undefined) updates["bitrate"] = data.bitrate;
-  if (data.sizeMB !== undefined) updates["size_mb"] = data.sizeMB;
-  if (data.src !== undefined) updates["storage_key"] = keyFromValue(data.src) ?? data.src;
+  if (data.title !== undefined) updates.title = data.title.trim();
+  if (data.artist !== undefined) updates.artist = data.artist.trim();
+  if (data.year !== undefined) updates.year = data.year;
+  if (data.thumb !== undefined) updates.thumb_storage_key = keyFromValue(data.thumb) ?? data.thumb;
+  if (data.duration !== undefined) updates.duration_seconds = Math.round(data.duration);
+  if (data.resolution !== undefined) updates.resolution = data.resolution;
+  if (data.codec !== undefined) updates.codec = data.codec;
+  if (data.bitrate !== undefined) updates.bitrate = data.bitrate;
+  if (data.sizeMB !== undefined) updates.size_mb = data.sizeMB;
+  if (data.src !== undefined) updates.storage_key = keyFromValue(data.src) ?? data.src;
 
   const { data: updated, error } = await db
     .from("videos")
@@ -111,7 +112,7 @@ export async function updateVideoDomainInternal(data: UpdateVideoInput, actorUse
   if (!updated) {
     const { data: existing } = await db.from("videos").select("id, version").eq("id", data.id).maybeSingle();
     if (existing) {
-      const existingVersion = (existing as Record<string, any>)["version"];
+      const existingVersion = (existing as Pick<VideoRow, "id" | "version">).version;
       throw new ConcurrencyConflictError(
         `Stale revision: Video ${data.id} is at version ${existingVersion}, expected ${data.expectedVersion}.`,
       );
@@ -124,7 +125,7 @@ export async function updateVideoDomainInternal(data: UpdateVideoInput, actorUse
     action: "video.update",
     resource_type: "video",
     resource_id: data.id,
-    metadata: { updates, newVersion: (updated as Record<string, any>)["version"] },
+    metadata: { updates: updates as Record<string, unknown>, newVersion: (updated as VideoRow).version },
   });
 
   return updated;
@@ -134,13 +135,13 @@ export async function trashVideoDomainInternal(videoId: string, expectedVersion:
   const actor = actorUserId;
 
   const db = getSupabaseAdmin();
-  const updates: Record<string, any> = {
+  const updates: Partial<VideoRow> = {
     status: "trash",
     deleted_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    version: expectedVersion + 1,
   };
 
-  updates["version"] = expectedVersion + 1;
   const query = db.from("videos").update(updates).eq("id", videoId).eq("version", expectedVersion);
 
   const { data: trashed, error } = await query.select().maybeSingle();
@@ -149,7 +150,7 @@ export async function trashVideoDomainInternal(videoId: string, expectedVersion:
   if (!trashed) {
     const { data: existing } = await db.from("videos").select("id, version").eq("id", videoId).maybeSingle();
     if (existing) {
-      const existingVersion = (existing as Record<string, any>)["version"];
+      const existingVersion = (existing as Pick<VideoRow, "id" | "version">).version;
       throw new ConcurrencyConflictError(
         `Stale revision: Video ${videoId} is at version ${existingVersion}, expected ${expectedVersion}.`,
       );
@@ -162,7 +163,7 @@ export async function trashVideoDomainInternal(videoId: string, expectedVersion:
     action: "video.trash",
     resource_type: "video",
     resource_id: videoId,
-    metadata: { status: "trash", version: (trashed as Record<string, any>)["version"] },
+    metadata: { status: "trash", version: (trashed as VideoRow).version },
   });
 
   return trashed;
@@ -172,13 +173,13 @@ export async function restoreVideoDomainInternal(videoId: string, expectedVersio
   const actor = actorUserId;
 
   const db = getSupabaseAdmin();
-  const updates: Record<string, any> = {
+  const updates: Partial<VideoRow> = {
     status: "active",
     deleted_at: null,
     updated_at: new Date().toISOString(),
+    version: expectedVersion + 1,
   };
 
-  updates["version"] = expectedVersion + 1;
   const query = db.from("videos").update(updates).eq("id", videoId).eq("version", expectedVersion);
 
   const { data: restored, error } = await query.select().maybeSingle();
@@ -187,7 +188,7 @@ export async function restoreVideoDomainInternal(videoId: string, expectedVersio
   if (!restored) {
     const { data: existing } = await db.from("videos").select("id, version").eq("id", videoId).maybeSingle();
     if (existing) {
-      const existingVersion = (existing as Record<string, any>)["version"];
+      const existingVersion = (existing as Pick<VideoRow, "id" | "version">).version;
       throw new ConcurrencyConflictError(
         `Stale revision: Video ${videoId} is at version ${existingVersion}, expected ${expectedVersion}.`,
       );
@@ -200,7 +201,7 @@ export async function restoreVideoDomainInternal(videoId: string, expectedVersio
     action: "video.restore",
     resource_type: "video",
     resource_id: videoId,
-    metadata: { status: "active", version: (restored as Record<string, any>)["version"] },
+    metadata: { status: "active", version: (restored as VideoRow).version },
   });
 
   return restored;

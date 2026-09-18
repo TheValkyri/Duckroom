@@ -15,6 +15,7 @@ import { BUCKET_NAME } from "./s3-constants";
 import { requireFreshOwnerMiddleware, requireOwnerMiddleware, serverSecurityMiddleware } from "./auth-guard";
 import { extractS3KeyFromUrl } from "./s3-key";
 import { safeAuditLog } from "./domain-mutations/common";
+import type { UploadSessionRow, ShareLinkRow, TrackFileRow, VideoFileRow, TrackRow, VideoRow } from "./db-types";
 
 export const getOwnerHealthServer = createServerFn({ method: "GET" })
   .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
@@ -139,7 +140,7 @@ export const scanOrphanS3ObjectsServer = createServerFn({ method: "GET" })
       if (v.thumb_storage_key) activeKeys.add(extractS3KeyFromUrl(v.thumb_storage_key) || v.thumb_storage_key);
     });
 
-    (liveSessions.data || []).forEach((s: any) => {
+    (liveSessions.data || []).forEach((s: Pick<UploadSessionRow, "staging_storage_key" | "artwork_staging_key">) => {
       if (s.staging_storage_key) {
         activeKeys.add(extractS3KeyFromUrl(s.staging_storage_key) || s.staging_storage_key);
       }
@@ -373,9 +374,9 @@ export async function scanDuplicateMastersInternal(): Promise<{
 
   const trackIds = new Set<string>();
   const videoIds = new Set<string>();
-  [...(trackFiles.data ?? []), ...(videoFiles.data ?? [])].forEach((f: any) => {
-    if (f.track_id) trackIds.add(String(f.track_id));
-    if (f.video_id) videoIds.add(String(f.video_id));
+  [...(trackFiles.data ?? []), ...(videoFiles.data ?? [])].forEach((f: Record<string, unknown>) => {
+    if (f["track_id"]) trackIds.add(String(f["track_id"]));
+    if (f["video_id"]) videoIds.add(String(f["video_id"]));
   });
 
   const trackTitles = new Map<string, string>();
@@ -384,7 +385,7 @@ export async function scanDuplicateMastersInternal(): Promise<{
       .from("tracks")
       .select("id,title")
       .in("id", [...trackIds]);
-    (data ?? []).forEach((t: any) => trackTitles.set(String(t.id), String(t.title ?? "")));
+    (data ?? []).forEach((t: Pick<TrackRow, "id" | "title">) => trackTitles.set(String(t.id), String(t.title ?? "")));
   }
   const videoTitles = new Map<string, string>();
   if (videoIds.size) {
@@ -392,17 +393,25 @@ export async function scanDuplicateMastersInternal(): Promise<{
       .from("videos")
       .select("id,title")
       .in("id", [...videoIds]);
-    (data ?? []).forEach((v: any) => videoTitles.set(String(v.id), String(v.title ?? "")));
+    (data ?? []).forEach((v: Pick<VideoRow, "id" | "title">) => videoTitles.set(String(v.id), String(v.title ?? "")));
   }
 
   const groups: DuplicateMasterGroup[] = [];
+  interface FileCandidate {
+    id?: string;
+    sha256?: string | null;
+    file_size_bytes?: number | null;
+    storage_key: string;
+    verified_at?: string;
+    [key: string]: unknown;
+  }
   const collect = (
-    rows: any[] | null,
+    rows: FileCandidate[] | null,
     kind: "track" | "video",
     idField: "track_id" | "video_id",
     titles: Map<string, string>,
   ) => {
-    const byHash = new Map<string, any[]>();
+    const byHash = new Map<string, FileCandidate[]>();
     (rows ?? []).forEach((f) => {
       if (!f.sha256) return;
       const list = byHash.get(f.sha256 as string);
@@ -460,20 +469,27 @@ export const getOwnerSharesServer = createServerFn({ method: "GET" })
       .limit(100);
     if (error) throw new Error(error.message);
     const now = Date.now();
-    const shares: OwnerShareRow[] = (data ?? []).map((s: any) => ({
-      id: String(s.id),
-      resource_type: String(s.resource_type),
-      resource_id: String(s.resource_id),
-      created_by: s.created_by ? String(s.created_by) : null,
-      expires_at: s.expires_at ?? null,
-      revoked_at: s.revoked_at ?? null,
-      created_at: String(s.created_at),
-      status: s.revoked_at
-        ? ("revoked" as const)
-        : s.expires_at && new Date(s.expires_at).getTime() <= now
-          ? ("expired" as const)
-          : ("active" as const),
-    }));
+    const shares: OwnerShareRow[] = (data ?? []).map(
+      (
+        s: Pick<
+          ShareLinkRow,
+          "id" | "resource_type" | "resource_id" | "created_by" | "expires_at" | "revoked_at" | "created_at"
+        >,
+      ) => ({
+        id: String(s.id),
+        resource_type: String(s.resource_type),
+        resource_id: String(s.resource_id),
+        created_by: s.created_by ? String(s.created_by) : null,
+        expires_at: s.expires_at ?? null,
+        revoked_at: s.revoked_at ?? null,
+        created_at: String(s.created_at),
+        status: s.revoked_at
+          ? ("revoked" as const)
+          : s.expires_at && new Date(s.expires_at).getTime() <= now
+            ? ("expired" as const)
+            : ("active" as const),
+      }),
+    );
     return { shares };
   });
 
@@ -542,21 +558,21 @@ export const getUploadHealthServer = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
 
     const byStatus: Record<string, number> = {};
-    (data ?? []).forEach((s: any) => {
-      const key = String(s.status ?? "unknown");
+    (data ?? []).forEach((s: Record<string, unknown>) => {
+      const key = String(s["status"] ?? "unknown");
       byStatus[key] = (byStatus[key] ?? 0) + 1;
     });
 
     const nonTerminal = new Set(["created", "staged", "verifying", "approved", "committing"]);
     const stuckSessions = (data ?? [])
-      .filter((s: any) => nonTerminal.has(String(s.status)))
+      .filter((s: Record<string, unknown>) => nonTerminal.has(String(s["status"])))
       .slice(0, 20)
-      .map((s: any) => ({
-        id: String(s.id),
-        expectedFilename: String(s.expected_filename ?? ""),
-        status: String(s.status ?? ""),
-        stage: String(s.stage ?? ""),
-        updatedAt: (s.updated_at as string | null) ?? null,
+      .map((s: Record<string, unknown>) => ({
+        id: String(s["id"]),
+        expectedFilename: String(s["expected_filename"] ?? ""),
+        status: String(s["status"] ?? ""),
+        stage: String(s["stage"] ?? ""),
+        updatedAt: (s["updated_at"] as string | null) ?? null,
       }));
 
     return { total: data?.length ?? 0, byStatus, stuckSessions };

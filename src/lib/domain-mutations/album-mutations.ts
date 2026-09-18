@@ -9,6 +9,7 @@ import {
   keyFromValue,
   safeAuditLog,
 } from "./common";
+import type { AlbumRow } from "../db-types";
 
 export interface CreateAlbumInput {
   id?: string | undefined;
@@ -72,17 +73,17 @@ export async function updateAlbumDomainInternal(data: UpdateAlbumInput, actorUse
 
   const db = getSupabaseAdmin();
 
-  const updates: Record<string, any> = {
+  const updates: Partial<AlbumRow> = {
     version: data.expectedVersion + 1,
     updated_at: new Date().toISOString(),
   };
-  if (data.title !== undefined) updates["title"] = data.title.trim();
-  if (data.artist !== undefined) updates["artist"] = data.artist.trim();
-  if (data.year !== undefined) updates["year"] = data.year;
-  if (data.cover !== undefined) updates["cover_storage_key"] = keyFromValue(data.cover) ?? data.cover;
-  if (data.accent !== undefined) updates["accent"] = data.accent;
-  if (data.note !== undefined) updates["note"] = data.note.trim();
-  if (data.displayPriority !== undefined) updates["display_priority"] = data.displayPriority;
+  if (data.title !== undefined) updates.title = data.title.trim();
+  if (data.artist !== undefined) updates.artist = data.artist.trim();
+  if (data.year !== undefined) updates.year = data.year;
+  if (data.cover !== undefined) updates.cover_storage_key = keyFromValue(data.cover) ?? data.cover;
+  if (data.accent !== undefined) updates.accent = data.accent;
+  if (data.note !== undefined) updates.note = data.note.trim();
+  if (data.displayPriority !== undefined) updates.display_priority = data.displayPriority;
 
   const { data: updated, error } = await db
     .from("albums")
@@ -97,7 +98,7 @@ export async function updateAlbumDomainInternal(data: UpdateAlbumInput, actorUse
   if (!updated) {
     const { data: existing } = await db.from("albums").select("id, version").eq("id", data.id).maybeSingle();
     if (existing) {
-      const existingVersion = (existing as Record<string, any>)["version"];
+      const existingVersion = (existing as Pick<AlbumRow, "id" | "version">).version;
       throw new ConcurrencyConflictError(
         `Stale revision: Album ${data.id} is at version ${existingVersion}, expected ${data.expectedVersion}.`,
       );
@@ -110,7 +111,7 @@ export async function updateAlbumDomainInternal(data: UpdateAlbumInput, actorUse
     action: "album.update",
     resource_type: "album",
     resource_id: data.id,
-    metadata: { updates, newVersion: (updated as Record<string, any>)["version"] },
+    metadata: { updates: updates as Record<string, unknown>, newVersion: (updated as AlbumRow).version },
   });
 
   return updated;
@@ -120,13 +121,13 @@ export async function trashAlbumDomainInternal(albumId: string, expectedVersion:
   const actor = actorUserId;
 
   const db = getSupabaseAdmin();
-  const updates: Record<string, any> = {
+  const updates: Partial<AlbumRow> = {
     status: "trash",
     deleted_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    version: expectedVersion + 1,
   };
 
-  updates["version"] = expectedVersion + 1;
   const query = db.from("albums").update(updates).eq("id", albumId).eq("version", expectedVersion);
 
   const { data: trashed, error } = await query.select().maybeSingle();
@@ -135,7 +136,7 @@ export async function trashAlbumDomainInternal(albumId: string, expectedVersion:
   if (!trashed) {
     const { data: existing } = await db.from("albums").select("id, version").eq("id", albumId).maybeSingle();
     if (existing) {
-      const existingVersion = (existing as Record<string, any>)["version"];
+      const existingVersion = (existing as Pick<AlbumRow, "id" | "version">).version;
       throw new ConcurrencyConflictError(
         `Stale revision: Album ${albumId} is at version ${existingVersion}, expected ${expectedVersion}.`,
       );
@@ -148,7 +149,7 @@ export async function trashAlbumDomainInternal(albumId: string, expectedVersion:
     action: "album.trash",
     resource_type: "album",
     resource_id: albumId,
-    metadata: { status: "trash", version: (trashed as Record<string, any>)["version"] },
+    metadata: { status: "trash", version: (trashed as AlbumRow).version },
   });
 
   return trashed;
@@ -158,13 +159,13 @@ export async function restoreAlbumDomainInternal(albumId: string, expectedVersio
   const actor = actorUserId;
 
   const db = getSupabaseAdmin();
-  const updates: Record<string, any> = {
+  const updates: Partial<AlbumRow> = {
     status: "active",
     deleted_at: null,
     updated_at: new Date().toISOString(),
+    version: expectedVersion + 1,
   };
 
-  updates["version"] = expectedVersion + 1;
   const query = db.from("albums").update(updates).eq("id", albumId).eq("version", expectedVersion);
 
   const { data: restored, error } = await query.select().maybeSingle();
@@ -173,7 +174,7 @@ export async function restoreAlbumDomainInternal(albumId: string, expectedVersio
   if (!restored) {
     const { data: existing } = await db.from("albums").select("id, version").eq("id", albumId).maybeSingle();
     if (existing) {
-      const existingVersion = (existing as Record<string, any>)["version"];
+      const existingVersion = (existing as Pick<AlbumRow, "id" | "version">).version;
       throw new ConcurrencyConflictError(
         `Stale revision: Album ${albumId} is at version ${existingVersion}, expected ${expectedVersion}.`,
       );
@@ -186,7 +187,7 @@ export async function restoreAlbumDomainInternal(albumId: string, expectedVersio
     action: "album.restore",
     resource_type: "album",
     resource_id: albumId,
-    metadata: { status: "active", version: (restored as Record<string, any>)["version"] },
+    metadata: { status: "active", version: (restored as AlbumRow).version },
   });
 
   return restored;

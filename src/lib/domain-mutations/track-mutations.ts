@@ -10,6 +10,7 @@ import {
   lyricLineSchema,
   safeAuditLog,
 } from "./common";
+import type { TrackRow } from "../db-types";
 
 export interface CreateTrackInput {
   id?: string | undefined;
@@ -96,25 +97,24 @@ export async function updateTrackDomainInternal(data: UpdateTrackInput, actorUse
 
   const db = getSupabaseAdmin();
 
-  const updates: Record<string, any> = {
+  const updates: Partial<TrackRow> = {
     version: data.expectedVersion + 1,
     updated_at: new Date().toISOString(),
   };
-  if (data.title !== undefined) updates["title"] = data.title.trim();
-  if (data.artist !== undefined) updates["artist"] = data.artist.trim();
-  if (data.albumId !== undefined)
-    updates["album_id"] = data.albumId && data.albumId !== "singles" ? data.albumId : null;
-  if (data.trackNo !== undefined) updates["track_no"] = data.trackNo;
-  if (data.duration !== undefined) updates["duration_seconds"] = Math.round(data.duration);
-  if (data.format !== undefined) updates["format"] = data.format;
-  if (data.bitDepth !== undefined) updates["bit_depth"] = Math.round(data.bitDepth);
-  if (data.sampleRate !== undefined) updates["sample_rate"] = data.sampleRate;
-  if (data.sizeMB !== undefined) updates["size_mb"] = data.sizeMB;
-  if (data.src !== undefined) updates["storage_key"] = keyFromValue(data.src) ?? data.src;
-  if (data.cover !== undefined) updates["cover_storage_key"] = keyFromValue(data.cover) ?? data.cover;
-  if (data.year !== undefined) updates["year"] = data.year;
-  if (data.lyrics !== undefined) updates["lyrics"] = data.lyrics;
-  if (data.lyricsSource !== undefined) updates["lyrics_source"] = data.lyricsSource;
+  if (data.title !== undefined) updates.title = data.title.trim();
+  if (data.artist !== undefined) updates.artist = data.artist.trim();
+  if (data.albumId !== undefined) updates.album_id = data.albumId && data.albumId !== "singles" ? data.albumId : null;
+  if (data.trackNo !== undefined) updates.track_no = data.trackNo;
+  if (data.duration !== undefined) updates.duration_seconds = Math.round(data.duration);
+  if (data.format !== undefined) updates.format = data.format;
+  if (data.bitDepth !== undefined) updates.bit_depth = Math.round(data.bitDepth);
+  if (data.sampleRate !== undefined) updates.sample_rate = data.sampleRate;
+  if (data.sizeMB !== undefined) updates.size_mb = data.sizeMB;
+  if (data.src !== undefined) updates.storage_key = keyFromValue(data.src) ?? data.src;
+  if (data.cover !== undefined) updates.cover_storage_key = keyFromValue(data.cover) ?? data.cover;
+  if (data.year !== undefined) updates.year = data.year;
+  if (data.lyrics !== undefined) updates.lyrics = data.lyrics;
+  if (data.lyricsSource !== undefined) updates.lyrics_source = data.lyricsSource;
 
   const { data: updated, error } = await db
     .from("tracks")
@@ -129,7 +129,7 @@ export async function updateTrackDomainInternal(data: UpdateTrackInput, actorUse
   if (!updated) {
     const { data: existing } = await db.from("tracks").select("id, version").eq("id", data.id).maybeSingle();
     if (existing) {
-      const existingVersion = (existing as Record<string, any>)["version"];
+      const existingVersion = (existing as Pick<TrackRow, "id" | "version">).version;
       throw new ConcurrencyConflictError(
         `Stale revision: Track ${data.id} is at version ${existingVersion}, expected ${data.expectedVersion}.`,
       );
@@ -142,7 +142,7 @@ export async function updateTrackDomainInternal(data: UpdateTrackInput, actorUse
     action: "track.update",
     resource_type: "track",
     resource_id: data.id,
-    metadata: { updates, newVersion: (updated as Record<string, any>)["version"] },
+    metadata: { updates: updates as Record<string, unknown>, newVersion: (updated as TrackRow).version },
   });
 
   return updated;
@@ -152,13 +152,13 @@ export async function trashTrackDomainInternal(trackId: string, expectedVersion:
   const actor = actorUserId;
 
   const db = getSupabaseAdmin();
-  const updates: Record<string, any> = {
+  const updates: Partial<TrackRow> = {
     status: "trash",
     deleted_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    version: expectedVersion + 1,
   };
 
-  updates["version"] = expectedVersion + 1;
   const query = db.from("tracks").update(updates).eq("id", trackId).eq("version", expectedVersion);
 
   const { data: trashed, error } = await query.select().maybeSingle();
@@ -167,7 +167,7 @@ export async function trashTrackDomainInternal(trackId: string, expectedVersion:
   if (!trashed) {
     const { data: existing } = await db.from("tracks").select("id, version").eq("id", trackId).maybeSingle();
     if (existing) {
-      const existingVersion = (existing as Record<string, any>)["version"];
+      const existingVersion = (existing as Pick<TrackRow, "id" | "version">).version;
       throw new ConcurrencyConflictError(
         `Stale revision: Track ${trackId} is at version ${existingVersion}, expected ${expectedVersion}.`,
       );
@@ -180,7 +180,7 @@ export async function trashTrackDomainInternal(trackId: string, expectedVersion:
     action: "track.trash",
     resource_type: "track",
     resource_id: trackId,
-    metadata: { status: "trash", version: (trashed as Record<string, any>)["version"] },
+    metadata: { status: "trash", version: (trashed as TrackRow).version },
   });
 
   return trashed;
@@ -190,13 +190,13 @@ export async function restoreTrackDomainInternal(trackId: string, expectedVersio
   const actor = actorUserId;
 
   const db = getSupabaseAdmin();
-  const updates: Record<string, any> = {
+  const updates: Partial<TrackRow> = {
     status: "active",
     deleted_at: null,
     updated_at: new Date().toISOString(),
+    version: expectedVersion + 1,
   };
 
-  updates["version"] = expectedVersion + 1;
   const query = db.from("tracks").update(updates).eq("id", trackId).eq("version", expectedVersion);
 
   const { data: restored, error } = await query.select().maybeSingle();
@@ -205,7 +205,7 @@ export async function restoreTrackDomainInternal(trackId: string, expectedVersio
   if (!restored) {
     const { data: existing } = await db.from("tracks").select("id, version").eq("id", trackId).maybeSingle();
     if (existing) {
-      const existingVersion = (existing as Record<string, any>)["version"];
+      const existingVersion = (existing as Pick<TrackRow, "id" | "version">).version;
       throw new ConcurrencyConflictError(
         `Stale revision: Track ${trackId} is at version ${existingVersion}, expected ${expectedVersion}.`,
       );
@@ -218,7 +218,7 @@ export async function restoreTrackDomainInternal(trackId: string, expectedVersio
     action: "track.restore",
     resource_type: "track",
     resource_id: trackId,
-    metadata: { status: "active", version: (restored as Record<string, any>)["version"] },
+    metadata: { status: "active", version: (restored as TrackRow).version },
   });
 
   return restored;
