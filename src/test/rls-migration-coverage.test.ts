@@ -32,9 +32,12 @@ function readSql(): string {
 function tablesWithPolicies(sql: string): Map<string, Set<string>> {
   const result = new Map<string, Set<string>>();
   // CREATE POLICY "name" ON [schema.]table ...
-  const re = /CREATE POLICY\s+"[^"]+"\s+ON\s+(?:[a-z_][a-z0-9_]*\.)?([a-z_][a-z0-9_]*)/gi;
+  const re = /CREATE POLICY\s+"[^"]+"\s+ON\s+(?:([a-z_][a-z0-9_]*)\.)?([a-z_][a-z0-9_]*)/gi;
   for (const m of sql.matchAll(re)) {
-    const table = m[1]?.toLowerCase();
+    const schema = m[1]?.toLowerCase();
+    const table = m[2]?.toLowerCase();
+    // System schemas (like Supabase's managed realtime schema) have RLS pre-enabled by the platform (§20)
+    if (schema === "realtime") continue;
     if (table && !result.has(table)) result.set(table, new Set());
   }
   return result;

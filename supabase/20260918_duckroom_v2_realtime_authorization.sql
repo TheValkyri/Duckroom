@@ -5,20 +5,9 @@
 --   * Only the topic owner and accepted friends can receive activity.
 --   * Blocked relationships cannot receive activity.
 --   * Users in Ghost Mode (presence_visibility = 'none') are hidden from friends.
---   * Uses RLS on `realtime.messages` table.
-
--- Ensure realtime schema and messages table exist (idempotent across environments)
-CREATE SCHEMA IF NOT EXISTS realtime;
-
-CREATE TABLE IF NOT EXISTS realtime.messages (
-  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  topic TEXT NOT NULL,
-  extension TEXT NOT NULL,
-  inserted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- Enable RLS on realtime.messages
-ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+--   * Uses RLS policies on Supabase's managed `realtime.messages` table.
+--   * Note: The `realtime` schema and `realtime.messages` table are managed internally
+--     by Supabase with RLS pre-enabled. Do not run CREATE TABLE or ALTER TABLE on them.
 
 -- Helper function: verify if authenticated user can publish to topic
 CREATE OR REPLACE FUNCTION public.can_publish_social_topic(topic text, auth_user uuid)
@@ -98,13 +87,11 @@ BEGIN
 END;
 $$;
 
--- Grant permissions to authenticated role
-GRANT USAGE ON SCHEMA realtime TO authenticated;
-GRANT SELECT, INSERT ON TABLE realtime.messages TO authenticated;
+-- Grant function execute permissions to authenticated role
 GRANT EXECUTE ON FUNCTION public.can_publish_social_topic(text, uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.can_receive_social_topic(text, uuid) TO authenticated;
 
--- Policies on realtime.messages
+-- Policies on Supabase's managed realtime.messages table
 DROP POLICY IF EXISTS "Users can publish to their own social presence topic" ON realtime.messages;
 CREATE POLICY "Users can publish to their own social presence topic" ON realtime.messages
   FOR INSERT
