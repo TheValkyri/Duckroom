@@ -29,6 +29,7 @@ const ALLOWED_EXTENSIONS = new Set([
   "jpeg",
   "png",
   "webp",
+  "gif",
   "vtt",
   "json",
 ]);

@@ -1,6 +1,11 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import { useAuth } from "../useAuth";
-import { getMyProfileServer, updateMyProfileServer, requestAvatarUploadUrlServer } from "./social-profile";
+import {
+  getMyProfileServer,
+  updateMyProfileServer,
+  requestAvatarUploadUrlServer,
+  requestBannerUploadUrlServer,
+} from "./social-profile";
 import type { UserProfile, UpdateProfileInput } from "./social-types";
 
 interface ProfileContextType {
@@ -10,6 +15,7 @@ interface ProfileContextType {
   refreshProfile: () => Promise<UserProfile | null>;
   updateProfile: (input: UpdateProfileInput) => Promise<UserProfile>;
   uploadAvatar: (file: File) => Promise<UserProfile>;
+  uploadBanner: (file: File) => Promise<UserProfile>;
 }
 
 const ProfileContext = createContext<ProfileContextType | null>(null);
@@ -64,12 +70,14 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       throw new Error("Kích thước ảnh đại diện không được vượt quá 5MB.");
     }
 
-    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
     if (!validTypes.includes(file.type)) {
-      throw new Error("Vui lòng chọn ảnh định dạng JPG, PNG hoặc WebP.");
+      throw new Error("Vui lòng chọn ảnh định dạng JPG, PNG, WebP hoặc GIF.");
     }
 
-    const ext = file.name.split(".").pop()?.toLowerCase() || (file.type === "image/png" ? "png" : "jpg");
+    const ext =
+      file.name.split(".").pop()?.toLowerCase() ||
+      (file.type === "image/gif" ? "gif" : file.type === "image/png" ? "png" : "jpg");
 
     // 1. Get presigned upload URL
     const { uploadUrl, storageKey } = await requestAvatarUploadUrlServer({
@@ -79,7 +87,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       },
     });
 
-    // 2. Direct PUT upload to S3
+    // 2. Direct PUT upload to S3 (preserves GIF animation binary)
     const uploadRes = await fetch(uploadUrl, {
       method: "PUT",
       headers: {
@@ -103,6 +111,53 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     return updated;
   }, []);
 
+  const uploadBanner = useCallback(async (file: File): Promise<UserProfile> => {
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error("Kích thước ảnh bìa không được vượt quá 10MB.");
+    }
+
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!validTypes.includes(file.type)) {
+      throw new Error("Vui lòng chọn ảnh định dạng JPG, PNG, WebP hoặc GIF.");
+    }
+
+    const ext =
+      file.name.split(".").pop()?.toLowerCase() ||
+      (file.type === "image/gif" ? "gif" : file.type === "image/png" ? "png" : "jpg");
+
+    // 1. Get presigned upload URL
+    const { uploadUrl, storageKey } = await requestBannerUploadUrlServer({
+      data: {
+        fileExtension: ext,
+        contentType: file.type,
+      },
+    });
+
+    // 2. Direct PUT upload to S3 (preserves GIF animation binary)
+    const uploadRes = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": file.type,
+      },
+      body: file,
+    });
+
+    if (!uploadRes.ok) {
+      throw new Error(`Upload ảnh bìa lên kho lưu trữ thất bại (Mã lỗi ${uploadRes.status}).`);
+    }
+
+    // 3. Update profile with new banner storage key
+    const updated = await updateMyProfileServer({
+      data: {
+        bannerStorageKey: storageKey,
+      },
+    });
+
+    setProfile(updated);
+    return updated;
+  }, []);
+
   return (
     <ProfileContext.Provider
       value={{
@@ -112,6 +167,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         refreshProfile,
         updateProfile,
         uploadAvatar,
+        uploadBanner,
       }}
     >
       {children}
@@ -131,6 +187,9 @@ export function useSocialProfile() {
         throw new Error("ProfileProvider is not mounted");
       },
       uploadAvatar: async () => {
+        throw new Error("ProfileProvider is not mounted");
+      },
+      uploadBanner: async () => {
         throw new Error("ProfileProvider is not mounted");
       },
     };

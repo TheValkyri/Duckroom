@@ -262,179 +262,206 @@ export function ProfileCard({ userId, open, onClose, onActionSuccess }: ProfileC
               aria-modal="true"
               aria-label="Hồ sơ thành viên"
               {...cardMotionProps}
-              className="pointer-events-auto relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-card/95 p-6 shadow-2xl backdrop-blur-xl"
+              className="pointer-events-auto relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-card/95 shadow-2xl backdrop-blur-xl p-0"
             >
-              {/* Close button */}
-              <button
-                type="button"
-                onClick={onClose}
-                className="absolute right-4 top-4 grid size-8 place-items-center rounded-full text-muted-foreground transition hover:bg-white/10 hover:text-foreground active:scale-95"
-                aria-label="Đóng"
-              >
-                <X className="size-4" />
-              </button>
-
               {isLoading || !profile ? (
-                <div className="flex flex-col gap-5 py-2">
-                  <div className="flex items-start gap-4">
-                    <div className="size-16 rounded-full bg-white/10 animate-pulse motion-reduce:animate-none shrink-0" />
-                    <div className="flex-1 space-y-2 pt-1">
+                <div className="flex flex-col">
+                  <div className="h-32 sm:h-36 w-full bg-white/10 animate-pulse motion-reduce:animate-none" />
+                  <div className="p-5 flex flex-col gap-4">
+                    <div className="-mt-10 size-16 rounded-full bg-white/10 animate-pulse motion-reduce:animate-none shrink-0 ring-4 ring-card" />
+                    <div className="space-y-2">
                       <div className="h-5 w-36 rounded bg-white/10 animate-pulse motion-reduce:animate-none" />
                       <div className="h-3.5 w-24 rounded bg-white/5 animate-pulse motion-reduce:animate-none" />
-                      <div className="h-3 w-16 rounded bg-white/5 animate-pulse motion-reduce:animate-none" />
                     </div>
-                  </div>
-                  <div className="h-12 w-full rounded-2xl bg-white/5 animate-pulse motion-reduce:animate-none" />
-                  <div className="flex gap-2 pt-2 border-t border-white/5">
-                    <div className="h-9 flex-1 rounded-xl bg-white/5 animate-pulse motion-reduce:animate-none" />
-                    <div className="h-9 w-24 rounded-xl bg-white/5 animate-pulse motion-reduce:animate-none" />
+                    <div className="h-12 w-full rounded-2xl bg-white/5 animate-pulse motion-reduce:animate-none" />
+                    <div className="flex gap-2 pt-2 border-t border-white/5">
+                      <div className="h-9 flex-1 rounded-xl bg-white/5 animate-pulse motion-reduce:animate-none" />
+                      <div className="h-9 w-24 rounded-xl bg-white/5 animate-pulse motion-reduce:animate-none" />
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col gap-5">
-                  {/* Header: Avatar, Names, Presence */}
-                  <div className="flex items-start gap-4">
-                    <div className="relative shrink-0">
-                      <ProfileAvatar
-                        src={profile.avatarUrl}
-                        name={profile.displayName}
-                        handle={profile.handle}
-                        size="lg"
-                        className="size-16 ring-2 ring-white/10"
-                      />
-                      <div className="absolute -bottom-1 -right-1 rounded-full bg-card p-1 shadow-sm">
-                        <PresenceDot status={status} size="md" />
+                <div className="flex flex-col">
+                  {/* Cover Banner */}
+                  <div className="relative h-32 sm:h-36 w-full overflow-hidden bg-muted/60">
+                    {profile.bannerUrl ? (
+                      <img src={profile.bannerUrl} alt="Ảnh bìa" className="size-full object-cover" />
+                    ) : (
+                      <div
+                        className="size-full bg-gradient-to-r from-purple-950/60 via-indigo-950/50 to-slate-900/80 relative"
+                        style={profile.bannerColor ? { backgroundColor: profile.bannerColor } : undefined}
+                      >
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_50%)]" />
+                      </div>
+                    )}
+                    {/* Close button */}
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="absolute right-3.5 top-3.5 z-20 grid size-8 place-items-center rounded-full bg-black/50 text-white backdrop-blur-md transition hover:bg-black/80 active:scale-95 cursor-pointer"
+                      aria-label="Đóng"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </div>
+
+                  {/* Profile Body */}
+                  <div className="p-5 sm:p-6 flex flex-col gap-4">
+                    {/* Avatar row overlapping banner */}
+                    <div className="flex items-end justify-between -mt-14 sm:-mt-16 relative z-10">
+                      <div className="relative shrink-0">
+                        <ProfileAvatar
+                          src={profile.avatarUrl}
+                          name={profile.displayName}
+                          handle={profile.handle}
+                          size="lg"
+                          className="size-20 sm:size-24 ring-4 ring-card bg-card shadow-xl"
+                        />
+                        <div className="absolute -bottom-1 -right-1 rounded-full bg-card p-1 shadow-sm">
+                          <PresenceDot status={status} size="md" />
+                        </div>
+                      </div>
+
+                      <div className="mb-1">
+                        <PresenceDot status={status} size="xs" showText />
                       </div>
                     </div>
 
-                    <div className="min-w-0 flex-1 pt-0.5">
-                      <h3 className="truncate text-lg font-bold text-foreground">{profile.displayName}</h3>
+                    {/* Display name & handle */}
+                    <div className="min-w-0">
+                      <h3 className="truncate text-xl font-bold text-foreground">{profile.displayName}</h3>
                       <button
                         type="button"
                         onClick={handleCopyHandle}
-                        className="group flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        className="group mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                       >
-                        <span className="truncate">@{profile.handle}</span>
+                        <span className="truncate font-mono">@{profile.handle}</span>
                         {copiedHandle ? (
                           <Check className="size-3 text-emerald-400 shrink-0" />
                         ) : (
                           <Copy className="size-3 opacity-60 group-hover:opacity-100 shrink-0" />
                         )}
                       </button>
-
-                      <div className="mt-2 flex items-center gap-2">
-                        <PresenceDot status={status} size="xs" showText />
-                      </div>
                     </div>
-                  </div>
 
-                  {/* Friend code block if accepted or self */}
-                  {profile.friendCode && (
-                    <div className="flex items-center justify-between rounded-2xl bg-white/5 border border-white/5 px-3.5 py-2.5">
-                      <div>
-                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block tracking-wider">
-                          Mã bạn bè
+                    {/* Bio box */}
+                    {profile.bio && (
+                      <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-3.5 text-left">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground block tracking-wider mb-1">
+                          Giới thiệu
                         </span>
-                        <span className="font-mono text-xs font-bold text-foreground">{profile.friendCode}</span>
+                        <p className="text-xs text-foreground/90 whitespace-pre-wrap leading-relaxed">{profile.bio}</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleCopyCode}
-                        className="grid size-8 place-items-center rounded-xl bg-white/5 text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
-                        aria-label="Sao chép mã bạn bè"
-                      >
-                        {copiedCode ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Live Activity Section */}
-                  {userId && (status === "listening" || status === "paused") && (
-                    <div className="space-y-1.5">
-                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                        Đang nghe gần đây
-                      </span>
-                      <FriendActivity userId={userId} />
-                    </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div className="mt-2 flex flex-wrap gap-2 pt-2 border-t border-white/5">
-                    {profile.relationship === "accepted" && (
-                      <>
-                        <button
-                          type="button"
-                          disabled={isProcessing}
-                          onClick={handleRemoveFriend}
-                          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive transition hover:bg-destructive/20 active:scale-95 disabled:opacity-50"
-                        >
-                          <UserMinus className="size-3.5" />
-                          <span>Huỷ kết bạn</span>
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isProcessing}
-                          onClick={handleBlockUser}
-                          className="flex items-center justify-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-white/10 hover:text-destructive active:scale-95 disabled:opacity-50"
-                        >
-                          <ShieldAlert className="size-3.5" />
-                          <span>Chặn</span>
-                        </button>
-                      </>
                     )}
 
-                    {profile.relationship === "pending_received" && (
-                      <>
+                    {/* Friend code block if accepted or self */}
+                    {profile.friendCode && (
+                      <div className="flex items-center justify-between rounded-2xl bg-white/5 border border-white/5 px-3.5 py-2.5">
+                        <div>
+                          <span className="text-[10px] uppercase font-semibold text-muted-foreground block tracking-wider">
+                            Mã bạn bè
+                          </span>
+                          <span className="font-mono text-xs font-bold text-foreground">{profile.friendCode}</span>
+                        </div>
                         <button
                           type="button"
-                          disabled={isProcessing}
-                          onClick={handleAcceptRequest}
-                          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-95 active:scale-95 disabled:opacity-50"
+                          onClick={handleCopyCode}
+                          className="grid size-8 place-items-center rounded-xl bg-white/5 text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
+                          aria-label="Sao chép mã bạn bè"
                         >
-                          <UserCheck className="size-3.5" />
-                          <span>Chấp nhận</span>
+                          {copiedCode ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
                         </button>
+                      </div>
+                    )}
+
+                    {/* Live Activity Section */}
+                    {userId && (status === "listening" || status === "paused") && (
+                      <div className="space-y-1.5">
+                        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          Đang nghe gần đây
+                        </span>
+                        <FriendActivity userId={userId} />
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="mt-2 flex flex-wrap gap-2 pt-2 border-t border-white/5">
+                      {profile.relationship === "accepted" && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={isProcessing}
+                            onClick={handleRemoveFriend}
+                            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive transition hover:bg-destructive/20 active:scale-95 disabled:opacity-50"
+                          >
+                            <UserMinus className="size-3.5" />
+                            <span>Huỷ kết bạn</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isProcessing}
+                            onClick={handleBlockUser}
+                            className="flex items-center justify-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-white/10 hover:text-destructive active:scale-95 disabled:opacity-50"
+                          >
+                            <ShieldAlert className="size-3.5" />
+                            <span>Chặn</span>
+                          </button>
+                        </>
+                      )}
+
+                      {profile.relationship === "pending_received" && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={isProcessing}
+                            onClick={handleAcceptRequest}
+                            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-95 active:scale-95 disabled:opacity-50"
+                          >
+                            <UserCheck className="size-3.5" />
+                            <span>Chấp nhận</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isProcessing}
+                            onClick={handleRejectRequest}
+                            className="flex items-center justify-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-white/10 hover:text-foreground active:scale-95 disabled:opacity-50"
+                          >
+                            <X className="size-3.5" />
+                            <span>Từ chối</span>
+                          </button>
+                        </>
+                      )}
+
+                      {profile.relationship === "pending_sent" && (
                         <button
                           type="button"
                           disabled={isProcessing}
-                          onClick={handleRejectRequest}
-                          className="flex items-center justify-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-white/10 hover:text-foreground active:scale-95 disabled:opacity-50"
+                          onClick={handleCancelRequest}
+                          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-white/10 hover:text-foreground active:scale-95 disabled:opacity-50"
                         >
                           <X className="size-3.5" />
-                          <span>Từ chối</span>
+                          <span>Huỷ lời mời</span>
                         </button>
-                      </>
-                    )}
+                      )}
 
-                    {profile.relationship === "pending_sent" && (
-                      <button
-                        type="button"
-                        disabled={isProcessing}
-                        onClick={handleCancelRequest}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-white/10 hover:text-foreground active:scale-95 disabled:opacity-50"
-                      >
-                        <X className="size-3.5" />
-                        <span>Huỷ lời mời</span>
-                      </button>
-                    )}
+                      {profile.relationship === "none" && (
+                        <button
+                          type="button"
+                          disabled={isProcessing}
+                          onClick={handleSendRequest}
+                          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-95 active:scale-95 disabled:opacity-50"
+                        >
+                          <UserPlus className="size-3.5" />
+                          <span>Kết bạn</span>
+                        </button>
+                      )}
 
-                    {profile.relationship === "none" && (
-                      <button
-                        type="button"
-                        disabled={isProcessing}
-                        onClick={handleSendRequest}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-95 active:scale-95 disabled:opacity-50"
-                      >
-                        <UserPlus className="size-3.5" />
-                        <span>Kết bạn</span>
-                      </button>
-                    )}
-
-                    {profile.relationship === "self" && (
-                      <span className="text-xs text-muted-foreground italic w-full text-center">
-                        Đây là hồ sơ cá nhân của bạn
-                      </span>
-                    )}
+                      {profile.relationship === "self" && (
+                        <span className="text-xs text-muted-foreground italic w-full text-center">
+                          Đây là hồ sơ cá nhân của bạn
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

@@ -116,6 +116,9 @@ export const updateProfileSchema = z.object({
   avatarStorageKey: z.string().trim().nullable().optional(),
   presenceVisibility: z.enum(["friends", "none"]).optional(),
   listeningVisibility: z.enum(["friends", "none"]).optional(),
+  bannerStorageKey: z.string().trim().nullable().optional(),
+  bannerColor: z.string().trim().nullable().optional(),
+  bio: z.string().trim().max(300, "Bio tối đa 300 ký tự").nullable().optional(),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
@@ -126,17 +129,21 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
 export interface UserProfile {
   userId: string;
-  email?: string | null;
+  email?: string | null | undefined;
   displayName: string;
   handle: string;
   avatarStorageKey: string | null;
   avatarUrl: string | null;
+  bannerStorageKey?: string | null | undefined;
+  bannerUrl?: string | null | undefined;
+  bannerColor?: string | null | undefined;
+  bio?: string | null | undefined;
   friendCode: string;
   role: DuckroomRole;
   presenceVisibility: SocialVisibility;
   listeningVisibility: SocialVisibility;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt?: string | undefined;
+  updatedAt?: string | undefined;
 }
 
 export interface PublicUserProfile {
@@ -324,6 +331,9 @@ export interface MemberProfileView {
   displayName: string;
   handle: string;
   avatarUrl: string | null;
+  bannerUrl?: string | null | undefined;
+  bannerColor?: string | null | undefined;
+  bio?: string | null | undefined;
   friendCode?: string | undefined;
   relationship: RelationshipStatus;
   presenceVisibility: SocialVisibility;

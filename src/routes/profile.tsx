@@ -39,18 +39,22 @@ function ProfilePage() {
   const navigate = useNavigate();
   const { isLoggedIn, isLoading: authLoading, signOut } = useAuth();
   const { isOwner } = useDuckroomRole();
-  const { profile, isLoading: profileLoading, updateProfile, uploadAvatar } = useSocialProfile();
+  const { profile, isLoading: profileLoading, updateProfile, uploadAvatar, uploadBanner } = useSocialProfile();
 
   // Edit states
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [editingHandle, setEditingHandle] = useState(false);
   const [handleInput, setHandleInput] = useState("");
+  const [editingBio, setEditingBio] = useState(false);
+  const [bioInput, setBioInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   if (authLoading) {
     return (
@@ -118,6 +122,39 @@ function ProfilePage() {
     }
   };
 
+  const handleBannerFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Ảnh quá lớn. Vui lòng chọn ảnh dung lượng dưới 10MB.");
+      return;
+    }
+
+    try {
+      setIsUploadingBanner(true);
+      await uploadBanner(file);
+      toast.success("Đã cập nhật ảnh bìa thành công!");
+    } catch (err: any) {
+      toast.error(err?.message || "Cập nhật ảnh bìa thất bại.");
+    } finally {
+      setIsUploadingBanner(false);
+      if (bannerInputRef.current) bannerInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveBanner = async () => {
+    try {
+      setIsSaving(true);
+      await updateProfile({ bannerStorageKey: null });
+      toast.success("Đã gỡ ảnh bìa");
+    } catch (err: any) {
+      toast.error(err?.message || "Không thể gỡ ảnh bìa.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSaveDisplayName = async () => {
     const trimmed = nameInput.trim();
     if (!trimmed) {
@@ -155,6 +192,25 @@ function ProfilePage() {
       toast.success(`Đã đổi handle thành @${clean}!`);
     } catch (err: any) {
       toast.error(err?.message || "Cập nhật handle thất bại.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveBio = async () => {
+    const trimmed = bioInput.trim();
+    if (trimmed.length > 300) {
+      toast.error("Tiểu sử tối đa 300 ký tự.");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      await updateProfile({ bio: trimmed || null });
+      setEditingBio(false);
+      toast.success("Đã cập nhật tiểu sử!");
+    } catch (err: any) {
+      toast.error(err?.message || "Cập nhật tiểu sử thất bại.");
     } finally {
       setIsSaving(false);
     }
@@ -213,22 +269,72 @@ function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 pb-32">
-      {/* Header Card */}
+      {/* Header Card with Discord-style Cover Banner */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springSnappy}
-        className="relative overflow-hidden rounded-3xl border border-white/10 bg-card/60 p-6 backdrop-blur-xl shadow-xl md:p-8"
+        className="relative overflow-hidden rounded-3xl border border-white/10 bg-card/60 backdrop-blur-xl shadow-xl"
       >
-        <div className="flex flex-col items-center text-center">
-          {/* Avatar with upload overlay */}
-          <div className="relative group mb-4">
+        {/* Cover Banner */}
+        <div className="relative h-44 sm:h-52 w-full overflow-hidden bg-muted/60">
+          {profile?.bannerUrl ? (
+            <img src={profile.bannerUrl} alt="Ảnh bìa hồ sơ" className="size-full object-cover" />
+          ) : (
+            <div
+              className="size-full bg-gradient-to-r from-purple-950/60 via-indigo-950/50 to-slate-900/80 flex items-center justify-center relative"
+              style={profile?.bannerColor ? { backgroundColor: profile.bannerColor } : undefined}
+            >
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_50%)]" />
+            </div>
+          )}
+
+          {/* Banner controls overlay */}
+          <div className="absolute right-3.5 top-3.5 flex items-center gap-2">
+            {profile?.bannerStorageKey && (
+              <button
+                type="button"
+                onClick={handleRemoveBanner}
+                disabled={isSaving || isUploadingBanner}
+                className="rounded-xl bg-black/60 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-white/90 hover:bg-destructive/80 transition-all cursor-pointer"
+              >
+                Gỡ ảnh bìa
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => bannerInputRef.current?.click()}
+              disabled={isUploadingBanner}
+              aria-label="Đổi ảnh bìa"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-black/60 backdrop-blur-md px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-black/80 transition-all cursor-pointer"
+            >
+              {isUploadingBanner ? (
+                <Loader2 className="size-3.5 animate-spin text-primary" />
+              ) : (
+                <Camera className="size-3.5" />
+              )}
+              <span>Đổi ảnh bìa</span>
+            </button>
+            <input
+              ref={bannerInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={handleBannerFileSelect}
+              className="hidden"
+            />
+          </div>
+        </div>
+
+        {/* Profile info beneath banner */}
+        <div className="flex flex-col items-center text-center px-6 pb-6 pt-0 md:px-8 md:pb-8">
+          {/* Avatar with upload overlay overlapping the banner */}
+          <div className="relative group -mt-16 sm:-mt-20 mb-3 z-10">
             <ProfileAvatar
               src={profile?.avatarUrl}
               name={displayName}
               handle={handle}
               size="xl"
-              className="size-28 md:size-32 ring-4 ring-primary/20 shadow-lg"
+              className="size-28 md:size-32 ring-4 ring-card md:ring-[6px] shadow-2xl"
             />
             <button
               type="button"
@@ -249,7 +355,7 @@ function ProfilePage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept="image/jpeg,image/png,image/webp,image/gif"
               onChange={handleAvatarFileSelect}
               className="hidden"
             />
@@ -390,6 +496,72 @@ function ProfilePage() {
               <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-primary border border-primary/20">
                 🦆 Member
               </span>
+            )}
+          </div>
+
+          {/* Bio Section */}
+          <div className="mt-4 w-full max-w-md border-t border-white/5 pt-4">
+            {editingBio ? (
+              <div className="space-y-2">
+                <textarea
+                  value={bioInput}
+                  onChange={(e) => setBioInput(e.target.value)}
+                  placeholder="Viết đôi dòng giới thiệu về bản thân..."
+                  maxLength={300}
+                  rows={3}
+                  className="w-full resize-none rounded-xl border border-primary/40 bg-background/80 p-3 text-xs leading-relaxed text-foreground outline-none focus:ring-2 focus:ring-primary/40"
+                  autoFocus
+                />
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-muted-foreground tabular-nums">{bioInput.length}/300</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveBio}
+                      disabled={isSaving}
+                      className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 cursor-pointer"
+                    >
+                      {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+                      <span>Lưu</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingBio(false)}
+                      className="rounded-lg bg-accent px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      Hủy
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="group relative rounded-2xl bg-white/[0.03] border border-white/5 p-3.5 text-left transition hover:bg-white/[0.05]">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Giới thiệu bản thân
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBioInput(profile?.bio || "");
+                      setEditingBio(true);
+                    }}
+                    title="Sửa tiểu sử"
+                    className="rounded p-1 text-muted-foreground opacity-60 hover:opacity-100 hover:text-foreground transition-all cursor-pointer"
+                  >
+                    <Pencil className="size-3.5" />
+                  </button>
+                </div>
+                <p className="text-xs text-foreground/90 whitespace-pre-wrap leading-relaxed">
+                  {profile?.bio ? (
+                    profile.bio
+                  ) : (
+                    <span className="text-muted-foreground/60 italic">
+                      Chưa có lời giới thiệu. Nhấn nút cây bút để viết đôi dòng về bạn...
+                    </span>
+                  )}
+                </p>
+              </div>
             )}
           </div>
         </div>

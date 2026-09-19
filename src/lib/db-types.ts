@@ -198,6 +198,9 @@ export interface ProfileRow {
   display_name?: string | null;
   handle?: string | null;
   avatar_storage_key?: string | null;
+  banner_storage_key?: string | null;
+  banner_color?: string | null;
+  bio?: string | null;
   friend_code?: string | null;
   presence_visibility?: SocialVisibility | string;
   listening_visibility?: SocialVisibility | string;

@@ -14,6 +14,7 @@ import {
 import {
   getMyProfileInternal,
   requestAvatarUploadUrlInternal,
+  requestBannerUploadUrlInternal,
   resolveAvatarUrlInternal,
   updateMyProfileInternal,
 } from "../lib/social/social-profile.server";
@@ -111,11 +112,24 @@ describe("Social Profile Validation & Normalization (social-types.ts)", () => {
         handle: "@new_handle",
         presenceVisibility: "none",
         listeningVisibility: "friends",
+        bannerStorageKey: "artwork/banners/user-123.jpg",
+        bannerColor: "#6366f1",
+        bio: "Xin chào, mình là thành viên Duckroom!",
       });
       expect(parsed.displayName).toBe("New Name");
       expect(parsed.handle).toBe("new_handle");
       expect(parsed.presenceVisibility).toBe("none");
       expect(parsed.listeningVisibility).toBe("friends");
+      expect(parsed.bannerStorageKey).toBe("artwork/banners/user-123.jpg");
+      expect(parsed.bannerColor).toBe("#6366f1");
+      expect(parsed.bio).toBe("Xin chào, mình là thành viên Duckroom!");
+
+      // Bio max length 300
+      expect(() =>
+        updateProfileSchema.parse({
+          bio: "a".repeat(301),
+        }),
+      ).toThrow(/Bio tối đa 300 ký tự/);
 
       expect(() =>
         updateProfileSchema.parse({
@@ -399,6 +413,41 @@ describe("Social Profile Server Domain Functions (social-profile.server.ts)", ()
           avatarStorageKey: "audio/track-123/master.flac",
         }),
       ).rejects.toThrow(/not in an authorized visual asset namespace/);
+
+      // Banner key invalid namespace
+      await expect(
+        updateMyProfileInternal(USER_ID, {
+          bannerStorageKey: "singles/track.flac",
+        }),
+      ).rejects.toThrow(/not in an authorized visual asset namespace/);
+    });
+
+    it("updates banner and bio fields successfully", async () => {
+      const mock = createMockDb({
+        profiles: [
+          {
+            user_id: USER_ID,
+            email: "user@duckroom.test",
+            handle: "duck_lover",
+            friend_code: "DUCK-1111-2222",
+            display_name: "Duck Lover",
+            banner_storage_key: null,
+            banner_color: null,
+            bio: null,
+          },
+        ],
+      });
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mock.db as any);
+
+      const updated = await updateMyProfileInternal(USER_ID, {
+        bannerStorageKey: "artwork/banners/user-123.gif",
+        bannerColor: "#4f46e5",
+        bio: "Music producer & duck enthusiast",
+      });
+
+      expect(updated.bannerStorageKey).toBe("artwork/banners/user-123.gif");
+      expect(updated.bannerColor).toBe("#4f46e5");
+      expect(updated.bio).toBe("Music producer & duck enthusiast");
     });
   });
 
@@ -406,6 +455,12 @@ describe("Social Profile Server Domain Functions (social-profile.server.ts)", ()
     it("generates presigned PUT URL under canonical artwork/avatars/ prefix", async () => {
       const res = await requestAvatarUploadUrlInternal(USER_ID, "png", "image/png");
       expect(res.storageKey).toMatch(new RegExp(`^artwork/avatars/${USER_ID}-\\d+-[a-f0-9]{8}\\.png$`));
+      expect(res.uploadUrl).toContain(res.storageKey);
+    });
+
+    it("supports GIF avatar uploads", async () => {
+      const res = await requestAvatarUploadUrlInternal(USER_ID, "gif", "image/gif");
+      expect(res.storageKey).toMatch(new RegExp(`^artwork/avatars/${USER_ID}-\\d+-[a-f0-9]{8}\\.gif$`));
       expect(res.uploadUrl).toContain(res.storageKey);
     });
 
@@ -430,6 +485,30 @@ describe("Social Profile Server Domain Functions (social-profile.server.ts)", ()
       expect(await resolveAvatarUrlInternal("")).toBeNull();
       expect(await resolveAvatarUrlInternal("   ")).toBeNull();
       expect(await resolveAvatarUrlInternal("audio/track.flac")).toBeNull();
+    });
+  });
+
+  describe("requestBannerUploadUrlInternal", () => {
+    it("generates presigned PUT URL under canonical artwork/banners/ prefix for valid images (including GIF)", async () => {
+      const resPng = await requestBannerUploadUrlInternal(USER_ID, "png", "image/png");
+      expect(resPng.storageKey).toMatch(new RegExp(`^artwork/banners/${USER_ID}-\\d+-[a-f0-9]{8}\\.png$`));
+      expect(resPng.uploadUrl).toContain(resPng.storageKey);
+
+      const resGif = await requestBannerUploadUrlInternal(USER_ID, "gif", "image/gif");
+      expect(resGif.storageKey).toMatch(new RegExp(`^artwork/banners/${USER_ID}-\\d+-[a-f0-9]{8}\\.gif$`));
+      expect(resGif.uploadUrl).toContain(resGif.storageKey);
+    });
+
+    it("rejects non-image extensions or disallowed formats for banner", async () => {
+      await expect(requestBannerUploadUrlInternal(USER_ID, "exe", "application/x-msdownload")).rejects.toThrow(
+        /không được hỗ trợ cho ảnh bìa/,
+      );
+      await expect(requestBannerUploadUrlInternal(USER_ID, "flac", "audio/flac")).rejects.toThrow(
+        /không được hỗ trợ cho ảnh bìa/,
+      );
+      await expect(requestBannerUploadUrlInternal(USER_ID, "jpg", "text/plain")).rejects.toThrow(
+        /Content-Type phải là định dạng hình ảnh hợp lệ/,
+      );
     });
   });
 });

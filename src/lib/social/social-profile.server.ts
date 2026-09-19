@@ -147,6 +147,7 @@ export async function getMyProfileInternal(userId: string): Promise<UserProfile>
   }
 
   const avatarUrl = await resolveAvatarUrlInternal(profile.avatar_storage_key);
+  const bannerUrl = await resolveAvatarUrlInternal(profile.banner_storage_key);
 
   return {
     userId: profile.user_id,
@@ -155,6 +156,10 @@ export async function getMyProfileInternal(userId: string): Promise<UserProfile>
     handle,
     avatarStorageKey: profile.avatar_storage_key || null,
     avatarUrl,
+    bannerStorageKey: profile.banner_storage_key || null,
+    bannerUrl,
+    bannerColor: profile.banner_color || null,
+    bio: profile.bio || null,
     friendCode,
     role: profile.role || "member",
     presenceVisibility:
@@ -193,9 +198,12 @@ export async function updateMyProfileInternal(userId: string, input: UpdateProfi
     }
   }
 
-  // If changing avatar key, validate visual asset namespace
+  // If changing avatar or banner key, validate visual asset namespace
   if (validated.avatarStorageKey) {
     validateVisualAssetKey(validated.avatarStorageKey, "read");
+  }
+  if (validated.bannerStorageKey) {
+    validateVisualAssetKey(validated.bannerStorageKey, "read");
   }
 
   const updatePayload: Partial<import("../db-types").ProfileRow> = {
@@ -210,6 +218,15 @@ export async function updateMyProfileInternal(userId: string, input: UpdateProfi
   }
   if (validated.avatarStorageKey !== undefined) {
     updatePayload.avatar_storage_key = validated.avatarStorageKey;
+  }
+  if (validated.bannerStorageKey !== undefined) {
+    updatePayload.banner_storage_key = validated.bannerStorageKey;
+  }
+  if (validated.bannerColor !== undefined) {
+    updatePayload.banner_color = validated.bannerColor;
+  }
+  if (validated.bio !== undefined) {
+    updatePayload.bio = validated.bio ? validated.bio.trim() : null;
   }
   if (validated.presenceVisibility !== undefined) {
     updatePayload.presence_visibility = validated.presenceVisibility;
@@ -242,9 +259,9 @@ export async function requestAvatarUploadUrlInternal(
   contentType: string,
 ): Promise<{ uploadUrl: string; storageKey: string }> {
   const cleanExt = fileExtension.trim().toLowerCase().replace(/^\./, "");
-  const allowedExts = new Set(["jpg", "jpeg", "png", "webp"]);
+  const allowedExts = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
   if (!allowedExts.has(cleanExt)) {
-    throw new Error(`Định dạng .${cleanExt} không được hỗ trợ cho ảnh đại diện (chỉ hỗ trợ JPG, PNG, WebP).`);
+    throw new Error(`Định dạng .${cleanExt} không được hỗ trợ cho ảnh đại diện (hỗ trợ JPG, PNG, WebP, GIF).`);
   }
 
   if (!contentType || !contentType.toLowerCase().startsWith("image/")) {
@@ -252,6 +269,39 @@ export async function requestAvatarUploadUrlInternal(
   }
 
   const key = `artwork/avatars/${userId}-${Date.now()}-${randomBytes(4).toString("hex")}.${cleanExt}`;
+  validateVisualAssetKey(key, "write");
+
+  const s3 = getS3ServerClient();
+  const command = new PutObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: key,
+    ContentType: contentType,
+  });
+
+  const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
+  return { uploadUrl, storageKey: key };
+}
+
+/**
+ * Generates a presigned S3 PUT URL for banner upload.
+ * Strictly checks visual asset extension and assigns a canonical artwork/banners/ key.
+ */
+export async function requestBannerUploadUrlInternal(
+  userId: string,
+  fileExtension: string,
+  contentType: string,
+): Promise<{ uploadUrl: string; storageKey: string }> {
+  const cleanExt = fileExtension.trim().toLowerCase().replace(/^\./, "");
+  const allowedExts = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
+  if (!allowedExts.has(cleanExt)) {
+    throw new Error(`Định dạng .${cleanExt} không được hỗ trợ cho ảnh bìa (hỗ trợ JPG, PNG, WebP, GIF).`);
+  }
+
+  if (!contentType || !contentType.toLowerCase().startsWith("image/")) {
+    throw new Error("Content-Type phải là định dạng hình ảnh hợp lệ (image/*).");
+  }
+
+  const key = `artwork/banners/${userId}-${Date.now()}-${randomBytes(4).toString("hex")}.${cleanExt}`;
   validateVisualAssetKey(key, "write");
 
   const s3 = getS3ServerClient();
@@ -286,6 +336,9 @@ export async function getProfileInternal(currentUserId: string, targetUserId: st
       displayName: myProfile.displayName,
       handle: myProfile.handle,
       avatarUrl: myProfile.avatarUrl,
+      bannerUrl: myProfile.bannerUrl,
+      bannerColor: myProfile.bannerColor,
+      bio: myProfile.bio,
       friendCode: myProfile.friendCode,
       relationship: "self",
       presenceVisibility: myProfile.presenceVisibility,
@@ -298,7 +351,7 @@ export async function getProfileInternal(currentUserId: string, targetUserId: st
   const { data: profile, error } = await db
     .from("profiles")
     .select(
-      "user_id, display_name, handle, avatar_storage_key, friend_code, presence_visibility, listening_visibility, created_at",
+      "user_id, display_name, handle, avatar_storage_key, banner_storage_key, banner_color, bio, friend_code, presence_visibility, listening_visibility, created_at",
     )
     .eq("user_id", cleanTarget)
     .maybeSingle();
@@ -323,12 +376,16 @@ export async function getProfileInternal(currentUserId: string, targetUserId: st
   }
 
   const avatarUrl = await resolveAvatarUrlInternal(profile.avatar_storage_key);
+  const bannerUrl = await resolveAvatarUrlInternal(profile.banner_storage_key);
 
   return {
     userId: profile.user_id,
     displayName: profile.display_name?.trim() || profile.handle || "Thành viên Duckroom",
     handle: profile.handle,
     avatarUrl,
+    bannerUrl,
+    bannerColor: profile.banner_color || null,
+    bio: profile.bio || null,
     friendCode: relationship === "accepted" ? profile.friend_code : undefined,
     relationship,
     presenceVisibility:
@@ -379,8 +436,22 @@ export const requestAvatarUploadUrlServer = createServerFn({ method: "POST" })
     return requestAvatarUploadUrlInternal(userId, data.fileExtension, data.contentType);
   });
 
+export const requestBannerUploadUrlServer = createServerFn({ method: "POST" })
+  .middleware([serverSecurityMiddleware, requireFreshMemberMiddleware, avatarUploadRateLimitMiddleware])
+  .validator(
+    z.object({
+      fileExtension: z.string().min(2).max(10),
+      contentType: z.string().min(5).max(50),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    const userId = requireUserId(context);
+    return requestBannerUploadUrlInternal(userId, data.fileExtension, data.contentType);
+  });
+
 // Standard method name aliases
 export const getMyProfile = getMyProfileServer;
 export const getProfile = getProfileServer;
 export const updateMyProfile = updateMyProfileServer;
 export const requestAvatarUploadUrl = requestAvatarUploadUrlServer;
+export const requestBannerUploadUrl = requestBannerUploadUrlServer;

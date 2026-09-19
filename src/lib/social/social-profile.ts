@@ -89,8 +89,24 @@ export const requestAvatarUploadUrlServer = createServerFn({ method: "POST" })
     return requestAvatarUploadUrlInternal(userId, data.fileExtension, data.contentType);
   });
 
+/** Requests a presigned PUT upload URL for a profile cover banner image */
+export const requestBannerUploadUrlServer = createServerFn({ method: "POST" })
+  .middleware([serverSecurityMiddleware, requireFreshMemberMiddleware, avatarUploadRateLimitMiddleware])
+  .validator(
+    z.object({
+      fileExtension: z.string().min(2).max(10),
+      contentType: z.string().min(5).max(50),
+    }),
+  )
+  .handler(async ({ context, data }): Promise<{ uploadUrl: string; storageKey: string }> => {
+    const { requestBannerUploadUrlInternal } = await import("./social-profile.server");
+    const userId = requireUserId(context);
+    return requestBannerUploadUrlInternal(userId, data.fileExtension, data.contentType);
+  });
+
 // Standard method name aliases
 export const getMyProfile = getMyProfileServer;
 export const getProfile = getProfileServer;
 export const updateMyProfile = updateMyProfileServer;
 export const requestAvatarUploadUrl = requestAvatarUploadUrlServer;
+export const requestBannerUploadUrl = requestBannerUploadUrlServer;

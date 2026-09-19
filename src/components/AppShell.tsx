@@ -29,6 +29,7 @@ import { useDuckroomRole } from "../lib/useRole";
 import { useSocialProfile } from "../lib/social";
 import { ProfileAvatar } from "./social/ProfileAvatar";
 import { FriendsSheet } from "./social/FriendsSheet";
+import { DiscordMemberSidebar } from "./social/DiscordMemberSidebar";
 import { SocialPresenceAdapter } from "./social/SocialPresenceAdapter";
 import { cn } from "../lib/utils";
 import { useScrollLock } from "../hooks/use-scroll-lock";
@@ -99,6 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // F4: Command Palette — Ctrl+K (desktop) / nút 🔍 (mobile header).
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [friendsOpen, setFriendsOpen] = useState(false);
+  const [discordSidebarOpen, setDiscordSidebarOpen] = useState(true);
 
   // Ctrl+K / Cmd+K — mở palette từ bất kỳ đâu (không đụng input đang gõ:
   // browser default của Ctrl+K là search bar — preventDefault chiếm lại).
@@ -562,12 +564,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           "overflow-x-hidden min-h-screen transition-[padding] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
           "pt-[calc(3.5rem+var(--safe-top))] pb-[calc(9.75rem+var(--safe-bottom))] lg:pt-0 lg:pb-32",
           collapsed ? "lg:pl-20" : "lg:pl-64",
+          discordSidebarOpen && "lg:pr-[272px]",
         )}
       >
         <div key={location.pathname} className="page-fade w-full">
           {children}
         </div>
       </main>
+      {/* Desktop Discord-style Right Member Sidebar */}
+      <DiscordMemberSidebar open={discordSidebarOpen} onToggle={() => setDiscordSidebarOpen((v) => !v)} />
       <PlayerBar />
       <NowPlaying />
       {/* QoL A5: phím tắt overlay — Shift+/ (hay "?") trên desktop. */}
