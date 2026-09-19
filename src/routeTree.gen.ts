@@ -14,6 +14,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MyLibraryRouteImport } from './routes/my-library'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SinglesRouteImport } from './routes/singles'
 import { Route as StatsRouteImport } from './routes/stats'
 import { Route as UploadRouteImport } from './routes/upload'
@@ -46,6 +47,11 @@ const LoginRoute = LoginRouteImport.update({
 const MyLibraryRoute = MyLibraryRouteImport.update({
   id: '/my-library',
   path: '/my-library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SinglesRoute = SinglesRouteImport.update({
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/my-library': typeof MyLibraryRoute
+  '/profile': typeof ProfileRoute
   '/singles': typeof SinglesRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/my-library': typeof MyLibraryRoute
+  '/profile': typeof ProfileRoute
   '/singles': typeof SinglesRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/my-library': typeof MyLibraryRoute
+  '/profile': typeof ProfileRoute
   '/singles': typeof SinglesRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
@@ -143,6 +152,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/login'
     | '/my-library'
+    | '/profile'
     | '/singles'
     | '/stats'
     | '/upload'
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/login'
     | '/my-library'
+    | '/profile'
     | '/singles'
     | '/stats'
     | '/upload'
@@ -173,6 +184,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/login'
     | '/my-library'
+    | '/profile'
     | '/singles'
     | '/stats'
     | '/upload'
@@ -189,6 +201,7 @@ export interface RootRouteChildren {
   LibraryRoute: typeof LibraryRoute
   LoginRoute: typeof LoginRoute
   MyLibraryRoute: typeof MyLibraryRoute
+  ProfileRoute: typeof ProfileRoute
   SinglesRoute: typeof SinglesRoute
   StatsRoute: typeof StatsRoute
   UploadRoute: typeof UploadRoute
@@ -234,6 +247,13 @@ declare module '@tanstack/react-router' {
       path: '/my-library'
       fullPath: '/my-library'
       preLoaderRoute: typeof MyLibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/singles': {
@@ -301,6 +321,7 @@ const rootRouteChildren: RootRouteChildren = {
   LibraryRoute: LibraryRoute,
   LoginRoute: LoginRoute,
   MyLibraryRoute: MyLibraryRoute,
+  ProfileRoute: ProfileRoute,
   SinglesRoute: SinglesRoute,
   StatsRoute: StatsRoute,
   UploadRoute: UploadRoute,

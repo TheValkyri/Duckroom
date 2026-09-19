@@ -189,11 +189,18 @@ export interface MediaAnalysisRecordRow {
   verified_at?: string;
 }
 
+export type SocialVisibility = "friends" | "none";
+
 export interface ProfileRow {
   user_id: string;
   email: string;
   role: DuckroomRole;
   display_name?: string | null;
+  handle?: string | null;
+  avatar_storage_key?: string | null;
+  friend_code?: string | null;
+  presence_visibility?: SocialVisibility | string;
+  listening_visibility?: SocialVisibility | string;
   created_at?: string;
   updated_at?: string;
 }

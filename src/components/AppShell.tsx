@@ -25,6 +25,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { springSnappy, tapScale } from "../lib/motion";
 import { useAuth } from "../lib/useAuth";
 import { useDuckroomRole } from "../lib/useRole";
+import { useSocialProfile } from "../lib/social";
+import { ProfileAvatar } from "./social/ProfileAvatar";
 import { cn } from "../lib/utils";
 import { useScrollLock } from "../hooks/use-scroll-lock";
 import { HotkeysOverlay } from "./HotkeysOverlay";
@@ -74,6 +76,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { user, isLoggedIn, signOut } = useAuth();
   const { isOwner } = useDuckroomRole();
+  const { profile } = useSocialProfile();
+  const displayName = profile?.displayName || user?.email?.split("@")[0] || "Thành viên";
+  const handle = profile?.handle ? `@${profile.handle}` : null;
+  const avatarUrl = profile?.avatarUrl || null;
   const visibleNav = nav.filter((item) => item.to !== "/upload" || isOwner);
   const [collapsed, setCollapsed] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -241,36 +247,60 @@ export function AppShell({ children }: { children: ReactNode }) {
           {isLoggedIn ? (
             <div className="flex flex-col gap-1">
               {!collapsed ? (
-                <div className="px-3 py-2.5 rounded-xl bg-card/60 border border-white/5 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <User className="size-4 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <span className="text-xs text-foreground font-medium truncate block">
-                        {user?.email || "Thành viên"}
+                <div className="px-3 py-2.5 rounded-xl bg-card/60 border border-white/5 flex items-center justify-between gap-2 hover:bg-card/80 transition-colors group">
+                  <Link
+                    to="/profile"
+                    className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                    title="Xem hồ sơ cá nhân"
+                  >
+                    <ProfileAvatar
+                      src={avatarUrl}
+                      name={displayName}
+                      handle={handle}
+                      size="sm"
+                      className="size-8 group-hover:ring-2 group-hover:ring-primary/40 transition-all"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-xs text-foreground font-semibold truncate block group-hover:text-primary transition-colors">
+                        {displayName}
                       </span>
-                      {isOwner && (
-                        <span className="text-[10px] text-emerald-400 uppercase tracking-wider font-semibold">
-                          Owner
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {handle && <span className="text-[11px] text-muted-foreground truncate block">{handle}</span>}
+                        {isOwner && (
+                          <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/15 text-emerald-400 uppercase tracking-wider font-bold">
+                            Owner
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                   <button
                     onClick={() => signOut()}
                     title="Đăng xuất"
-                    className="text-muted-foreground hover:text-destructive p-1 rounded-lg hover:bg-accent transition-colors cursor-pointer shrink-0"
+                    aria-label="Đăng xuất"
+                    className="text-muted-foreground hover:text-destructive p-1.5 rounded-lg hover:bg-accent transition-colors cursor-pointer shrink-0"
                   >
                     <LogOut className="size-4" />
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={() => signOut()}
-                  title={`Đăng xuất (${user?.email || ""})`}
-                  className="text-muted-foreground hover:text-destructive flex items-center justify-center p-3 rounded-xl hover:bg-accent/60 transition-colors cursor-pointer"
-                >
-                  <LogOut className="size-5" />
-                </button>
+                <div className="flex flex-col items-center gap-1">
+                  <Link
+                    to="/profile"
+                    title={`Hồ sơ (${displayName}${handle ? ` · ${handle}` : ""})`}
+                    className="p-1 rounded-xl hover:bg-accent/60 transition-colors cursor-pointer"
+                  >
+                    <ProfileAvatar src={avatarUrl} name={displayName} handle={handle} size="sm" />
+                  </Link>
+                  <button
+                    onClick={() => signOut()}
+                    title={`Đăng xuất (${displayName})`}
+                    aria-label="Đăng xuất"
+                    className="text-muted-foreground hover:text-destructive flex items-center justify-center p-2 rounded-xl hover:bg-accent/60 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="size-4" />
+                  </button>
+                </div>
               )}
             </div>
           ) : (
@@ -374,14 +404,23 @@ export function AppShell({ children }: { children: ReactNode }) {
             </>
           )}
           {isLoggedIn ? (
-            <button
-              onClick={() => signOut()}
-              aria-label={`Đăng xuất (${user?.email || "tài khoản"})`}
-              title="Đăng xuất"
-              className="text-muted-foreground hover:text-destructive grid size-11 place-items-center rounded-full transition-colors hover:bg-accent/50 cursor-pointer"
+            <Link
+              to="/profile"
+              aria-label={`Hồ sơ cá nhân (${displayName})`}
+              title="Hồ sơ cá nhân"
+              className={cn(
+                "grid size-11 place-items-center rounded-full transition-colors hover:bg-accent/50 cursor-pointer",
+                location.pathname === "/profile" && "bg-accent text-primary ring-2 ring-primary/40",
+              )}
             >
-              <LogOut className="size-5" />
-            </button>
+              <ProfileAvatar
+                src={avatarUrl}
+                name={displayName}
+                handle={handle}
+                size="sm"
+                className="size-7 border border-white/15"
+              />
+            </Link>
           ) : (
             <Link
               to="/login"
