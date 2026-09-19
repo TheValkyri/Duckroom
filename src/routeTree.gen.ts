@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as FriendsRouteImport } from './routes/friends'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MyLibraryRouteImport } from './routes/my-library'
@@ -32,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FriendsRoute = FriendsRouteImport.update({
+  id: '/friends',
+  path: '/friends',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LibraryRoute = LibraryRouteImport.update({
@@ -98,6 +104,7 @@ const VideosVideoIdRoute = VideosVideoIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/friends': typeof FriendsRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/my-library': typeof MyLibraryRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/friends': typeof FriendsRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/my-library': typeof MyLibraryRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/friends': typeof FriendsRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/my-library': typeof MyLibraryRoute
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/friends'
     | '/library'
     | '/login'
     | '/my-library'
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/friends'
     | '/library'
     | '/login'
     | '/my-library'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/friends'
     | '/library'
     | '/login'
     | '/my-library'
@@ -198,6 +210,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  FriendsRoute: typeof FriendsRoute
   LibraryRoute: typeof LibraryRoute
   LoginRoute: typeof LoginRoute
   MyLibraryRoute: typeof MyLibraryRoute
@@ -226,6 +239,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/friends': {
+      id: '/friends'
+      path: '/friends'
+      fullPath: '/friends'
+      preLoaderRoute: typeof FriendsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/library': {
@@ -318,6 +338,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  FriendsRoute: FriendsRoute,
   LibraryRoute: LibraryRoute,
   LoginRoute: LoginRoute,
   MyLibraryRoute: MyLibraryRoute,

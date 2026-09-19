@@ -267,3 +267,22 @@ export interface AuditLogRow {
   metadata?: Record<string, unknown>;
   created_at?: string;
 }
+
+export type FriendshipStatus =
+  | "pending_first_to_second"
+  | "pending_second_to_first"
+  | "accepted"
+  | "blocked_first_to_second"
+  | "blocked_second_to_first"
+  | "blocked_both";
+
+export interface FriendshipRow {
+  id: string;
+  user_low_id: string;
+  user_high_id: string;
+  status: FriendshipStatus;
+  action_user_id: string;
+  created_at: string;
+  updated_at: string;
+  accepted_at?: string | null;
+}

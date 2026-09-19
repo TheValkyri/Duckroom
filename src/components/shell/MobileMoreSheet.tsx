@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { BarChart3, Disc, Disc3, ShieldCheck, UploadCloud, X } from "lucide-react";
+import { BarChart3, Disc, Disc3, ShieldCheck, UploadCloud, Users, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 interface MobileMoreSheetProps {
@@ -44,6 +44,7 @@ export function MobileMoreSheet({ open, onClose, isOwner }: MobileMoreSheetProps
             </div>
             <div className="grid grid-cols-2 gap-2 px-4 pb-4">
               {[
+                { to: "/friends", label: "Bạn bè", icon: Users, desc: "Kết nối bạn bè" },
                 { to: "/albums", label: "Albums", icon: Disc3, desc: "Bộ sưu tập đĩa" },
                 { to: "/singles", label: "Đĩa đơn", icon: Disc, desc: "Single & EP" },
                 { to: "/stats", label: "Thống kê", icon: BarChart3, desc: "Số liệu nghe của bạn" },

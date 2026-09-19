@@ -159,3 +159,152 @@ export interface SocialListeningActivity {
   durationMs: number;
   revision: number;
 }
+
+// ==========================================
+// CANONICAL FRIENDSHIP PAIRING & STATE EVALUATION (§8, §9)
+// ==========================================
+
+export interface CanonicalPair {
+  userLowId: string;
+  userHighId: string;
+  isFirst: boolean;
+}
+
+/**
+ * Returns the deterministic canonical ordering between two user IDs.
+ * Enforces user_low_id < user_high_id to store exactly one row per user pair.
+ * Throws an error if userIdA === userIdB (self-friending invariant).
+ */
+export function getCanonicalPair(userIdA: string, userIdB: string): CanonicalPair {
+  const cleanA = (userIdA || "").trim().toLowerCase();
+  const cleanB = (userIdB || "").trim().toLowerCase();
+  if (!cleanA || !cleanB) {
+    throw new Error("User IDs must not be empty");
+  }
+  if (cleanA === cleanB) {
+    throw new Error("Cannot form a relationship with yourself");
+  }
+  const isFirst = cleanA < cleanB;
+  return {
+    userLowId: isFirst ? cleanA : cleanB,
+    userHighId: isFirst ? cleanB : cleanA,
+    isFirst,
+  };
+}
+
+export type RelationshipStatus =
+  "none" | "pending_sent" | "pending_received" | "accepted" | "blocked_by_me" | "blocked_by_them" | "self";
+
+/**
+ * Evaluates the perspective-specific relationship of targetUserId from currentUserId's viewpoint.
+ */
+export function evaluateRelationship(
+  currentUserId: string,
+  targetUserId: string,
+  friendship: { status: string; user_low_id: string; user_high_id: string } | null | undefined,
+): RelationshipStatus {
+  const cleanCurrent = (currentUserId || "").trim().toLowerCase();
+  const cleanTarget = (targetUserId || "").trim().toLowerCase();
+  if (cleanCurrent === cleanTarget) return "self";
+  if (!friendship) return "none";
+
+  const cleanLow = (friendship.user_low_id || "").trim().toLowerCase();
+  const cleanHigh = (friendship.user_high_id || "").trim().toLowerCase();
+  if (cleanCurrent !== cleanLow && cleanCurrent !== cleanHigh) {
+    return "none";
+  }
+
+  const isFirst = cleanCurrent === cleanLow;
+  const status = friendship.status;
+
+  if (status === "accepted") return "accepted";
+
+  if (status === "pending_first_to_second") {
+    return isFirst ? "pending_sent" : "pending_received";
+  }
+  if (status === "pending_second_to_first") {
+    return isFirst ? "pending_received" : "pending_sent";
+  }
+
+  if (status === "blocked_both") {
+    return "blocked_by_me";
+  }
+  if (status === "blocked_first_to_second") {
+    return isFirst ? "blocked_by_me" : "blocked_by_them";
+  }
+  if (status === "blocked_second_to_first") {
+    return isFirst ? "blocked_by_them" : "blocked_by_me";
+  }
+
+  return "none";
+}
+
+// ==========================================
+// FRIENDSHIP SCHEMAS
+// ==========================================
+
+export const friendSearchQuerySchema = z.object({
+  query: z.string().trim().min(1, "Vui lòng nhập handle hoặc mã bạn bè").max(50),
+});
+
+export type FriendSearchQueryInput = z.infer<typeof friendSearchQuerySchema>;
+
+export const sendFriendRequestSchema = z
+  .object({
+    targetUserId: z.string().trim().min(1).optional(),
+    targetHandleOrCode: z.string().trim().min(1).optional(),
+  })
+  .refine((data) => Boolean(data.targetUserId || data.targetHandleOrCode), {
+    message: "Vui lòng chỉ định người dùng cần kết bạn",
+  });
+
+export type SendFriendRequestInput = z.infer<typeof sendFriendRequestSchema>;
+
+export const friendActionSchema = z.object({
+  targetUserId: z.string().trim().min(1, "Thiếu targetUserId"),
+});
+
+export type FriendActionInput = z.infer<typeof friendActionSchema>;
+
+// ==========================================
+// FRIENDSHIP DTOs
+// ==========================================
+
+export interface FriendItem {
+  friendshipId: string;
+  userId: string;
+  displayName: string;
+  handle: string;
+  avatarUrl: string | null;
+  friendCode?: string;
+  acceptedAt?: string | null;
+  createdAt: string;
+}
+
+export interface FriendRequestItem {
+  friendshipId: string;
+  userId: string;
+  displayName: string;
+  handle: string;
+  avatarUrl: string | null;
+  direction: "incoming" | "outgoing";
+  createdAt: string;
+}
+
+export interface BlockedUserItem {
+  friendshipId: string;
+  userId: string;
+  displayName: string;
+  handle: string;
+  avatarUrl: string | null;
+  createdAt: string;
+}
+
+export interface FriendSearchResult {
+  userId: string;
+  displayName: string;
+  handle: string;
+  avatarUrl: string | null;
+  friendCode?: string;
+  relationship: RelationshipStatus;
+}

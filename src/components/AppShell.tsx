@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   UploadCloud,
   User,
+  Users,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -49,6 +50,7 @@ const SIDEBAR_WIDTH_COLLAPSED = 80;
 
 const nav = [
   { to: "/", label: "Trang chủ", icon: Home },
+  { to: "/friends", label: "Bạn bè", icon: Users },
   { to: "/library", label: "Thư viện", icon: ListMusic },
   { to: "/my-library", label: "Kho của tôi", icon: Heart },
   { to: "/stats", label: "Thống kê", icon: BarChart3 },
@@ -112,6 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   // Tab "Xem thêm" active khi đang ở 1 trong các đích phụ của More sheet.
   const isMoreActive =
+    location.pathname.startsWith("/friends") ||
     location.pathname.startsWith("/albums") ||
     location.pathname.startsWith("/singles") ||
     location.pathname.startsWith("/stats") ||
