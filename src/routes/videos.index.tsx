@@ -8,9 +8,13 @@ import { useLibrary } from "../lib/useLibrary";
 import { useAuth } from "../lib/useAuth";
 import { cn } from "../lib/utils";
 import { VideoThumb } from "../components/VideoThumb";
+import { VideosSkeleton } from "../components/LibrarySkeleton";
 import { getPublicLibrarySummaryServer } from "../lib/ssr-loaders";
 
 export const Route = createFileRoute("/videos/")({
+  staleTime: 60_000,
+  gcTime: 1000 * 60 * 30,
+  pendingComponent: VideosSkeleton,
   loader: async () => {
     try {
       const summary = await getPublicLibrarySummaryServer();

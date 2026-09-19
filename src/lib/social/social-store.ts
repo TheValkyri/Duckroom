@@ -313,11 +313,13 @@ export function useFriendPresence(userId: string): FriendPresenceEntry | undefin
   );
 }
 
+const EMPTY_ALL_FRIENDS_PRESENCE: Record<string, FriendPresenceEntry> = {};
+
 export function useAllFriendsPresence(): Record<string, FriendPresenceEntry> {
   return useSyncExternalStore(
     (onStoreChange) => socialStore.subscribe(onStoreChange),
     () => socialStore.getState(),
-    () => ({}),
+    () => EMPTY_ALL_FRIENDS_PRESENCE,
   );
 }
 

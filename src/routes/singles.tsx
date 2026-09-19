@@ -38,6 +38,9 @@ import { getPublicLibrarySummaryServer } from "../lib/ssr-loaders";
 import { AlbumsSkeleton } from "../components/LibrarySkeleton";
 
 export const Route = createFileRoute("/singles")({
+  staleTime: 60_000,
+  gcTime: 1000 * 60 * 30,
+  pendingComponent: AlbumsSkeleton,
   loader: async () => {
     try {
       const summary = await getPublicLibrarySummaryServer();

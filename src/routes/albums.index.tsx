@@ -18,8 +18,12 @@ import {
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
 import { cn } from "../lib/utils";
 import { getPublicLibrarySummaryServer } from "../lib/ssr-loaders";
+import { AlbumsSkeleton } from "../components/LibrarySkeleton";
 
 export const Route = createFileRoute("/albums/")({
+  staleTime: 60_000,
+  gcTime: 1000 * 60 * 30,
+  pendingComponent: AlbumsSkeleton,
   loader: async () => {
     try {
       const summary = await getPublicLibrarySummaryServer();
@@ -57,7 +61,6 @@ export const Route = createFileRoute("/albums/")({
 });
 
 import { AlbumCard } from "../components/AlbumCard";
-import { AlbumsSkeleton } from "../components/LibrarySkeleton";
 import { EditAlbumModal } from "../components/EditAlbumModal";
 import { useDuckroomRole } from "../lib/useRole";
 

@@ -11,6 +11,8 @@ import { fetchVideoPlaybackUrl } from "../lib/s3";
 import { getVideoByIdSsrServer } from "../lib/ssr-loaders";
 
 export const Route = createFileRoute("/videos/$videoId")({
+  staleTime: 60_000,
+  gcTime: 1000 * 60 * 30,
   loader: async ({ params }) => {
     try {
       const video = await getVideoByIdSsrServer({ data: { videoId: params.videoId } });

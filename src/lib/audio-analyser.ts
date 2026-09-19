@@ -83,8 +83,17 @@ export function getAudioAnalyser(audioEl: HTMLAudioElement | null): AnalyserNode
  * Ngắt kết nối AudioContext và MediaElementSource khi Visualizer unmount (P2.2).
  * Đảm bảo Audio element không bị giữ trong Web Audio pipeline, giải phóng tài nguyên.
  */
-export function disconnectAudioAnalyser(audioEl?: HTMLAudioElement | null): void {
+export function disconnectAudioAnalyser(audioEl?: HTMLAudioElement | null, force = false): void {
   try {
+    // Critical Audio Continuity Guard:
+    // In Web Audio API, once an HTMLMediaElement is attached to a MediaElementAudioSourceNode,
+    // the browser permanently mutes its direct output and routes all sound through the AudioContext.
+    // Disconnecting the source node or suspending AudioContext while the track is actively playing
+    // silences all playback. Only disconnect when playback is stopped/paused or explicitly forced.
+    if (!force && audioEl && audioEl.paused === false) {
+      return;
+    }
+
     if (audioEl && mediaSourceMap.has(audioEl)) {
       const source = mediaSourceMap.get(audioEl);
       try {

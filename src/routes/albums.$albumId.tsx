@@ -34,6 +34,9 @@ import { usePlayerActions } from "../lib/player";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/albums/$albumId")({
+  staleTime: 60_000,
+  gcTime: 1000 * 60 * 30,
+  pendingComponent: AlbumsSkeleton,
   loader: async ({ params }) => {
     try {
       const data = await getAlbumByIdSsrServer({ data: { albumId: params.albumId } });

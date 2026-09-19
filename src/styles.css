@@ -215,6 +215,26 @@
   }
 }
 
+/* Top navigation micro-progress bar (zero CLS, instant tactile feedback) */
+@keyframes navProgress {
+  0% {
+    width: 0%;
+  }
+  25% {
+    width: 35%;
+  }
+  60% {
+    width: 75%;
+  }
+  100% {
+    width: 92%;
+  }
+}
+
+.animate-nav-progress {
+  animation: navProgress 1.6s cubic-bezier(0.1, 0.5, 0.1, 1) forwards;
+}
+
 /* Phone lyrics sheet — hiệu ứng trượt lên (visual sugar). Lưu ý QA
    lesson 2026-09-01: keyframes cần paint-frames; với base position
    ĐÚNG (không transform tĩnh) thì kể cả animation không chạy (headless/

@@ -153,3 +153,25 @@ export function LibrarySkeleton() {
     </div>
   );
 }
+
+/** Trang MV đang-hydrate hoặc pending navigation. */
+export function VideosSkeleton() {
+  return (
+    <div role="status" aria-label="Đang tải danh sách MV" className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-12">
+      <div className="pb-6 border-b border-border/60">
+        <Bone className="h-3 w-40 rounded-full" />
+        <Bone className="mt-3 h-10 w-44 rounded-xl md:h-12" />
+        <Bone className="mt-3 h-3 w-64 rounded-full" />
+      </div>
+      <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }, (_, i) => (
+          <div key={i} className="space-y-2">
+            <Bone className="aspect-video w-full rounded-xl" />
+            <Bone className="h-4 w-3/4 rounded-md" />
+            <Bone className="h-3 w-1/2 rounded-md" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

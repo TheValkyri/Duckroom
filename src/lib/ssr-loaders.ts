@@ -13,8 +13,16 @@ const ssrArtworkCache = new Map<string, { url: string; expiresAt: number }>();
 export const MAX_SSR_CACHE_ENTRIES = 1000;
 export const SSR_QUERY_TIMEOUT_MS = 6000;
 
+let cachedSummary: { data: PublicLibrarySummary; expiresAt: number } | null = null;
+const SUMMARY_CACHE_TTL_MS = 60_000; // 60s in-memory cache for SSR / route loaders
+
+export function clearSsrLibrarySummaryCache() {
+  cachedSummary = null;
+}
+
 export function clearSsrArtworkCache() {
   ssrArtworkCache.clear();
+  cachedSummary = null;
 }
 
 export function getSsrArtworkCacheSize() {
@@ -283,6 +291,10 @@ export interface PublicLibrarySummary {
  * Leverages getPublicMasterLibraryInternal cache and signs only artwork.
  */
 export async function getPublicLibrarySummaryInternal(): Promise<PublicLibrarySummary> {
+  if (cachedSummary && cachedSummary.expiresAt > Date.now()) {
+    return cachedSummary.data;
+  }
+
   const lib = await withTimeout(
     getPublicMasterLibraryInternal(),
     SSR_QUERY_TIMEOUT_MS,
@@ -294,7 +306,7 @@ export async function getPublicLibrarySummaryInternal(): Promise<PublicLibrarySu
   const primaryCover =
     lib.albums[0]?.cover || lib.tracks.find((t) => t.cover)?.cover || "https://duckroom.vercel.app/og-image.jpg";
 
-  return {
+  const result: PublicLibrarySummary = {
     albums: lib.albums,
     tracks: lib.tracks,
     videos: lib.videos,
@@ -304,6 +316,9 @@ export async function getPublicLibrarySummaryInternal(): Promise<PublicLibrarySu
     totalSingles: singles.length,
     primaryCover,
   };
+
+  cachedSummary = { data: result, expiresAt: Date.now() + SUMMARY_CACHE_TTL_MS };
+  return result;
 }
 
 /**

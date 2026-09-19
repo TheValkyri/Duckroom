@@ -22,7 +22,7 @@ import {
   Users,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { springSnappy, tapScale } from "../lib/motion";
 import { useAuth } from "../lib/useAuth";
 import { useDuckroomRole } from "../lib/useRole";
@@ -38,7 +38,7 @@ import { CommandPalette } from "./CommandPalette";
 import { ensureThemeApplied } from "../lib/theme";
 import { NowPlaying } from "./player/NowPlaying";
 import { PlayerBar } from "./player/PlayerBar";
-import { ModernDuckLogo, GlobalUploadBanner, UploadNavDot, MobileMoreSheet } from "./shell";
+import { ModernDuckLogo, GlobalUploadBanner, UploadNavDot, MobileMoreSheet, NavigationProgressBar } from "./shell";
 
 export { ModernDuckLogo } from "./shell";
 
@@ -84,7 +84,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const displayName = profile?.displayName || user?.email?.split("@")[0] || "Thành viên";
   const handle = profile?.handle ? `@${profile.handle}` : null;
   const avatarUrl = profile?.avatarUrl || null;
-  const visibleNav = nav.filter((item) => item.to !== "/upload" || isOwner);
+  const visibleNav = useMemo(() => nav.filter((item) => item.to !== "/upload" || isOwner), [isOwner]);
+
+  const isItemActive = (to: string) => {
+    if (to === "/") return location.pathname === "/";
+    return location.pathname === to || location.pathname.startsWith(`${to}/`);
+  };
   const [collapsed, setCollapsed] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   // QoL: khoá scroll nền khi More sheet mở.
@@ -126,6 +131,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="bg-background min-h-screen" suppressHydrationWarning>
+      {/* Top navigation micro-progress bar — instant feedback for all route transitions */}
+      <NavigationProgressBar />
+
       {/* Floating Global Upload Notification Banner — isolated subscriber */}
       <GlobalUploadBanner />
 
@@ -164,11 +172,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             onClick={() => setPaletteOpen(true)}
             aria-label="Tìm nhanh trong Duckroom"
             title={collapsed ? "Tìm nhanh (Ctrl K)" : undefined}
-            className="flex items-center gap-3.5 rounded-xl px-3 py-2.5 text-sm font-medium border border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/40 cursor-pointer transition-colors"
+            className="flex items-center gap-3.5 rounded-xl px-3 h-11 text-sm font-medium border border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/40 cursor-pointer transition-colors select-none"
           >
-            <Search className="size-5 shrink-0 text-primary/70" />
+            <Search className="size-5 shrink-0 text-primary/70 pointer-events-none" />
             {!collapsed && (
-              <span className="flex items-center justify-between flex-1">
+              <span className="flex items-center justify-between flex-1 pointer-events-none">
                 <span>Tìm kiếm</span>
                 <kbd className="text-[10px] font-mono border border-border/70 px-1.5 py-0.5 rounded text-muted-foreground/80">
                   Ctrl K
@@ -177,31 +185,31 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
           </button>
           {visibleNav.map(({ to, label, icon: Icon }) => {
-            const isActive = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
+            const isActive = isItemActive(to);
             return (
               <Link
                 key={to}
                 to={to}
                 preload="intent"
+                preloadDelay={80}
                 activeOptions={{ exact: to === "/" }}
                 title={collapsed ? label : undefined}
                 className={cn(
-                  // Perf fix 2026-08-25: bỏ layoutId flying-pill (bắt buộc đo
-                  // layout + animate chéo cây mỗi route change = khựng). Active
-                  // state giờ là CSS thuần — vẫn mượt, chi phí gần bằng 0.
-                  "flex items-center gap-3.5 rounded-xl px-3 py-3 text-sm font-medium transition-colors duration-200 relative group cursor-pointer",
+                  // Fixed 44px height (h-11) + pointer-events-none on content prevents
+                  // layout shifts or bounding box flutter during hover/transitions.
+                  "flex items-center gap-3.5 rounded-xl px-3 h-11 text-sm font-medium transition-colors duration-150 relative group cursor-pointer select-none touch-manipulation active:scale-[0.98]",
                   isActive
                     ? "bg-accent/80 border border-white/10 shadow-sm text-foreground font-semibold"
-                    : "border border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/40",
+                    : "border border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/40 active:bg-accent/60",
                 )}
               >
                 <Icon
                   className={cn(
-                    "size-5 shrink-0 z-10 transition-transform duration-200 group-hover:scale-110",
+                    "size-5 shrink-0 z-10 pointer-events-none transition-transform duration-150 group-hover:scale-110",
                     isActive ? "text-primary font-bold" : "text-primary/70",
                   )}
                 />
-                {!collapsed && <span className="whitespace-nowrap truncate z-10">{label}</span>}
+                {!collapsed && <span className="whitespace-nowrap truncate z-10 pointer-events-none">{label}</span>}
                 {to === "/upload" && <UploadNavDot />}
               </Link>
             );
@@ -210,23 +218,23 @@ export function AppShell({ children }: { children: ReactNode }) {
           {isOwner && (
             <Link
               to="/admin"
+              preload="intent"
+              preloadDelay={80}
               title={collapsed ? "Owner Console" : undefined}
               className={cn(
-                // CSS active state thuần — đồng bộ với các nav item khác, không
-                // đo layout (layoutId) mỗi route change.
-                "flex items-center gap-3.5 rounded-xl px-3 py-3 text-sm font-medium transition-colors duration-200 relative group cursor-pointer mt-1",
+                "flex items-center gap-3.5 rounded-xl px-3 h-11 text-sm font-medium transition-colors duration-150 relative group cursor-pointer select-none touch-manipulation active:scale-[0.98] mt-1",
                 location.pathname === "/admin"
                   ? "bg-accent/80 border border-white/10 shadow-sm text-foreground font-semibold"
-                  : "border border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/40",
+                  : "border border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/40 active:bg-accent/60",
               )}
             >
               <ShieldCheck
                 className={cn(
-                  "size-5 shrink-0 z-10 transition-transform group-hover:scale-110",
+                  "size-5 shrink-0 z-10 pointer-events-none transition-transform duration-150 group-hover:scale-110",
                   location.pathname === "/admin" ? "text-emerald-400 font-bold" : "text-emerald-400/70",
                 )}
               />
-              {!collapsed && <span className="whitespace-nowrap truncate z-10">Owner Console</span>}
+              {!collapsed && <span className="whitespace-nowrap truncate z-10 pointer-events-none">Owner Console</span>}
             </Link>
           )}
         </nav>
@@ -469,26 +477,32 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <div className="grid grid-cols-5">
           {bottomNav.map(({ to, label, icon: Icon, match }) => {
-            const isActive = match === "exact" ? location.pathname === "/" : location.pathname.startsWith(to);
+            const isActive = match === "exact" ? location.pathname === "/" : isItemActive(to);
             return (
               <Link
                 key={to}
                 to={to}
                 preload="intent"
+                preloadDelay={80}
                 activeOptions={{ exact: match === "exact" }}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex min-h-[56px] flex-col items-center justify-center gap-0.5 px-1 py-1.5 select-none transition-colors cursor-pointer",
-                  isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                  "flex min-h-[56px] flex-col items-center justify-center gap-0.5 px-1 py-1.5 select-none transition-colors cursor-pointer touch-manipulation active:scale-95",
+                  isActive ? "text-primary" : "text-muted-foreground hover:text-foreground active:text-primary",
                 )}
               >
-                <span className="relative">
+                <span className="relative pointer-events-none">
                   <Icon className="size-5" strokeWidth={isActive ? 2.4 : 2} />
                   {isActive && (
                     <span className="bg-primary absolute -bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full" />
                   )}
                 </span>
-                <span className={cn("text-[10px] leading-none", isActive ? "font-semibold" : "font-medium")}>
+                <span
+                  className={cn(
+                    "text-[10px] leading-none pointer-events-none",
+                    isActive ? "font-semibold" : "font-medium",
+                  )}
+                >
                   {label}
                 </span>
               </Link>
@@ -501,17 +515,22 @@ export function AppShell({ children }: { children: ReactNode }) {
             aria-label="Xem thêm mục"
             aria-expanded={moreOpen}
             className={cn(
-              "flex min-h-[56px] flex-col items-center justify-center gap-0.5 px-1 py-1.5 select-none transition-colors cursor-pointer",
+              "flex min-h-[56px] flex-col items-center justify-center gap-0.5 px-1 py-1.5 select-none transition-colors cursor-pointer touch-manipulation",
               isMoreActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
             )}
           >
-            <span className="relative">
+            <span className="relative pointer-events-none">
               <MoreHorizontal className="size-5" strokeWidth={isMoreActive ? 2.4 : 2} />
               {isMoreActive && (
                 <span className="bg-primary absolute -bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full" />
               )}
             </span>
-            <span className={cn("text-[10px] leading-none", isMoreActive ? "font-semibold" : "font-medium")}>
+            <span
+              className={cn(
+                "text-[10px] leading-none pointer-events-none",
+                isMoreActive ? "font-semibold" : "font-medium",
+              )}
+            >
               Xem thêm
             </span>
           </button>

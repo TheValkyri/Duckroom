@@ -19,6 +19,9 @@ import { cn } from "../lib/utils";
 import { getPublicLibrarySummaryServer } from "../lib/ssr-loaders";
 
 export const Route = createFileRoute("/")({
+  staleTime: 60_000,
+  gcTime: 1000 * 60 * 30,
+  pendingComponent: HomeSkeleton,
   loader: async () => {
     try {
       const summary = await getPublicLibrarySummaryServer();

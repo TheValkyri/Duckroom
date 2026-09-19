@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { getAudioAnalyser, disconnectAudioAnalyser } from "../lib/audio-analyser";
+import { getAudioAnalyser } from "../lib/audio-analyser";
 import { usePlayer } from "../lib/player";
 import { subscribeTheme, accentCssVars, getThemeState } from "../lib/theme";
 import { cn } from "../lib/utils";
@@ -218,7 +218,6 @@ export function Visualizer({
       cancelAnimationFrame(raf);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       unsub();
-      disconnectAudioAnalyser(cachedAnalyserEl);
     };
   }, [bars, playing, audioRef]);
 

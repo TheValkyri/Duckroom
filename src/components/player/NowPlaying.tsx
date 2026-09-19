@@ -8,8 +8,7 @@ import { springGentle, springSmooth, springSnappy, tapScale } from "../../lib/mo
 import { usePlayer } from "../../lib/player";
 import { cn } from "../../lib/utils";
 import { Visualizer } from "../Visualizer";
-import { TransportControls } from "./Controls";
-import { WaveformSeekBar } from "./WaveformSeekBar";
+import { SeekBar, TransportControls } from "./Controls";
 import { LyricsPane } from "./Lyrics";
 import { SleepTimerMenu } from "./SleepTimerMenu";
 import { useIsPhoneLayout } from "../../hooks/use-media-query";
@@ -478,12 +477,8 @@ export function NowPlaying() {
                     />
                   )}
 
-                  <div className="mt-2">
-                    {/* F5 2026-09-04: WAVEFORM SEEKBAR — sóng THẬT của bài
-                        (decode client-side, cache per-track) thay thanh
-                        trơn. Fallback trung thực về thanh mảnh nếu peaks
-                        chưa sẵn (đang fetch/decode lỗi) — không fake. */}
-                    <WaveformSeekBar height={isPhone ? 40 : 52} />
+                  <div className="mt-2 w-full">
+                    <SeekBar />
                     <NowPlayingTimeLabel duration={current.duration} />
                   </div>
 

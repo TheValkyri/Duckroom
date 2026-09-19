@@ -67,5 +67,5 @@ export function UploadNavDot() {
   }, []);
 
   if (!hasActive) return null;
-  return <span className="ml-auto size-2 rounded-full bg-primary animate-pulse shrink-0 z-10" />;
+  return <span className="ml-auto size-2 rounded-full bg-primary animate-pulse shrink-0 z-10 pointer-events-none" />;
 }
