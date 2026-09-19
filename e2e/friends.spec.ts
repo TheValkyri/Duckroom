@@ -54,7 +54,9 @@ test.describe("Duckroom Friends & Profile E2E Tests (§40, §41)", () => {
     await moreBtn.click();
 
     // Verify 'Bạn bè' entry in More sheet
-    const friendsInMore = page.locator('a[href="/friends"]').filter({ hasText: "Bạn bè" }).first();
+    const dialog = page.locator('[role="dialog"]');
+    await expect(dialog).toBeVisible();
+    const friendsInMore = dialog.locator('a[href="/friends"]').filter({ hasText: "Bạn bè" }).first();
     await expect(friendsInMore).toBeVisible();
 
     // Navigate to /friends via More sheet
