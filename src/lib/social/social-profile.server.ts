@@ -14,10 +14,14 @@ import {
   validateVisualAssetKey,
 } from "../auth-guard";
 import {
+  evaluateRelationship,
   generateFriendCode,
   generateTemporaryHandle,
+  getCanonicalPair,
+  getProfileSchema,
   normalizeHandle,
   updateProfileSchema,
+  type MemberProfileView,
   type UpdateProfileInput,
   type UserProfile,
 } from "./social-types";
@@ -261,6 +265,80 @@ export async function requestAvatarUploadUrlInternal(
   return { uploadUrl, storageKey: key };
 }
 
+/**
+ * Retrieves a member's profile for viewing by another authenticated user (§19, §26).
+ * Enforces privacy:
+ * - If target has blocked current user, returns 404 (safe fail-closed).
+ * - Only reveals friend_code if accepted friends or viewing self.
+ * - Always evaluates perspective relationship.
+ */
+export async function getProfileInternal(currentUserId: string, targetUserId: string): Promise<MemberProfileView> {
+  const cleanCurrent = (currentUserId || "").trim();
+  const cleanTarget = (targetUserId || "").trim();
+  if (!cleanCurrent || !cleanTarget) {
+    throw new Response("User ID is required", { status: 400 });
+  }
+
+  if (cleanCurrent === cleanTarget) {
+    const myProfile = await getMyProfileInternal(cleanCurrent);
+    return {
+      userId: myProfile.userId,
+      displayName: myProfile.displayName,
+      handle: myProfile.handle,
+      avatarUrl: myProfile.avatarUrl,
+      friendCode: myProfile.friendCode,
+      relationship: "self",
+      presenceVisibility: myProfile.presenceVisibility,
+      listeningVisibility: myProfile.listeningVisibility,
+      createdAt: myProfile.createdAt,
+    };
+  }
+
+  const db = getSupabaseAdmin();
+  const { data: profile, error } = await db
+    .from("profiles")
+    .select(
+      "user_id, display_name, handle, avatar_storage_key, friend_code, presence_visibility, listening_visibility, created_at",
+    )
+    .eq("user_id", cleanTarget)
+    .maybeSingle();
+
+  if (error || !profile) {
+    throw new Response("Không tìm thấy thông tin thành viên", { status: 404 });
+  }
+
+  const { userLowId, userHighId } = getCanonicalPair(cleanCurrent, cleanTarget);
+  const { data: friendship } = await db
+    .from("friendships")
+    .select("id, user_low_id, user_high_id, status")
+    .eq("user_low_id", userLowId)
+    .eq("user_high_id", userHighId)
+    .maybeSingle();
+
+  const relationship = evaluateRelationship(cleanCurrent, cleanTarget, friendship);
+
+  // Safe fail-closed if target blocked current user (§31)
+  if (relationship === "blocked_by_them") {
+    throw new Response("Không tìm thấy thông tin thành viên", { status: 404 });
+  }
+
+  const avatarUrl = await resolveAvatarUrlInternal(profile.avatar_storage_key);
+
+  return {
+    userId: profile.user_id,
+    displayName: profile.display_name?.trim() || profile.handle || "Thành viên Duckroom",
+    handle: profile.handle,
+    avatarUrl,
+    friendCode: relationship === "accepted" ? profile.friend_code : undefined,
+    relationship,
+    presenceVisibility:
+      profile.presence_visibility === "none" || profile.presence_visibility === "nobody" ? "none" : "friends",
+    listeningVisibility:
+      profile.listening_visibility === "none" || profile.listening_visibility === "nobody" ? "none" : "friends",
+    createdAt: profile.created_at,
+  };
+}
+
 // ==========================================
 // TANSTACK START SERVER FUNCTIONS
 // ==========================================
@@ -270,6 +348,14 @@ export const getMyProfileServer = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const userId = requireUserId(context);
     return getMyProfileInternal(userId);
+  });
+
+export const getProfileServer = createServerFn({ method: "GET" })
+  .middleware([serverSecurityMiddleware, requireMemberMiddleware])
+  .validator(getProfileSchema)
+  .handler(async ({ context, data }) => {
+    const userId = requireUserId(context);
+    return getProfileInternal(userId, data.userId);
   });
 
 export const updateMyProfileServer = createServerFn({ method: "POST" })
@@ -295,5 +381,6 @@ export const requestAvatarUploadUrlServer = createServerFn({ method: "POST" })
 
 // Standard method name aliases
 export const getMyProfile = getMyProfileServer;
+export const getProfile = getProfileServer;
 export const updateMyProfile = updateMyProfileServer;
 export const requestAvatarUploadUrl = requestAvatarUploadUrlServer;

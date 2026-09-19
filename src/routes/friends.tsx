@@ -15,6 +15,9 @@ import { FriendCard } from "../components/social/FriendCard";
 import { FriendRequestRow } from "../components/social/FriendRequestRow";
 import { FriendSearch } from "../components/social/FriendSearch";
 import { BlockedUserRow } from "../components/social/BlockedUserRow";
+import { ProfileCard } from "../components/social/ProfileCard";
+import { socialStore, useAllFriendsPresence } from "../lib/social/social-store";
+import { socialSubscriptions } from "../lib/social/social-subscriptions";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/friends")({
@@ -38,6 +41,11 @@ function FriendsPage() {
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequestItem[]>([]);
   const [blockedUsers, setBlockedUsers] = useState<BlockedUserItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
+  const handleCloseProfile = useCallback(() => setSelectedFriendId(null), []);
+
+  // Subscribe to reactive presence updates across all friends
+  useAllFriendsPresence();
 
   const loadData = useCallback(async () => {
     if (!isLoggedIn) return;
@@ -52,6 +60,10 @@ function FriendsPage() {
       setIncomingRequests(incomingData);
       setOutgoingRequests(outgoingData);
       setBlockedUsers(blockedData);
+
+      // Synchronize Realtime channel subscriptions for friends (§11, §20)
+      const friendIds = friendsData.map((f) => f.userId);
+      socialSubscriptions.syncFriends(friendIds);
     } catch (err) {
       console.error("Failed to load friend data:", err);
     } finally {
@@ -95,6 +107,20 @@ function FriendsPage() {
       </div>
     );
   }
+
+  // Split friends into Active vs Offline based on real-time presence (§21, §22)
+  const activeFriends: FriendItem[] = [];
+  const offlineFriends: FriendItem[] = [];
+
+  friends.forEach((friend) => {
+    const presence = socialStore.getFriend(friend.userId);
+    const status = presence?.status || "offline";
+    if (status !== "offline") {
+      activeFriends.push(friend);
+    } else {
+      offlineFriends.push(friend);
+    }
+  });
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 md:px-6">
@@ -206,7 +232,7 @@ function FriendsPage() {
           <>
             {/* Tab: All Friends */}
             {activeTab === "friends" && (
-              <div className="space-y-3">
+              <div className="space-y-6">
                 {friends.length === 0 ? (
                   <div className="rounded-2xl border border-white/5 bg-card/40 p-8 text-center backdrop-blur-sm">
                     <div className="mx-auto grid size-12 place-items-center rounded-xl bg-primary/10 text-primary mb-3">
@@ -226,11 +252,56 @@ function FriendsPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {friends.map((friend) => (
-                      <FriendCard key={friend.friendshipId} friend={friend} onActionSuccess={loadData} />
-                    ))}
-                  </div>
+                  <>
+                    {/* Active friends group */}
+                    {activeFriends.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="relative flex size-2.5 items-center justify-center">
+                            <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                            <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                          </span>
+                          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            Đang hoạt động ({activeFriends.length})
+                          </h2>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {activeFriends.map((friend) => (
+                            <FriendCard
+                              key={friend.friendshipId}
+                              friend={friend}
+                              onActionSuccess={loadData}
+                              onSelect={(f) => setSelectedFriendId(f.userId)}
+                              showLiveActivity
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Offline friends group */}
+                    {offlineFriends.length > 0 && (
+                      <div className="space-y-3 pt-2">
+                        <div className="flex items-center gap-2">
+                          <span className="size-2 rounded-full bg-zinc-600/60" />
+                          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            Ngoại tuyến ({offlineFriends.length})
+                          </h2>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {offlineFriends.map((friend) => (
+                            <FriendCard
+                              key={friend.friendshipId}
+                              friend={friend}
+                              onActionSuccess={loadData}
+                              onSelect={(f) => setSelectedFriendId(f.userId)}
+                              showLiveActivity={false}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -304,6 +375,14 @@ function FriendsPage() {
           </>
         )}
       </div>
+
+      {/* Profile Detail Dialog (§19, §26) */}
+      <ProfileCard
+        userId={selectedFriendId}
+        open={Boolean(selectedFriendId)}
+        onClose={handleCloseProfile}
+        onActionSuccess={loadData}
+      />
     </div>
   );
 }

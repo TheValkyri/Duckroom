@@ -28,6 +28,8 @@ import { useAuth } from "../lib/useAuth";
 import { useDuckroomRole } from "../lib/useRole";
 import { useSocialProfile } from "../lib/social";
 import { ProfileAvatar } from "./social/ProfileAvatar";
+import { FriendsSheet } from "./social/FriendsSheet";
+import { SocialPresenceAdapter } from "./social/SocialPresenceAdapter";
 import { cn } from "../lib/utils";
 import { useScrollLock } from "../hooks/use-scroll-lock";
 import { HotkeysOverlay } from "./HotkeysOverlay";
@@ -91,6 +93,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [themeOrigin, setThemeOrigin] = useState<{ x: number; y: number } | null>(null);
   // F4: Command Palette — Ctrl+K (desktop) / nút 🔍 (mobile header).
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [friendsOpen, setFriendsOpen] = useState(false);
 
   // Ctrl+K / Cmd+K — mở palette từ bất kỳ đâu (không đụng input đang gõ:
   // browser default của Ctrl+K là search bar — preventDefault chiếm lại).
@@ -407,23 +410,39 @@ export function AppShell({ children }: { children: ReactNode }) {
             </>
           )}
           {isLoggedIn ? (
-            <Link
-              to="/profile"
-              aria-label={`Hồ sơ cá nhân (${displayName})`}
-              title="Hồ sơ cá nhân"
-              className={cn(
-                "grid size-11 place-items-center rounded-full transition-colors hover:bg-accent/50 cursor-pointer",
-                location.pathname === "/profile" && "bg-accent text-primary ring-2 ring-primary/40",
-              )}
-            >
-              <ProfileAvatar
-                src={avatarUrl}
-                name={displayName}
-                handle={handle}
-                size="sm"
-                className="size-7 border border-white/15"
-              />
-            </Link>
+            <>
+              <motion.button
+                type="button"
+                whileTap={tapScale}
+                transition={springSnappy}
+                onClick={() => setFriendsOpen(true)}
+                aria-label="Bạn bè"
+                title="Bạn bè"
+                className={cn(
+                  "text-muted-foreground hover:text-primary grid size-11 place-items-center rounded-full transition-colors hover:bg-accent/50 cursor-pointer",
+                  friendsOpen && "bg-accent text-primary",
+                )}
+              >
+                <Users className="size-5" />
+              </motion.button>
+              <Link
+                to="/profile"
+                aria-label={`Hồ sơ cá nhân (${displayName})`}
+                title="Hồ sơ cá nhân"
+                className={cn(
+                  "grid size-11 place-items-center rounded-full transition-colors hover:bg-accent/50 cursor-pointer",
+                  location.pathname === "/profile" && "bg-accent text-primary ring-2 ring-primary/40",
+                )}
+              >
+                <ProfileAvatar
+                  src={avatarUrl}
+                  name={displayName}
+                  handle={handle}
+                  size="sm"
+                  className="size-7 border border-white/15"
+                />
+              </Link>
+            </>
           ) : (
             <Link
               to="/login"
@@ -539,6 +558,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       </AnimatePresence>
       {/* F4: Command Palette — Ctrl+K desktop, nút 🔍 mobile header. */}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      {/* Mobile Friends Sheet (§4, §23) */}
+      <FriendsSheet open={friendsOpen} onClose={() => setFriendsOpen(false)} />
+      {/* Social presence & multi-tab adapter (§27, §28) */}
+      <SocialPresenceAdapter />
     </div>
   );
 }

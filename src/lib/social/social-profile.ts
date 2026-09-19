@@ -6,7 +6,13 @@ import {
   requireMemberMiddleware,
   serverSecurityMiddleware,
 } from "../auth-guard";
-import { updateProfileSchema, type UpdateProfileInput, type UserProfile } from "./social-types";
+import {
+  getProfileSchema,
+  updateProfileSchema,
+  type MemberProfileView,
+  type UpdateProfileInput,
+  type UserProfile,
+} from "./social-types";
 
 type MemberContext = { auth?: { userId?: string | null; email?: string | null; role?: string | null } | null };
 
@@ -48,6 +54,16 @@ export const getMyProfileServer = createServerFn({ method: "GET" })
     return getMyProfileInternal(userId);
   });
 
+/** Retrieves a member's profile for viewing by another authenticated user (§19, §26) */
+export const getProfileServer = createServerFn({ method: "GET" })
+  .middleware([serverSecurityMiddleware, requireMemberMiddleware])
+  .validator(getProfileSchema)
+  .handler(async ({ context, data }): Promise<MemberProfileView> => {
+    const { getProfileInternal } = await import("./social-profile.server");
+    const userId = requireUserId(context);
+    return getProfileInternal(userId, data.userId);
+  });
+
 /** Updates the current authenticated user's social profile */
 export const updateMyProfileServer = createServerFn({ method: "POST" })
   .middleware([serverSecurityMiddleware, requireFreshMemberMiddleware, profileUpdateRateLimitMiddleware])
@@ -75,5 +91,6 @@ export const requestAvatarUploadUrlServer = createServerFn({ method: "POST" })
 
 // Standard method name aliases
 export const getMyProfile = getMyProfileServer;
+export const getProfile = getProfileServer;
 export const updateMyProfile = updateMyProfileServer;
 export const requestAvatarUploadUrl = requestAvatarUploadUrlServer;

@@ -31,8 +31,8 @@ function readSql(): string {
 
 function tablesWithPolicies(sql: string): Map<string, Set<string>> {
   const result = new Map<string, Set<string>>();
-  // CREATE POLICY "name" ON [public.]table ...
-  const re = /CREATE POLICY\s+"[^"]+"\s+ON\s+(?:public\.)?([a-z_][a-z0-9_]*)/gi;
+  // CREATE POLICY "name" ON [schema.]table ...
+  const re = /CREATE POLICY\s+"[^"]+"\s+ON\s+(?:[a-z_][a-z0-9_]*\.)?([a-z_][a-z0-9_]*)/gi;
   for (const m of sql.matchAll(re)) {
     const table = m[1]?.toLowerCase();
     if (table && !result.has(table)) result.set(table, new Set());
@@ -42,7 +42,7 @@ function tablesWithPolicies(sql: string): Map<string, Set<string>> {
 
 function tablesWithRlsEnabled(sql: string): Set<string> {
   const result = new Set<string>();
-  const re = /ALTER TABLE\s+(?:ONLY\s+)?(?:public\.)?([a-z_][a-z0-9_]*)\s+ENABLE ROW LEVEL SECURITY/gi;
+  const re = /ALTER TABLE\s+(?:ONLY\s+)?(?:[a-z_][a-z0-9_]*\.)?([a-z_][a-z0-9_]*)\s+ENABLE ROW LEVEL SECURITY/gi;
   for (const m of sql.matchAll(re)) {
     const table = m[1]?.toLowerCase();
     if (table) result.add(table);

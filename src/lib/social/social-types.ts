@@ -308,3 +308,54 @@ export interface FriendSearchResult {
   friendCode?: string;
   relationship: RelationshipStatus;
 }
+
+// ==========================================
+// PROFILE VIEW & DETAIL TYPES (§19, §26)
+// ==========================================
+
+export const getProfileSchema = z.object({
+  userId: z.string().trim().min(1, "Thiếu userId"),
+});
+
+export type GetProfileInput = z.infer<typeof getProfileSchema>;
+
+export interface MemberProfileView {
+  userId: string;
+  displayName: string;
+  handle: string;
+  avatarUrl: string | null;
+  friendCode?: string | undefined;
+  relationship: RelationshipStatus;
+  presenceVisibility: SocialVisibility;
+  listeningVisibility: SocialVisibility;
+  createdAt?: string | undefined;
+}
+
+// ==========================================
+// REALTIME PRESENCE PAYLOADS & STATE (§12, §15, §17)
+// ==========================================
+
+export interface SocialPresencePayload {
+  userId: string;
+  status: SocialPresenceStatus;
+  trackId: string | null;
+  albumId: string | null;
+  playing: boolean;
+  positionMs: number;
+  positionUpdatedAt: number;
+  durationMs: number;
+  revision: number;
+}
+
+export interface FriendPresenceEntry {
+  userId: string;
+  status: SocialPresenceStatus;
+  activity: SocialListeningActivity | null;
+  receivedAt: number;
+  revision: number;
+  trackTitle?: string | undefined;
+  artistName?: string | undefined;
+  albumTitle?: string | undefined;
+  coverUrl?: string | null | undefined;
+  isPrivateMedia?: boolean | undefined;
+}
