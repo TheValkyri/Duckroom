@@ -32,7 +32,12 @@ export function PresenceDot({ status, size = "sm", className, showText = false, 
       case "listening":
         return (
           <span className="relative flex items-center justify-center">
-            <span className={cn("absolute inline-flex rounded-full bg-emerald-400 opacity-75 animate-ping", dotSize)} />
+            <span
+              className={cn(
+                "absolute inline-flex rounded-full bg-emerald-400 opacity-75 animate-ping motion-reduce:animate-none",
+                dotSize,
+              )}
+            />
             <span
               className={cn(
                 "relative inline-flex rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]",
@@ -60,7 +65,7 @@ export function PresenceDot({ status, size = "sm", className, showText = false, 
   const renderIcon = () => {
     if (!showIcon) return null;
     if (status === "listening") {
-      return <Headphones className="size-3.5 text-emerald-400 animate-pulse shrink-0" />;
+      return <Headphones className="size-3.5 text-emerald-400 animate-pulse motion-reduce:animate-none shrink-0" />;
     }
     if (status === "paused") {
       return <Pause className="size-3.5 text-amber-400 shrink-0" />;

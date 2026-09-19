@@ -85,10 +85,22 @@ export function FriendCard({ friend, onActionSuccess, onSelect, className, showL
     <div
       className={cn(
         "group relative flex flex-col justify-between gap-2.5 rounded-2xl border border-white/5 bg-card/60 p-3.5 shadow-sm backdrop-blur-sm transition-all hover:border-white/10 hover:bg-card/80",
-        onSelect && "cursor-pointer",
+        onSelect && "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
         className,
       )}
       onClick={() => onSelect?.(friend)}
+      role={onSelect ? "button" : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      onKeyDown={
+        onSelect
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect(friend);
+              }
+            }
+          : undefined
+      }
     >
       <div className="flex items-center justify-between gap-3 overflow-hidden">
         <div className="flex items-center gap-3.5 overflow-hidden">
@@ -107,7 +119,11 @@ export function FriendCard({ friend, onActionSuccess, onSelect, className, showL
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="flex shrink-0 items-center gap-1"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
           {isProcessing ? (
             <Loader2 className="size-4 animate-spin text-muted-foreground" />
           ) : (
@@ -152,7 +168,11 @@ export function FriendCard({ friend, onActionSuccess, onSelect, className, showL
       </div>
 
       {showLiveActivity && isListening && (
-        <div className="pt-0.5 border-t border-white/5" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="pt-0.5 border-t border-white/5"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
           <FriendActivity userId={friend.userId} compact />
         </div>
       )}

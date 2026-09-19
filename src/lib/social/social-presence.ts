@@ -117,6 +117,7 @@ export interface SocialPresencePublisherState {
   isPlaying: boolean;
   currentTrack?: { id: string; albumId?: string | null; duration: number } | null;
   positionMs: number;
+  getPositionMs?: () => number;
   presenceVisibility: SocialVisibility;
   listeningVisibility: SocialVisibility;
 }
@@ -164,6 +165,7 @@ export class SocialPresencePublisher {
   }
 
   public updateState(state: SocialPresencePublisherState): void {
+    const previousState = this.currentState;
     this.currentState = state;
 
     if (!this.channel) {
@@ -173,17 +175,29 @@ export class SocialPresencePublisher {
     // Multi-tab arbitration (§28):
     // Only the playback leader tab actively broadcasts presence and heartbeats.
     // Non-leader tabs stop heartbeat and yield to avoid channel contention.
+    // If transitioning from leader to follower, broadcast 'online' once to yield.
     if (state.tabRole !== "leader") {
       this.stopHeartbeat();
+      if (previousState?.tabRole === "leader" || (this.lastStatus !== "online" && this.lastStatus !== "offline")) {
+        const revision = getNextRevision();
+        const payload = buildPresencePayload({
+          ...state,
+          revision,
+        });
+        this.lastStatus = payload.status;
+        this.sendPresenceAndBroadcast(payload, true);
+      }
       return;
     }
 
     // Ensure heartbeat loop is active for leader tab
     this.ensureHeartbeat();
 
+    const currentPosMs = state.getPositionMs ? state.getPositionMs() : state.positionMs;
     const revision = getNextRevision();
     const payload = buildPresencePayload({
       ...state,
+      positionMs: currentPosMs,
       revision,
     });
 
@@ -195,9 +209,13 @@ export class SocialPresencePublisher {
 
   private publishImmediate(): void {
     if (!this.currentState || this.currentState.tabRole !== "leader") return;
+    const currentPosMs = this.currentState.getPositionMs
+      ? this.currentState.getPositionMs()
+      : this.currentState.positionMs;
     const revision = getNextRevision();
     const payload = buildPresencePayload({
       ...this.currentState,
+      positionMs: currentPosMs,
       revision,
     });
     this.lastStatus = payload.status;
@@ -246,9 +264,14 @@ export class SocialPresencePublisher {
       // Do not broadcast heartbeat if in ghost mode (§10)
       if (this.currentState.presenceVisibility === "none") return;
 
+      const currentPosMs = this.currentState.getPositionMs
+        ? this.currentState.getPositionMs()
+        : this.currentState.positionMs;
+
       const revision = getNextRevision();
       const payload = buildPresencePayload({
         ...this.currentState,
+        positionMs: currentPosMs,
         revision,
       });
 

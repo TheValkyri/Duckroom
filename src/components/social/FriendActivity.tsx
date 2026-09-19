@@ -103,7 +103,7 @@ export function FriendActivity({ userId, className, compact = false }: FriendAct
             <img src={cover} alt={title} className="size-7 rounded-md object-cover shrink-0" />
           ) : (
             <div className="grid size-7 place-items-center rounded-md bg-white/10 text-primary shrink-0">
-              <Disc3 className="size-4 animate-spin-slow" />
+              <Disc3 className="size-4 animate-spin-slow motion-reduce:animate-none" />
             </div>
           )}
           <div className="min-w-0 flex-1">

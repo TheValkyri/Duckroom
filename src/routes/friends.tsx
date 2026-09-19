@@ -225,8 +225,24 @@ function FriendsPage() {
       {/* Content */}
       <div className="mt-6">
         {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="size-6 animate-spin text-primary" />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="flex flex-col justify-between gap-2.5 rounded-2xl border border-white/5 bg-card/60 p-3.5 shadow-sm backdrop-blur-sm"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3.5">
+                    <div className="size-10 rounded-full bg-white/10 animate-pulse motion-reduce:animate-none" />
+                    <div className="space-y-1.5">
+                      <div className="h-3.5 w-28 rounded bg-white/10 animate-pulse motion-reduce:animate-none" />
+                      <div className="h-2.5 w-20 rounded bg-white/5 animate-pulse motion-reduce:animate-none" />
+                    </div>
+                  </div>
+                  <div className="size-8 rounded-lg bg-white/5 animate-pulse motion-reduce:animate-none" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <>
@@ -258,7 +274,7 @@ function FriendsPage() {
                       <div className="space-y-3">
                         <div className="flex items-center gap-2">
                           <span className="relative flex size-2.5 items-center justify-center">
-                            <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                            <span className="absolute inline-flex size-full animate-ping motion-reduce:animate-none rounded-full bg-emerald-400 opacity-75" />
                             <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
                           </span>
                           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

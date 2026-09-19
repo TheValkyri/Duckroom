@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useAuth } from "../../lib/useAuth";
 import { useSocialProfile } from "../../lib/social/profile-context";
 import { usePlayer } from "../../lib/player";
@@ -21,6 +21,11 @@ export function SocialPresenceAdapter() {
   const prevIsPlaying = useRef(isPlaying);
   const prevTrackId = useRef<string | undefined>(current?.id);
   const prevTabRole = useRef(tabRole);
+
+  const getPositionMs = useCallback(() => {
+    const rawPosSec = audioRef?.current?.currentTime ?? 0;
+    return Math.round(rawPosSec * 1000);
+  }, [audioRef]);
 
   // Initialize publisher and sync friend subscriptions on login
   useEffect(() => {
@@ -50,12 +55,46 @@ export function SocialPresenceAdapter() {
     };
   }, [isLoggedIn, user?.id]);
 
+  // Listen to audio element events (seeked) to broadcast immediately without waiting for heartbeat
+  useEffect(() => {
+    const audioEl = audioRef?.current;
+    if (!audioEl || !isLoggedIn || !user?.id || tabRole !== "leader") return;
+
+    const notifySeeked = () => {
+      const positionMs = Math.round(audioEl.currentTime * 1000);
+      socialPresencePublisher.updateState({
+        userId: user.id,
+        tabRole,
+        isPlaying,
+        currentTrack: current ? { id: current.id, albumId: current.albumId, duration: current.duration } : null,
+        positionMs,
+        getPositionMs,
+        presenceVisibility: profile?.presenceVisibility ?? "friends",
+        listeningVisibility: profile?.listeningVisibility ?? "friends",
+      });
+    };
+
+    audioEl.addEventListener("seeked", notifySeeked);
+    return () => {
+      audioEl.removeEventListener("seeked", notifySeeked);
+    };
+  }, [
+    audioRef,
+    isLoggedIn,
+    user?.id,
+    tabRole,
+    isPlaying,
+    current,
+    profile?.presenceVisibility,
+    profile?.listeningVisibility,
+    getPositionMs,
+  ]);
+
   // Update presence state on player state changes
   useEffect(() => {
     if (!isLoggedIn || !user?.id) return;
 
-    const rawPosSec = audioRef?.current?.currentTime ?? 0;
-    const positionMs = Math.round(rawPosSec * 1000);
+    const positionMs = getPositionMs();
 
     socialPresencePublisher.updateState({
       userId: user.id,
@@ -63,6 +102,7 @@ export function SocialPresenceAdapter() {
       isPlaying,
       currentTrack: current ? { id: current.id, albumId: current.albumId, duration: current.duration } : null,
       positionMs,
+      getPositionMs,
       presenceVisibility: profile?.presenceVisibility ?? "friends",
       listeningVisibility: profile?.listeningVisibility ?? "friends",
     });
@@ -78,7 +118,7 @@ export function SocialPresenceAdapter() {
     current,
     profile?.presenceVisibility,
     profile?.listeningVisibility,
-    audioRef,
+    getPositionMs,
   ]);
 
   return null;

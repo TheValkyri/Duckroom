@@ -148,12 +148,9 @@ export class SocialStore {
     if (!entry) return undefined;
     const effectiveStatus = evaluateFriendEffectiveStatus(entry, nowMs);
     if (effectiveStatus !== entry.status && effectiveStatus === "offline") {
-      // Return projection with offline status
-      return {
-        ...entry,
-        status: "offline",
-        activity: null,
-      };
+      // Stabilize offline state in-place to preserve object reference across useSyncExternalStore calls
+      entry.status = "offline";
+      entry.activity = null;
     }
     return entry;
   }

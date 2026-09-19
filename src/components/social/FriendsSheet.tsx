@@ -123,8 +123,22 @@ export function FriendsSheet({ open, onClose }: FriendsSheetProps) {
           {/* Body Content */}
           <div className="flex-1 overflow-y-auto pt-3 space-y-4 pr-1">
             {isLoading ? (
-              <div className="flex h-40 items-center justify-center">
-                <Loader2 className="size-6 animate-spin text-primary" />
+              <div className="space-y-2.5 pt-1">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/5 bg-card/60 p-3.5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 rounded-full bg-white/10 animate-pulse motion-reduce:animate-none" />
+                      <div className="space-y-1.5">
+                        <div className="h-3.5 w-24 rounded bg-white/10 animate-pulse motion-reduce:animate-none" />
+                        <div className="h-2.5 w-16 rounded bg-white/5 animate-pulse motion-reduce:animate-none" />
+                      </div>
+                    </div>
+                    <div className="size-6 rounded-lg bg-white/5 animate-pulse motion-reduce:animate-none" />
+                  </div>
+                ))}
               </div>
             ) : (
               <>
@@ -153,7 +167,7 @@ export function FriendsSheet({ open, onClose }: FriendsSheetProps) {
                         {activeFriends.length > 0 && (
                           <div>
                             <div className="flex items-center gap-2 mb-2">
-                              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                              <span className="size-2 rounded-full bg-emerald-500 animate-pulse motion-reduce:animate-none" />
                               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                 Đang hoạt động ({activeFriends.length})
                               </h3>
