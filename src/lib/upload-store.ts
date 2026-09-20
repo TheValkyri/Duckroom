@@ -193,11 +193,36 @@ export async function enqueueFilesForIngestion(files: File[]): Promise<void> {
  * orphan (no cleanup debt, session already terminal). Cancel now aborts the
  * transfer BEFORE the server cleanup runs.
  */
+export interface UploadProgressStats {
+  loaded: number;
+  total: number;
+  speedBytesPerSec: number;
+  etaSeconds: number | null;
+}
+
+function formatSpeed(bytesPerSec: number): string {
+  if (bytesPerSec <= 0 || !Number.isFinite(bytesPerSec)) return "0.0 MB/s";
+  const mbps = bytesPerSec / (1024 * 1024);
+  if (mbps >= 0.1) {
+    return `${mbps.toFixed(1)} MB/s`;
+  }
+  const kbps = bytesPerSec / 1024;
+  return `${kbps.toFixed(0)} KB/s`;
+}
+
+function formatEta(seconds: number | null): string {
+  if (seconds === null || !Number.isFinite(seconds) || seconds < 0) return "đang tính...";
+  if (seconds < 60) return `${Math.max(1, Math.round(seconds))}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  return `${mins}m ${secs}s`;
+}
+
 function uploadWithProgress(
   url: string,
   data: Blob | File,
   contentType: string,
-  onProgress?: (percent: number) => void,
+  onProgress?: (percent: number, stats?: UploadProgressStats) => void,
   signal?: AbortSignal,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -207,11 +232,64 @@ function uploadWithProgress(
 
     const onAbort = () => xhr.abort();
 
+    let lastNotifyTime = 0;
+    let lastPercent = -1;
+    let startTime = 0;
+    let lastLoaded = 0;
+    let lastTime = 0;
+    let smoothedSpeed = 0;
+
     if (xhr.upload && onProgress) {
+      xhr.upload.onloadstart = () => {
+        startTime = typeof performance !== "undefined" ? performance.now() : Date.now();
+        lastTime = startTime;
+        lastLoaded = 0;
+        smoothedSpeed = 0;
+      };
+
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable && e.total > 0) {
-          const percent = Math.round((e.loaded / e.total) * 100);
-          onProgress(percent);
+          const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+          const percent = Math.min(100, Math.round((e.loaded / e.total) * 100));
+
+          // Throttle: at most once per 80ms (or when percent reaches 100%)
+          // and only when integer percent changes
+          const timeSinceLast = now - lastNotifyTime;
+          const isDone = percent === 100;
+          const percentChanged = percent !== lastPercent;
+
+          if (isDone || (percentChanged && timeSinceLast >= 80)) {
+            lastNotifyTime = now;
+            lastPercent = percent;
+
+            if (startTime === 0) {
+              startTime = now;
+              lastTime = now;
+            }
+            const dt = (now - lastTime) / 1000;
+            if (dt >= 0.05) {
+              const dBytes = e.loaded - lastLoaded;
+              const instantSpeed = dBytes / dt;
+              smoothedSpeed = smoothedSpeed === 0 ? instantSpeed : 0.3 * instantSpeed + 0.7 * smoothedSpeed;
+              lastLoaded = e.loaded;
+              lastTime = now;
+            } else if (smoothedSpeed === 0) {
+              const elapsedTotal = (now - startTime) / 1000;
+              if (elapsedTotal > 0.05 && e.loaded > 0) {
+                smoothedSpeed = e.loaded / elapsedTotal;
+              }
+            }
+
+            const remainingBytes = Math.max(0, e.total - e.loaded);
+            const etaSeconds = smoothedSpeed > 0 ? remainingBytes / smoothedSpeed : null;
+
+            onProgress(percent, {
+              loaded: e.loaded,
+              total: e.total,
+              speedBytesPerSec: smoothedSpeed,
+              etaSeconds,
+            });
+          }
         }
       };
     }
@@ -311,26 +389,39 @@ async function processLocalPreAnalysis(itemId: string) {
     const headerBuffer = await item.file.slice(0, 2 * 1024 * 1024).arrayBuffer();
     const localAnalysis = await analyzeMediaBuffer(headerBuffer, item.file.name, item.file.size);
 
+    // Start Client SHA-256 calculation concurrently with metadata parsing
+    const sha256Promise = calculateFileSha256(item.file);
+
     let extractedCoverUrl: string | null = null;
     let extractedLyrics: string | null = null;
     let trackNoStr = "";
     let yearStr = "";
 
     if (!item.isVideo) {
-      const audioMeta = await extractAudioMetadata(item.file);
+      const audioMeta = await extractAudioMetadata(item.file, localAnalysis.durationSeconds || undefined);
       extractedCoverUrl = audioMeta.cover;
       extractedLyrics = audioMeta.lyrics;
       if (audioMeta.trackNo) trackNoStr = String(audioMeta.trackNo);
       if (audioMeta.year) yearStr = audioMeta.year;
 
-      try {
-        const peaks = await extractWaveformPeaksFromFile(item.file);
-        if (peaks && peaks.length === 128) {
-          (localAnalysis as any).waveformPeaks = peaks;
-        }
-      } catch {
-        // Non-blocking fallback
-      }
+      // Decoupled non-blocking waveform peak extraction:
+      // Runs as a background task to prevent blocking the UI/event-loop
+      void extractWaveformPeaksFromFile(item.file)
+        .then((peaks) => {
+          if (peaks && peaks.length === 128) {
+            (localAnalysis as any).waveformPeaks = peaks;
+            const current = storeState.items.find((i) => i.id === itemId);
+            if (current) {
+              const updatedAnalysis = current.localAnalysis
+                ? { ...current.localAnalysis, waveformPeaks: peaks }
+                : localAnalysis;
+              updateIngestionItem(itemId, { localAnalysis: updatedAnalysis });
+            }
+          }
+        })
+        .catch(() => {
+          // Non-blocking fallback
+        });
     } else {
       extractedCoverUrl = await extractVideoThumbnail(item.file);
     }
@@ -366,8 +457,8 @@ async function processLocalPreAnalysis(itemId: string) {
       },
     });
 
-    // 2. Calculate Client SHA-256 in parallel
-    const sha256 = await calculateFileSha256(item.file);
+    // 2. Await Client SHA-256 calculation
+    const sha256 = await sha256Promise;
     updateIngestionItem(itemId, { clientSha256: sha256 });
 
     // 3. Create Upload Session on Server (pre-generates upload URLs for 1-step ingestion)
@@ -438,13 +529,11 @@ export async function approveIngestionItem(itemId: string, duplicateDecision?: D
 }
 
 /**
- * Approves all items currently in review.
+ * Approves all items currently in review concurrently.
  */
 export async function approveAllIngestionItems() {
   const reviewable = storeState.items.filter((i) => i.stage === "waiting_review" && i.sessionId);
-  for (const item of reviewable) {
-    await approveIngestionItem(item.id);
-  }
+  await Promise.all(reviewable.map((item) => approveIngestionItem(item.id)));
 }
 
 /**
@@ -523,11 +612,9 @@ export async function pumpIngestionWorkerPool() {
 
   try {
     while (true) {
-      const activeCount = storeState.items.filter(
-        (i) => i.stage === "uploading" || i.stage === "verifying_server" || i.stage === "committing",
-      ).length;
+      const activeUploads = storeState.items.filter((i) => i.stage === "uploading").length;
 
-      const availableSlots = storeState.concurrencyLimit - activeCount;
+      const availableSlots = storeState.concurrencyLimit - activeUploads;
       if (availableSlots <= 0) break;
 
       const nextItem = storeState.items.find((i) => i.stage === "approved");
@@ -599,49 +686,74 @@ async function processApprovedIngestionItem(itemId: string) {
       artworkUploadUrl = presigned.artworkUploadUrl;
     }
 
-    // 2. Upload Media File directly to S3 with real-time byte progression
-    updateIngestionItem(itemId, {
-      progressPercent: 15,
-      progressText: `Đang tải lên (${(item.file.size / 1024 / 1024).toFixed(1)} MB)... 0%`,
-    });
+    // 2 & 3. Upload Media File and Artwork concurrently via Promise.all with real-time speed & ETA
+    let mediaLoaded = 0;
+    const mediaTotal = item.file.size;
+    let artLoaded = 0;
+    const artTotal = artBlob ? artBlob.size : 0;
+    const totalBytes = mediaTotal + artTotal;
+
+    let mediaSpeed = 0;
+    let mediaEta: number | null = null;
+
+    const updateCombinedProgress = (percent: number, speedBytesPerSec: number, etaSeconds: number | null) => {
+      const loadedBytes = mediaLoaded + artLoaded;
+      const combinedPercent = totalBytes > 0 ? Math.min(100, Math.round((loadedBytes / totalBytes) * 100)) : percent;
+      const scaled = 15 + Math.round(combinedPercent * 0.65); // 15% -> 80%
+
+      const loadedMb = (loadedBytes / (1024 * 1024)).toFixed(1);
+      const totalMb = (totalBytes / (1024 * 1024)).toFixed(1);
+      const speedText = formatSpeed(speedBytesPerSec);
+      const etaText = formatEta(etaSeconds);
+
+      updateIngestionItem(itemId, {
+        progressPercent: scaled,
+        progressText: `Đang tải lên (${loadedMb} / ${totalMb} MB)... ${combinedPercent}% • ${speedText} (còn ~${etaText})`,
+      });
+    };
+
+    updateCombinedProgress(0, 0, null);
 
     const mediaMime = item.file.type || (item.isVideo ? "video/mp4" : "audio/flac");
-    await uploadWithProgress(
+    const mediaUploadPromise = uploadWithProgress(
       uploadUrl,
       item.file,
       mediaMime,
-      (percent) => {
-        const scaled = 15 + Math.round(percent * 0.55); // 15% -> 70%
-        updateIngestionItem(itemId, {
-          progressPercent: scaled,
-          progressText: `Đang tải lên (${(item.file.size / 1024 / 1024).toFixed(1)} MB)... ${percent}%`,
-        });
+      (percent, stats) => {
+        if (stats) {
+          mediaLoaded = stats.loaded;
+          mediaSpeed = stats.speedBytesPerSec;
+          mediaEta = stats.etaSeconds;
+          updateCombinedProgress(percent, stats.speedBytesPerSec, stats.etaSeconds);
+        } else {
+          mediaLoaded = Math.round((percent / 100) * mediaTotal);
+          updateCombinedProgress(percent, 0, null);
+        }
       },
       abortController.signal,
     );
 
-    // 3. Upload Artwork to Staging (if present)
-    if (artBlob && artworkUploadUrl) {
-      updateIngestionItem(itemId, {
-        progressPercent: 72,
-        progressText: "Đang tải ảnh bìa Artwork...",
-      });
+    const artworkUploadPromise = (async () => {
+      if (artBlob && artworkUploadUrl) {
+        const artMime = artBlob.type || "image/jpeg";
+        await uploadWithProgress(
+          artworkUploadUrl,
+          artBlob,
+          artMime,
+          (percent, stats) => {
+            if (stats) {
+              artLoaded = stats.loaded;
+            } else {
+              artLoaded = Math.round((percent / 100) * artTotal);
+            }
+            updateCombinedProgress(percent, mediaSpeed, mediaEta);
+          },
+          abortController.signal,
+        );
+      }
+    })();
 
-      const artMime = artBlob.type || "image/jpeg";
-      await uploadWithProgress(
-        artworkUploadUrl,
-        artBlob,
-        artMime,
-        (percent) => {
-          const scaled = 72 + Math.round(percent * 0.08); // 72% -> 80%
-          updateIngestionItem(itemId, {
-            progressPercent: scaled,
-            progressText: `Đang tải ảnh bìa Artwork... ${percent}%`,
-          });
-        },
-        abortController.signal,
-      );
-    }
+    await Promise.all([mediaUploadPromise, artworkUploadPromise]);
 
     if (!storeState.items.some((i) => i.id === itemId)) return;
 
@@ -651,6 +763,9 @@ async function processApprovedIngestionItem(itemId: string) {
       progressPercent: 82,
       progressText: "Máy chủ đang kiểm tra cấu trúc và tính toàn vẹn...",
     });
+
+    // Pipelining: The instant upload finishes, trigger worker pool so next item starts uploading immediately!
+    void pumpIngestionWorkerPool();
 
     const verifyRes = await verifyAndAnalyzeServerUpload({
       data: {

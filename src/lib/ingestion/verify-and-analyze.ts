@@ -134,54 +134,100 @@ export async function verifyAndAnalyzeServerUploadInternal(
   // 2+3 merged. Stream the S3 object: compute authoritative SHA-256
   // while capturing the leading 2MB analysis window for fast server-side inspection
   const ANALYSIS_PREFIX_BYTES = 2097152;
+  const FAST_PATH_THRESHOLD_BYTES = 8 * 1024 * 1024; // 8MB
   let serverSha256 = "";
   let sha256VerificationSource: "server" | "client" = "server";
   let analysisHeaderBuffer: Uint8Array | undefined = undefined;
 
-  if (s3DirectNetworkAvailable) {
-    try {
-      const getObj = await s3.send(
-        new GetObjectCommand({
-          Bucket: BUCKET_NAME,
-          Key: session.staging_storage_key,
-        }),
-      );
-      const nodeCrypto = await import("node:crypto");
-      const hash = nodeCrypto.createHash("sha256");
-      const body: any = getObj.Body;
+  const hasValidClientSha = Boolean(session.client_sha256 && session.client_sha256.trim().length === 64);
 
-      if (body && typeof body[Symbol.asyncIterator] === "function") {
-        const chunks: Uint8Array[] = [];
-        let captured = 0;
-        for await (const chunk of body) {
-          const buf: Uint8Array = chunk;
-          hash.update(buf);
-          if (captured < ANALYSIS_PREFIX_BYTES) {
-            chunks.push(buf);
-            captured += buf.length;
+  if (s3DirectNetworkAvailable) {
+    if (hasValidClientSha && actualSizeBytes > FAST_PATH_THRESHOLD_BYTES) {
+      // Fast-path: Stream 2MB prefix directly via Range request to eliminate the 2.5s timeout penalty
+      try {
+        const rangeEnd = Math.max(0, Math.min(actualSizeBytes, ANALYSIS_PREFIX_BYTES) - 1);
+        const rangeObj = await s3.send(
+          new GetObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: session.staging_storage_key,
+            Range: `bytes=0-${rangeEnd}`,
+          }),
+        );
+        const rBody: any = rangeObj.Body;
+        if (rBody && typeof rBody[Symbol.asyncIterator] === "function") {
+          const rChunks: Uint8Array[] = [];
+          let rCaptured = 0;
+          for await (const chunk of rBody) {
+            const buf: Uint8Array = chunk;
+            if (rCaptured < ANALYSIS_PREFIX_BYTES) {
+              rChunks.push(buf);
+              rCaptured += buf.length;
+            }
           }
+          const rLen = Math.min(rCaptured, ANALYSIS_PREFIX_BYTES);
+          analysisHeaderBuffer = new Uint8Array(rLen);
+          let rOff = 0;
+          for (const rc of rChunks) {
+            if (rOff >= rLen) break;
+            const take = Math.min(rc.length, rLen - rOff);
+            analysisHeaderBuffer.set(rc.subarray(0, take), rOff);
+            rOff += take;
+          }
+        } else if (rBody && typeof rBody.transformToByteArray === "function") {
+          const rAll = await rBody.transformToByteArray();
+          analysisHeaderBuffer = rAll.subarray(0, Math.min(rAll.length, ANALYSIS_PREFIX_BYTES));
         }
-        serverSha256 = hash.digest("hex");
-        const prefixLen = Math.min(captured, ANALYSIS_PREFIX_BYTES);
-        analysisHeaderBuffer = new Uint8Array(prefixLen);
-        let off = 0;
-        for (const c of chunks) {
-          if (off >= prefixLen) break;
-          const take = Math.min(c.length, prefixLen - off);
-          analysisHeaderBuffer.set(c.subarray(0, take), off);
-          off += take;
-        }
-      } else if (body && typeof body.transformToByteArray === "function") {
-        const all = await body.transformToByteArray();
-        hash.update(all);
-        serverSha256 = hash.digest("hex");
-        analysisHeaderBuffer = all.subarray(0, Math.min(all.length, ANALYSIS_PREFIX_BYTES));
+        serverSha256 = session.client_sha256.trim().toLowerCase();
+        sha256VerificationSource = "client";
+      } catch (rangeErr) {
+        console.warn("[Duckroom Ingestion] Fast-path S3 Range request failed, will attempt fallback:", rangeErr);
       }
-    } catch (hashErr) {
-      console.warn(
-        "[Duckroom Ingestion] Direct S3 download timed out, using verified client transfer parameters:",
-        hashErr,
-      );
+    } else {
+      // Standard path: stream full object for files <= 8MB or without client_sha256
+      try {
+        const getObj = await s3.send(
+          new GetObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: session.staging_storage_key,
+          }),
+        );
+        const nodeCrypto = await import("node:crypto");
+        const hash = nodeCrypto.createHash("sha256");
+        const body: any = getObj.Body;
+
+        if (body && typeof body[Symbol.asyncIterator] === "function") {
+          const chunks: Uint8Array[] = [];
+          let captured = 0;
+          for await (const chunk of body) {
+            const buf: Uint8Array = chunk;
+            hash.update(buf);
+            if (captured < ANALYSIS_PREFIX_BYTES) {
+              chunks.push(buf);
+              captured += buf.length;
+            }
+          }
+          serverSha256 = hash.digest("hex");
+          const prefixLen = Math.min(captured, ANALYSIS_PREFIX_BYTES);
+          analysisHeaderBuffer = new Uint8Array(prefixLen);
+          let off = 0;
+          for (const c of chunks) {
+            if (off >= prefixLen) break;
+            const take = Math.min(c.length, prefixLen - off);
+            analysisHeaderBuffer.set(c.subarray(0, take), off);
+            off += take;
+          }
+        } else if (body && typeof body.transformToByteArray === "function") {
+          const all = await body.transformToByteArray();
+          hash.update(all);
+          serverSha256 = hash.digest("hex");
+          analysisHeaderBuffer = all.subarray(0, Math.min(all.length, ANALYSIS_PREFIX_BYTES));
+        }
+      } catch (hashErr) {
+        console.warn(
+          "[Duckroom Ingestion] Direct S3 download timed out, using verified client transfer parameters:",
+          hashErr,
+        );
+      }
     }
   }
 
@@ -228,9 +274,11 @@ export async function verifyAndAnalyzeServerUploadInternal(
 
   // Authoritative SHA-256 determination & source attribution (Phase 1 — P1.3):
   // - "server": authoritatively calculated by streaming S3 bytes through SHA-256 hash.
-  // - "client": provided by client transfer declaration when direct S3 server download is unavailable.
+  // - "client": provided by client transfer declaration when direct S3 server download is unavailable or fast-path is used.
   if (serverSha256) {
-    sha256VerificationSource = "server";
+    if (sha256VerificationSource !== "client") {
+      sha256VerificationSource = "server";
+    }
   } else if (session.client_sha256 && session.client_sha256.trim()) {
     serverSha256 = session.client_sha256.trim().toLowerCase();
     sha256VerificationSource = "client";

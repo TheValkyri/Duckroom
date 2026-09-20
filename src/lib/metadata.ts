@@ -451,6 +451,8 @@ export function extractVideoThumbnail(file: File): Promise<string | null> {
  */
 export const CLIENT_HASH_MAX_BYTES = 256 * 1024 * 1024;
 
+const HEX_LOOKUP: string[] = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
+
 export async function calculateFileSha256(file: File): Promise<string | null> {
   if (file.size > CLIENT_HASH_MAX_BYTES) {
     console.info(`SHA-256 skipped for ${file.name}: ${file.size} bytes exceeds client hashing budget.`);
@@ -459,8 +461,12 @@ export async function calculateFileSha256(file: File): Promise<string | null> {
   try {
     const buffer = await file.arrayBuffer();
     const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+    const bytes = new Uint8Array(hashBuffer);
+    let hex = "";
+    for (let i = 0; i < bytes.length; i++) {
+      hex += HEX_LOOKUP[bytes[i]!];
+    }
+    return hex;
   } catch (err) {
     console.warn("SHA-256 calculation failed — checksum reported as unknown:", err);
     return null;
