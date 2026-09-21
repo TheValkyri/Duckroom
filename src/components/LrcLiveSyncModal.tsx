@@ -21,6 +21,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { beautifyLrcString, shiftLrcTime } from "../lib/lyrics-formatter";
 import { springSnappy, tapScale, tweenBase } from "../lib/motion";
+import { ModalPortal } from "./ui/modal-portal";
 import { cn } from "../lib/utils";
 
 interface SyncLine {
@@ -406,332 +407,334 @@ export function LrcLiveSyncModal({ isOpen, onClose, audioFile, initialLyrics, on
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 12 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 12 }}
-          transition={springSnappy}
-          className="relative w-full max-w-4xl max-h-[92vh] flex flex-col bg-card/95 border border-white/10 rounded-3xl shadow-2xl overflow-hidden text-foreground backdrop-blur-2xl"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border/80 bg-muted/40">
-            <div className="flex items-center gap-3">
-              <div className="size-9 rounded-xl bg-primary/20 text-primary flex items-center justify-center font-bold shadow-sm">
-                🎙️
-              </div>
-              <div>
-                <h2 className="font-semibold text-sm sm:text-base flex items-center gap-2">
-                  <span>Timeline Waveform Lyrics Editor</span>
-                  <span className="text-[11px] font-normal px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                    Chấm nhịp dạng sóng
-                  </span>
-                </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Bấm <strong>[Space]</strong> khi ca sĩ hát, hoặc kéo thả trực tiếp trên dạng sóng âm thanh bên dưới.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPreviewMode(!previewMode)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer",
-                  previewMode
-                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                    : "bg-muted/60 text-muted-foreground hover:text-foreground border-border hover:bg-accent",
-                )}
-              >
-                <Eye className="size-3.5" />
-                <span>{previewMode ? "Đang Preview" : "Chế độ Preview"}</span>
-              </button>
-              <button
-                onClick={onClose}
-                className="size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors cursor-pointer"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Interactive Waveform Strip */}
-          {audioUrl && (
-            <div className="px-6 py-3 bg-black/40 border-b border-border/70 flex flex-col gap-2">
-              <div className="relative w-full h-16 rounded-xl bg-background/80 border border-white/5 overflow-hidden cursor-crosshair group">
-                <canvas
-                  ref={canvasRef}
-                  width={800}
-                  height={64}
-                  onClick={handleWaveformClick}
-                  className="w-full h-full block"
-                />
-                {isWaveformGenerating && (
-                  <div className="absolute inset-0 bg-background/60 flex items-center justify-center text-xs text-muted-foreground">
-                    Đang dựng dạng sóng âm thanh…
-                  </div>
-                )}
-              </div>
-
-              {/* Global Offset Bar */}
-              <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                <div className="flex items-center gap-1.5">
-                  <Sliders className="size-3.5 text-primary" />
-                  <span>Dịch độ trễ toàn bài (Global Offset):</span>
-                  <span className="font-mono font-semibold text-foreground px-1.5 py-0.5 rounded bg-muted/60">
-                    {globalOffsetMs >= 0 ? `+${globalOffsetMs}ms` : `${globalOffsetMs}ms`}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleApplyGlobalOffset(-500)}
-                    className="px-2 py-0.5 rounded bg-muted/60 hover:bg-accent text-[11px] font-mono cursor-pointer"
-                  >
-                    -500ms
-                  </button>
-                  <button
-                    onClick={() => handleApplyGlobalOffset(-100)}
-                    className="px-2 py-0.5 rounded bg-muted/60 hover:bg-accent text-[11px] font-mono cursor-pointer"
-                  >
-                    -100ms
-                  </button>
-                  <button
-                    onClick={() => handleApplyGlobalOffset(100)}
-                    className="px-2 py-0.5 rounded bg-muted/60 hover:bg-accent text-[11px] font-mono cursor-pointer"
-                  >
-                    +100ms
-                  </button>
-                  <button
-                    onClick={() => handleApplyGlobalOffset(500)}
-                    className="px-2 py-0.5 rounded bg-muted/60 hover:bg-accent text-[11px] font-mono cursor-pointer"
-                  >
-                    +500ms
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Audio Player Controller Bar */}
-          {audioUrl && (
-            <div className="px-6 py-3 bg-card border-b border-border flex flex-wrap items-center justify-between gap-4">
-              <audio ref={audioRef} src={audioUrl} />
-
+    <ModalPortal>
+      <AnimatePresence>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 12 }}
+            transition={springSnappy}
+            className="relative w-full max-w-4xl max-h-[92vh] flex flex-col bg-card/95 border border-white/10 rounded-3xl shadow-2xl overflow-hidden text-foreground backdrop-blur-2xl"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border/80 bg-muted/40">
               <div className="flex items-center gap-3">
+                <div className="size-9 rounded-xl bg-primary/20 text-primary flex items-center justify-center font-bold shadow-sm">
+                  🎙️
+                </div>
+                <div>
+                  <h2 className="font-semibold text-sm sm:text-base flex items-center gap-2">
+                    <span>Timeline Waveform Lyrics Editor</span>
+                    <span className="text-[11px] font-normal px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                      Chấm nhịp dạng sóng
+                    </span>
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Bấm <strong>[Space]</strong> khi ca sĩ hát, hoặc kéo thả trực tiếp trên dạng sóng âm thanh bên dưới.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode(!previewMode)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer",
+                    previewMode
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-muted/60 text-muted-foreground hover:text-foreground border-border hover:bg-accent",
+                  )}
+                >
+                  <Eye className="size-3.5" />
+                  <span>{previewMode ? "Đang Preview" : "Chế độ Preview"}</span>
+                </button>
+                <button
+                  onClick={onClose}
+                  className="size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Interactive Waveform Strip */}
+            {audioUrl && (
+              <div className="px-6 py-3 bg-black/40 border-b border-border/70 flex flex-col gap-2">
+                <div className="relative w-full h-16 rounded-xl bg-background/80 border border-white/5 overflow-hidden cursor-crosshair group">
+                  <canvas
+                    ref={canvasRef}
+                    width={800}
+                    height={64}
+                    onClick={handleWaveformClick}
+                    className="w-full h-full block"
+                  />
+                  {isWaveformGenerating && (
+                    <div className="absolute inset-0 bg-background/60 flex items-center justify-center text-xs text-muted-foreground">
+                      Đang dựng dạng sóng âm thanh…
+                    </div>
+                  )}
+                </div>
+
+                {/* Global Offset Bar */}
+                <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                  <div className="flex items-center gap-1.5">
+                    <Sliders className="size-3.5 text-primary" />
+                    <span>Dịch độ trễ toàn bài (Global Offset):</span>
+                    <span className="font-mono font-semibold text-foreground px-1.5 py-0.5 rounded bg-muted/60">
+                      {globalOffsetMs >= 0 ? `+${globalOffsetMs}ms` : `${globalOffsetMs}ms`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleApplyGlobalOffset(-500)}
+                      className="px-2 py-0.5 rounded bg-muted/60 hover:bg-accent text-[11px] font-mono cursor-pointer"
+                    >
+                      -500ms
+                    </button>
+                    <button
+                      onClick={() => handleApplyGlobalOffset(-100)}
+                      className="px-2 py-0.5 rounded bg-muted/60 hover:bg-accent text-[11px] font-mono cursor-pointer"
+                    >
+                      -100ms
+                    </button>
+                    <button
+                      onClick={() => handleApplyGlobalOffset(100)}
+                      className="px-2 py-0.5 rounded bg-muted/60 hover:bg-accent text-[11px] font-mono cursor-pointer"
+                    >
+                      +100ms
+                    </button>
+                    <button
+                      onClick={() => handleApplyGlobalOffset(500)}
+                      className="px-2 py-0.5 rounded bg-muted/60 hover:bg-accent text-[11px] font-mono cursor-pointer"
+                    >
+                      +500ms
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Audio Player Controller Bar */}
+            {audioUrl && (
+              <div className="px-6 py-3 bg-card border-b border-border flex flex-wrap items-center justify-between gap-4">
+                <audio ref={audioRef} src={audioUrl} />
+
+                <div className="flex items-center gap-3">
+                  <motion.button
+                    type="button"
+                    whileTap={tapScale}
+                    transition={springSnappy}
+                    onClick={togglePlay}
+                    className="size-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:scale-105 transition-transform shadow-md cursor-pointer"
+                  >
+                    {isPlaying ? (
+                      <Pause className="size-5 fill-current" />
+                    ) : (
+                      <Play className="size-5 fill-current ml-0.5" />
+                    )}
+                  </motion.button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (audioRef.current) {
+                        audioRef.current.currentTime = 0;
+                        setCurrentIndex(0);
+                      }
+                    }}
+                    className="size-8 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+                    title="Phát lại từ đầu (0:00)"
+                  >
+                    <RotateCcw className="size-3.5" />
+                  </button>
+                  <div className="font-mono text-sm font-semibold tracking-wider">
+                    <span className="text-primary">{formatSecToMmSsMs(currentTime)}</span>
+                    <span className="text-muted-foreground text-xs mx-1">/</span>
+                    <span className="text-muted-foreground text-xs">{formatSecToMmSsMs(duration)}</span>
+                  </div>
+                </div>
+
+                {/* Big spacebar trigger button */}
                 <motion.button
                   type="button"
                   whileTap={tapScale}
                   transition={springSnappy}
-                  onClick={togglePlay}
-                  className="size-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:scale-105 transition-transform shadow-md cursor-pointer"
+                  onClick={handleStampCurrentLine}
+                  className="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs uppercase tracking-wider shadow-lg flex items-center gap-2 cursor-pointer"
                 >
-                  {isPlaying ? (
-                    <Pause className="size-5 fill-current" />
-                  ) : (
-                    <Play className="size-5 fill-current ml-0.5" />
-                  )}
+                  <Zap className="size-4 fill-current" />
+                  <span>Chấm nhịp câu này [Space]</span>
                 </motion.button>
+              </div>
+            )}
+
+            {/* Body: Lyric Lines View */}
+            <div
+              ref={listContainerRef}
+              className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 max-h-[48vh] bg-background/50"
+            >
+              {lines.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground text-sm">
+                  Chưa có dòng lời bài hát nào. Vui lòng đóng và nhập lời trước khi chấm nhịp.
+                </div>
+              ) : (
+                lines.map((item, idx) => {
+                  const isSelected = idx === currentIndex;
+                  const isStamped = item.timeSec !== null;
+
+                  return (
+                    <div
+                      key={item.id}
+                      ref={(el) => {
+                        lineRefs.current[idx] = el;
+                      }}
+                      onClick={() => {
+                        setCurrentIndex(idx);
+                        if (item.timeSec !== null && audioRef.current) {
+                          audioRef.current.currentTime = item.timeSec;
+                        }
+                      }}
+                      className={cn(
+                        "group flex items-center justify-between gap-3 p-3 rounded-2xl border transition-all cursor-pointer",
+                        isSelected
+                          ? "bg-primary/15 border-primary/50 shadow-md ring-1 ring-primary/30"
+                          : isStamped
+                            ? "bg-card/70 border-white/5 hover:border-white/20"
+                            : "bg-muted/20 border-dashed border-border/60 hover:bg-muted/40",
+                      )}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <span
+                          className={cn(
+                            "font-mono text-xs px-2.5 py-1 rounded-lg border text-center min-w-[76px]",
+                            isStamped
+                              ? "bg-primary/20 text-primary border-primary/30 font-semibold"
+                              : "bg-muted/40 text-muted-foreground border-border",
+                          )}
+                        >
+                          {item.timeSec !== null ? formatSecToMmSsMs(item.timeSec) : "--:--.--"}
+                        </span>
+                        <span
+                          className={cn(
+                            "text-sm font-medium truncate",
+                            isSelected
+                              ? "text-primary font-bold"
+                              : isStamped
+                                ? "text-foreground"
+                                : "text-muted-foreground",
+                          )}
+                        >
+                          {item.text}
+                        </span>
+                      </div>
+
+                      {/* Fine-tune Nudge Buttons (±50ms, ±100ms) */}
+                      <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleNudgeTime(idx, -0.05);
+                          }}
+                          className="px-1.5 py-1 rounded bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground text-[11px] font-mono"
+                          title="Giảm 50ms"
+                        >
+                          -50ms
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleNudgeTime(idx, -0.1);
+                          }}
+                          className="px-1.5 py-1 rounded bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground text-[11px] font-mono"
+                          title="Giảm 100ms"
+                        >
+                          -100ms
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleNudgeTime(idx, 0.1);
+                          }}
+                          className="px-1.5 py-1 rounded bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground text-[11px] font-mono"
+                          title="Tăng 100ms"
+                        >
+                          +100ms
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleNudgeTime(idx, 0.05);
+                          }}
+                          className="px-1.5 py-1 rounded bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground text-[11px] font-mono"
+                          title="Tăng 50ms"
+                        >
+                          +50ms
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentIndex(idx);
+                            handleStampCurrentLine();
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 text-[11px] font-semibold cursor-pointer ml-1"
+                        >
+                          Gán {formatSecToMmSsMs(currentTime)}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer Actions */}
+            <div className="px-6 py-4 bg-muted/30 border-t border-border flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (audioRef.current) {
-                      audioRef.current.currentTime = 0;
-                      setCurrentIndex(0);
-                    }
-                  }}
-                  className="size-8 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
-                  title="Phát lại từ đầu (0:00)"
+                  onClick={handleResetTimestamps}
+                  className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1.5 py-1.5 px-3 rounded-xl border border-border hover:bg-accent transition-colors cursor-pointer"
                 >
-                  <RotateCcw className="size-3.5" />
+                  <RefreshCw className="size-3" />
+                  <span>Xóa hết nhịp để chấm lại</span>
                 </button>
-                <div className="font-mono text-sm font-semibold tracking-wider">
-                  <span className="text-primary">{formatSecToMmSsMs(currentTime)}</span>
-                  <span className="text-muted-foreground text-xs mx-1">/</span>
-                  <span className="text-muted-foreground text-xs">{formatSecToMmSsMs(duration)}</span>
-                </div>
+                <span className="text-xs text-muted-foreground">
+                  Đã chấm:{" "}
+                  <strong className="text-foreground">
+                    {lines.filter((l) => l.timeSec !== null).length}/{lines.length}
+                  </strong>{" "}
+                  câu
+                </span>
               </div>
 
-              {/* Big spacebar trigger button */}
-              <motion.button
-                type="button"
-                whileTap={tapScale}
-                transition={springSnappy}
-                onClick={handleStampCurrentLine}
-                className="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs uppercase tracking-wider shadow-lg flex items-center gap-2 cursor-pointer"
-              >
-                <Zap className="size-4 fill-current" />
-                <span>Chấm nhịp câu này [Space]</span>
-              </motion.button>
-            </div>
-          )}
-
-          {/* Body: Lyric Lines View */}
-          <div
-            ref={listContainerRef}
-            className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 max-h-[48vh] bg-background/50"
-          >
-            {lines.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground text-sm">
-                Chưa có dòng lời bài hát nào. Vui lòng đóng và nhập lời trước khi chấm nhịp.
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground rounded-xl border border-border hover:bg-accent transition-colors cursor-pointer"
+                >
+                  Hủy bỏ
+                </button>
+                <motion.button
+                  type="button"
+                  whileTap={tapScale}
+                  transition={springSnappy}
+                  onClick={handleCompleteAndSave}
+                  className="px-5 py-2 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
+                >
+                  <Check className="size-4" />
+                  <span>Hoàn tất & Áp dụng LRC</span>
+                </motion.button>
               </div>
-            ) : (
-              lines.map((item, idx) => {
-                const isSelected = idx === currentIndex;
-                const isStamped = item.timeSec !== null;
-
-                return (
-                  <div
-                    key={item.id}
-                    ref={(el) => {
-                      lineRefs.current[idx] = el;
-                    }}
-                    onClick={() => {
-                      setCurrentIndex(idx);
-                      if (item.timeSec !== null && audioRef.current) {
-                        audioRef.current.currentTime = item.timeSec;
-                      }
-                    }}
-                    className={cn(
-                      "group flex items-center justify-between gap-3 p-3 rounded-2xl border transition-all cursor-pointer",
-                      isSelected
-                        ? "bg-primary/15 border-primary/50 shadow-md ring-1 ring-primary/30"
-                        : isStamped
-                          ? "bg-card/70 border-white/5 hover:border-white/20"
-                          : "bg-muted/20 border-dashed border-border/60 hover:bg-muted/40",
-                    )}
-                  >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <span
-                        className={cn(
-                          "font-mono text-xs px-2.5 py-1 rounded-lg border text-center min-w-[76px]",
-                          isStamped
-                            ? "bg-primary/20 text-primary border-primary/30 font-semibold"
-                            : "bg-muted/40 text-muted-foreground border-border",
-                        )}
-                      >
-                        {item.timeSec !== null ? formatSecToMmSsMs(item.timeSec) : "--:--.--"}
-                      </span>
-                      <span
-                        className={cn(
-                          "text-sm font-medium truncate",
-                          isSelected
-                            ? "text-primary font-bold"
-                            : isStamped
-                              ? "text-foreground"
-                              : "text-muted-foreground",
-                        )}
-                      >
-                        {item.text}
-                      </span>
-                    </div>
-
-                    {/* Fine-tune Nudge Buttons (±50ms, ±100ms) */}
-                    <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleNudgeTime(idx, -0.05);
-                        }}
-                        className="px-1.5 py-1 rounded bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground text-[11px] font-mono"
-                        title="Giảm 50ms"
-                      >
-                        -50ms
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleNudgeTime(idx, -0.1);
-                        }}
-                        className="px-1.5 py-1 rounded bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground text-[11px] font-mono"
-                        title="Giảm 100ms"
-                      >
-                        -100ms
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleNudgeTime(idx, 0.1);
-                        }}
-                        className="px-1.5 py-1 rounded bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground text-[11px] font-mono"
-                        title="Tăng 100ms"
-                      >
-                        +100ms
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleNudgeTime(idx, 0.05);
-                        }}
-                        className="px-1.5 py-1 rounded bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground text-[11px] font-mono"
-                        title="Tăng 50ms"
-                      >
-                        +50ms
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCurrentIndex(idx);
-                          handleStampCurrentLine();
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 text-[11px] font-semibold cursor-pointer ml-1"
-                      >
-                        Gán {formatSecToMmSsMs(currentTime)}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Footer Actions */}
-          <div className="px-6 py-4 bg-muted/30 border-t border-border flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleResetTimestamps}
-                className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1.5 py-1.5 px-3 rounded-xl border border-border hover:bg-accent transition-colors cursor-pointer"
-              >
-                <RefreshCw className="size-3" />
-                <span>Xóa hết nhịp để chấm lại</span>
-              </button>
-              <span className="text-xs text-muted-foreground">
-                Đã chấm:{" "}
-                <strong className="text-foreground">
-                  {lines.filter((l) => l.timeSec !== null).length}/{lines.length}
-                </strong>{" "}
-                câu
-              </span>
             </div>
-
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground rounded-xl border border-border hover:bg-accent transition-colors cursor-pointer"
-              >
-                Hủy bỏ
-              </button>
-              <motion.button
-                type="button"
-                whileTap={tapScale}
-                transition={springSnappy}
-                onClick={handleCompleteAndSave}
-                className="px-5 py-2 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
-              >
-                <Check className="size-4" />
-                <span>Hoàn tất & Áp dụng LRC</span>
-              </motion.button>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+          </motion.div>
+        </div>
+      </AnimatePresence>
+    </ModalPortal>
   );
 }

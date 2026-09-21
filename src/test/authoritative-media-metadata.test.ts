@@ -1,4 +1,4 @@
-﻿import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { executeManifestMigration } from "../lib/manifest-migration.server";
 import { finalizeIngestionCommitInternal, verifyAndAnalyzeServerUploadInternal } from "../lib/ingestion";
 import { getPublicMasterLibraryInternal } from "../lib/master-library";
@@ -262,6 +262,9 @@ describe("Blocker B & C — Authoritative Media Metadata & Non-Fabrication Invar
 
       vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
       vi.spyOn(s3FunctionsModule, "getS3ServerClient").mockReturnValue({
+        send: vi.fn().mockResolvedValue({}),
+      } as any);
+      vi.spyOn(s3FunctionsModule, "getS3DurableClient").mockReturnValue({
         send: vi.fn().mockResolvedValue({}),
       } as any);
 

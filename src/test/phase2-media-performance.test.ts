@@ -103,6 +103,9 @@ describe("Phase 2 — Media Performance & User Experience", () => {
       vi.spyOn(s3FunctionsModule, "getS3ServerClient").mockReturnValue({
         send: vi.fn().mockResolvedValue({}),
       } as any);
+      vi.spyOn(s3FunctionsModule, "getS3DurableClient").mockReturnValue({
+        send: vi.fn().mockResolvedValue({}),
+      } as any);
 
       const mockSupabase = {
         from: vi.fn().mockImplementation((table: string) => {

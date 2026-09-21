@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TrackRow } from "../components/TrackRow";
 import { EditAlbumModal } from "../components/EditAlbumModal";
+import { ModalPortal } from "../components/ui/modal-portal";
 import {
   addTracksToAlbum,
   albumById,
@@ -115,91 +116,93 @@ function AddTracksModal({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <ModalPortal>
       <motion.div
-        variants={modalPanelVariants}
-        initial="hidden"
-        animate="show"
-        exit="exit"
-        className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
       >
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="font-display text-xl">Thêm bài hát vào album</h2>
-          <motion.button
-            onClick={onClose}
-            whileTap={tapScale}
-            transition={springSnappy}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="size-5" />
-          </motion.button>
-        </div>
-
-        {available.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground text-sm">Tất cả bài hát đã nằm trong album này rồi!</p>
-            <Link to="/upload" className="text-primary text-sm mt-3 inline-flex items-center gap-1 hover:underline">
-              Tải lên bài hát mới
-            </Link>
+        <motion.div
+          variants={modalPanelVariants}
+          initial="hidden"
+          animate="show"
+          exit="exit"
+          className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col"
+        >
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-display text-xl">Thêm bài hát vào album</h2>
+            <motion.button
+              onClick={onClose}
+              whileTap={tapScale}
+              transition={springSnappy}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="size-5" />
+            </motion.button>
           </div>
-        ) : (
-          <>
-            <p className="text-muted-foreground text-xs mb-3">Chọn bài hát để thêm vào album:</p>
-            <div className="overflow-y-auto flex-1 space-y-1 pr-1">
-              {available.map((track) => (
-                <label
-                  key={track.id}
-                  className={`flex items-center gap-3 px-3 py-3 rounded-lg cursor-pointer transition-colors select-none ${
-                    selected.has(track.id)
-                      ? "bg-primary/15 border border-primary/40"
-                      : "hover:bg-muted/60 border border-transparent"
-                  }`}
+
+          {available.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground text-sm">Tất cả bài hát đã nằm trong album này rồi!</p>
+              <Link to="/upload" className="text-primary text-sm mt-3 inline-flex items-center gap-1 hover:underline">
+                Tải lên bài hát mới
+              </Link>
+            </div>
+          ) : (
+            <>
+              <p className="text-muted-foreground text-xs mb-3">Chọn bài hát để thêm vào album:</p>
+              <div className="overflow-y-auto flex-1 space-y-1 pr-1">
+                {available.map((track) => (
+                  <label
+                    key={track.id}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-lg cursor-pointer transition-colors select-none ${
+                      selected.has(track.id)
+                        ? "bg-primary/15 border border-primary/40"
+                        : "hover:bg-muted/60 border border-transparent"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.has(track.id)}
+                      onChange={() => toggle(track.id)}
+                      className="accent-primary size-4"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{track.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">{track.artist}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground tabular-nums">{formatTime(track.duration)}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex gap-3 mt-4 pt-4 border-t border-border">
+                <motion.button
+                  onClick={onClose}
+                  whileTap={tapScale}
+                  transition={springSnappy}
+                  className="flex-1 border border-border rounded-full py-2.5 text-sm transition-colors hover:bg-accent"
                 >
-                  <input
-                    type="checkbox"
-                    checked={selected.has(track.id)}
-                    onChange={() => toggle(track.id)}
-                    className="accent-primary size-4"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{track.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">{track.artist}</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground tabular-nums">{formatTime(track.duration)}</span>
-                </label>
-              ))}
-            </div>
-            <div className="flex gap-3 mt-4 pt-4 border-t border-border">
-              <motion.button
-                onClick={onClose}
-                whileTap={tapScale}
-                transition={springSnappy}
-                className="flex-1 border border-border rounded-full py-2.5 text-sm transition-colors hover:bg-accent"
-              >
-                Huỷ
-              </motion.button>
-              <motion.button
-                onClick={handleAdd}
-                disabled={selected.size === 0}
-                whileTap={tapScale}
-                transition={springSnappy}
-                className="flex-1 bg-primary text-primary-foreground rounded-full py-2.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Thêm {selected.size > 0 ? `(${selected.size})` : ""} bài
-              </motion.button>
-            </div>
-          </>
-        )}
+                  Huỷ
+                </motion.button>
+                <motion.button
+                  onClick={handleAdd}
+                  disabled={selected.size === 0}
+                  whileTap={tapScale}
+                  transition={springSnappy}
+                  className="flex-1 bg-primary text-primary-foreground rounded-full py-2.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Thêm {selected.size > 0 ? `(${selected.size})` : ""} bài
+                </motion.button>
+              </div>
+            </>
+          )}
+        </motion.div>
       </motion.div>
-    </motion.div>
+    </ModalPortal>
   );
 }
 

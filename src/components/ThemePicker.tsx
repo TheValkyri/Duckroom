@@ -14,6 +14,7 @@ import {
 import { springSnappy, tapScale } from "../lib/motion";
 import { cn } from "../lib/utils";
 import { useScrollLock } from "../hooks/use-scroll-lock";
+import { ModalPortal } from "./ui/modal-portal";
 
 /**
  * ThemePicker — bảng tùy chỉnh giao diện (rework "sóng nước" 2026-09-01).
@@ -213,7 +214,7 @@ export function ThemePicker({
   );
 
   return (
-    <>
+    <ModalPortal>
       {/* PHONE: bottom sheet */}
       <div className="lg:hidden">
         <div className="fixed inset-0 z-[65] bg-black/50" onClick={onClose} aria-hidden />
@@ -292,6 +293,6 @@ export function ThemePicker({
           </motion.div>
         </div>
       </div>
-    </>
+    </ModalPortal>
   );
 }

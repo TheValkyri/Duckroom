@@ -27,9 +27,11 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 describe("Phase 3 — Media Ingestion & Recoverable Distributed Workflow Tests", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    vi.spyOn(s3FunctionsModule, "getS3ServerClient").mockReturnValue({
+    const mockS3 = {
       send: vi.fn().mockResolvedValue({}),
-    } as any);
+    };
+    vi.spyOn(s3FunctionsModule, "getS3ServerClient").mockReturnValue(mockS3 as any);
+    vi.spyOn(s3FunctionsModule, "getS3DurableClient").mockReturnValue(mockS3 as any);
   });
 
   describe("1. Real Binary Audio Analysis (Zero Fabrication)", () => {
@@ -915,18 +917,23 @@ describe("Phase 3 — Media Ingestion & Recoverable Distributed Workflow Tests",
       };
       vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
 
-      vi.spyOn(s3FunctionsModule, "getS3ServerClient").mockReturnValue({
+      const mockS3ArtFail = {
         send: vi.fn().mockImplementation((cmd: any) => {
           if (cmd.constructor.name === "CopyObjectCommand") {
             if (cmd.input.Key.endsWith(".jpg")) return Promise.reject(new Error("S3 Artwork Copy Error"));
             return Promise.resolve({});
+          }
+          if (cmd.constructor.name === "HeadObjectCommand") {
+            return Promise.reject(new Error("NotFound"));
           }
           if (cmd.constructor.name === "DeleteObjectCommand") {
             return Promise.resolve({});
           }
           return Promise.resolve({});
         }),
-      } as any);
+      };
+      vi.spyOn(s3FunctionsModule, "getS3ServerClient").mockReturnValue(mockS3ArtFail as any);
+      vi.spyOn(s3FunctionsModule, "getS3DurableClient").mockReturnValue(mockS3ArtFail as any);
 
       await expect(finalizeIngestionCommitInternal({ sessionId: "session-art-1" }, "user-owner-1")).rejects.toThrow(
         /S3 move failed/i,
@@ -995,18 +1002,23 @@ describe("Phase 3 — Media Ingestion & Recoverable Distributed Workflow Tests",
       };
       vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
 
-      vi.spyOn(s3FunctionsModule, "getS3ServerClient").mockReturnValue({
+      const mockS3ArtFail2 = {
         send: vi.fn().mockImplementation((cmd: any) => {
           if (cmd.constructor.name === "CopyObjectCommand") {
             if (cmd.input.Key.endsWith(".jpg")) return Promise.reject(new Error("S3 Artwork Copy Error"));
             return Promise.resolve({});
+          }
+          if (cmd.constructor.name === "HeadObjectCommand") {
+            return Promise.reject(new Error("NotFound"));
           }
           if (cmd.constructor.name === "DeleteObjectCommand") {
             return Promise.reject(new Error("S3 Delete Object Network Failed"));
           }
           return Promise.resolve({});
         }),
-      } as any);
+      };
+      vi.spyOn(s3FunctionsModule, "getS3ServerClient").mockReturnValue(mockS3ArtFail2 as any);
+      vi.spyOn(s3FunctionsModule, "getS3DurableClient").mockReturnValue(mockS3ArtFail2 as any);
 
       await expect(finalizeIngestionCommitInternal({ sessionId: "session-art-2" }, "user-owner-1")).rejects.toThrow(
         /S3 move failed/i,
@@ -1075,9 +1087,11 @@ describe("Phase 3 — Media Ingestion & Recoverable Distributed Workflow Tests",
       };
       vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
 
-      vi.spyOn(s3FunctionsModule, "getS3ServerClient").mockReturnValue({
+      const mockS3SlowDown = {
         send: vi.fn().mockRejectedValue(new Error("S3 503 Slow Down")),
-      } as any);
+      };
+      vi.spyOn(s3FunctionsModule, "getS3ServerClient").mockReturnValue(mockS3SlowDown as any);
+      vi.spyOn(s3FunctionsModule, "getS3DurableClient").mockReturnValue(mockS3SlowDown as any);
 
       await expect(
         finalizeIngestionCommitInternal({ sessionId: "session-media-fail-1" }, "user-owner-1"),
@@ -2542,15 +2556,19 @@ describe("Phase 3 — Media Ingestion & Recoverable Distributed Workflow Tests",
       };
       vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mockSupabase as any);
 
-      // S3 media copy fails, triggering rollback
-      vi.spyOn(s3FunctionsModule, "getS3ServerClient").mockReturnValue({
+      const mockS3MediaCopyFail = {
         send: vi.fn().mockImplementation((cmd: any) => {
           if (cmd.constructor.name === "CopyObjectCommand") {
             return Promise.reject(new Error("S3 Media Copy Error"));
           }
+          if (cmd.constructor.name === "HeadObjectCommand") {
+            return Promise.reject(new Error("NotFound"));
+          }
           return Promise.resolve({});
         }),
-      } as any);
+      };
+      vi.spyOn(s3FunctionsModule, "getS3ServerClient").mockReturnValue(mockS3MediaCopyFail as any);
+      vi.spyOn(s3FunctionsModule, "getS3DurableClient").mockReturnValue(mockS3MediaCopyFail as any);
 
       await expect(finalizeIngestionCommitInternal({ sessionId: "session-0row-del" }, "user-owner-1")).rejects.toThrow(
         /S3 move failed/i,

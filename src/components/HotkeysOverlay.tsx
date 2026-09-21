@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ModalPortal } from "./ui/modal-portal";
 
 /**
  * HOTKEYS OVERLAY (QoL A5) — Shift+/ (hay "?") hiện bảng phím tắt.
@@ -38,7 +39,7 @@ export function HotkeysOverlay() {
   }, []);
 
   return (
-    <>
+    <ModalPortal>
       {open && (
         <>
           {/* Backdrop: entrance fade CSS thuần; đóng = unmount ngay
@@ -78,6 +79,6 @@ export function HotkeysOverlay() {
           </div>
         </>
       )}
-    </>
+    </ModalPortal>
   );
 }

@@ -1,5 +1,5 @@
-import { CopyObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { getS3ServerClient } from "../s3-functions";
+import { CopyObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { getS3DurableClient, getS3ServerClient } from "../s3-functions";
 import { BUCKET_NAME } from "../s3-constants";
 import { getSupabaseAdmin } from "../supabase";
 import { sanitizeStorageKeySegment } from "../s3-key";
@@ -14,9 +14,62 @@ import { cleanupStagingObjects } from "./s3-cleanup";
 import { validateWaveformPeaks } from "./validation";
 import { safeAuditLog } from "../domain-mutations/common";
 
+export async function copyObjectWithVerifyRetry(
+  s3: { send: (cmd: any) => Promise<any> },
+  bucket: string,
+  sourceKey: string,
+  destinationKey: string,
+  maxAttempts = 3,
+  backoffBaseMs?: number,
+): Promise<void> {
+  let lastError: any = null;
+  const baseDelay = backoffBaseMs ?? (typeof process !== "undefined" && process.env["VITEST"] ? 10 : 1000);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await s3.send(
+        new CopyObjectCommand({
+          Bucket: bucket,
+          CopySource: `${bucket}/${sourceKey}`,
+          Key: destinationKey,
+        }),
+      );
+      return;
+    } catch (err: any) {
+      lastError = err;
+      console.warn(
+        `[Duckroom Ingestion] CopyObject attempt ${attempt}/${maxAttempts} failed (${destinationKey}):`,
+        err?.message || err,
+      );
+
+      // On error/timeout of CopyObjectCommand, immediately check HeadObjectCommand on destinationKey
+      // to verify if S3 completed the copy asynchronously despite connection issues
+      try {
+        await s3.send(
+          new HeadObjectCommand({
+            Bucket: bucket,
+            Key: destinationKey,
+          }),
+        );
+        // Destination exists on S3!
+        return;
+      } catch {
+        // Destination not found or HeadObject failed
+      }
+
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, attempt * baseDelay));
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 export async function finalizeIngestionCommitInternal(data: FinalizeIngestionCommitInput, actorUserId?: string) {
   const db = getSupabaseAdmin();
   const s3 = getS3ServerClient();
+  const s3Durable = getS3DurableClient();
 
   const { data: session, error } = await db.from("upload_sessions").select().eq("id", data.sessionId).single();
   if (error || !session) throw new Error(`Không tìm thấy phiên tải lên ${data.sessionId}`);
@@ -342,33 +395,63 @@ export async function finalizeIngestionCommitInternal(data: FinalizeIngestionCom
     }
   }
 
-  // Step 2: S3 Media Copy with Explicit Failure State & Compensation Check
-  let mediaKeyInUse = canonicalMediaKey;
+  // Step 2: S3 Media Copy with Explicit Failure State, Verification Retry & Compensation Check
+  const mediaKeyInUse = canonicalMediaKey;
   try {
-    await s3.send(
-      new CopyObjectCommand({
-        Bucket: BUCKET_NAME,
-        CopySource: `${BUCKET_NAME}/${session.staging_storage_key}`,
-        Key: canonicalMediaKey,
-      }),
-    );
+    await copyObjectWithVerifyRetry(s3Durable, BUCKET_NAME, session.staging_storage_key, canonicalMediaKey, 3);
   } catch (s3MediaErr: any) {
-    const isNetworkError =
-      s3MediaErr?.code === "ETIMEDOUT" ||
-      s3MediaErr?.name === "TimeoutError" ||
-      s3MediaErr?.name === "NetworkingError" ||
-      s3MediaErr?.message?.includes("ETIMEDOUT") ||
-      s3MediaErr?.message?.includes("ECONNREFUSED") ||
-      s3MediaErr?.message?.includes("fetch failed");
+    let dbRollbackSucceeded = false;
+    try {
+      const { data: deleted, error: delErr } = await db
+        .from(table)
+        .delete()
+        .eq("id", deterministicResourceId)
+        .select()
+        .maybeSingle();
+      dbRollbackSucceeded = !delErr && !!deleted;
+    } catch {
+      dbRollbackSucceeded = false;
+    }
 
-    if (isNetworkError) {
-      console.warn(
-        "[Duckroom Ingestion] S3 CopyObject timed out from Serverless IP, binding directly to uploaded staging key:",
-        s3MediaErr,
+    const nextStatus = dbRollbackSucceeded ? "media_copy_failed" : "cleanup_pending";
+    const errMsg =
+      `S3 Media Copy failed: ${s3MediaErr instanceof Error ? s3MediaErr.message : String(s3MediaErr)}` +
+      (dbRollbackSucceeded ? "" : " (DB rollback failed - cleanup required)");
+
+    const { error: recoveryErr } = await db
+      .from("upload_sessions")
+      .update({
+        status: nextStatus,
+        stage: "cleanup_pending",
+        error_message: errMsg,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.sessionId)
+      .in("status", ["committing"]);
+
+    if (recoveryErr) {
+      throw new Error(
+        `S3 move failed and recovery state persistence failed: ${recoveryErr.message}. Original: ${errMsg}`,
       );
-      mediaKeyInUse = session.staging_storage_key;
-      await db.from(table).update({ storage_key: mediaKeyInUse }).eq("id", deterministicResourceId);
-    } else {
+    }
+
+    throw new Error(`S3 move failed: ${errMsg}`);
+  }
+
+  // Step 3: S3 Artwork Copy with Explicit Failure State, Verification Retry & Compensation Check
+  const artworkKeyInUse = canonicalArtworkKey;
+  if (canonicalArtworkKey && session.artwork_staging_key) {
+    try {
+      await copyObjectWithVerifyRetry(s3Durable, BUCKET_NAME, session.artwork_staging_key, canonicalArtworkKey, 3);
+    } catch (s3ArtErr: any) {
+      let s3MediaCleanupSucceeded = false;
+      try {
+        await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: canonicalMediaKey }));
+        s3MediaCleanupSucceeded = true;
+      } catch {
+        s3MediaCleanupSucceeded = false;
+      }
+
       let dbRollbackSucceeded = false;
       try {
         const { data: deleted, error: delErr } = await db
@@ -382,10 +465,13 @@ export async function finalizeIngestionCommitInternal(data: FinalizeIngestionCom
         dbRollbackSucceeded = false;
       }
 
-      const nextStatus = dbRollbackSucceeded ? "media_copy_failed" : "cleanup_pending";
+      const compensationSucceeded = s3MediaCleanupSucceeded && dbRollbackSucceeded;
+      const nextStatus = compensationSucceeded ? "artwork_copy_failed" : "cleanup_pending";
       const errMsg =
-        `S3 Media Copy failed: ${s3MediaErr instanceof Error ? s3MediaErr.message : String(s3MediaErr)}` +
-        (dbRollbackSucceeded ? "" : " (DB rollback failed - cleanup required)");
+        `S3 Artwork Copy failed: ${s3ArtErr instanceof Error ? s3ArtErr.message : String(s3ArtErr)}` +
+        (compensationSucceeded
+          ? ""
+          : " (Compensation incomplete: S3 media delete or DB delete failed - cleanup required)");
 
       const { error: recoveryErr } = await db
         .from("upload_sessions")
@@ -400,7 +486,7 @@ export async function finalizeIngestionCommitInternal(data: FinalizeIngestionCom
 
       if (recoveryErr) {
         throw new Error(
-          `S3 move failed and recovery state persistence failed: ${recoveryErr.message}. Original: ${errMsg}`,
+          `S3 artwork move failed and recovery state persistence failed: ${recoveryErr.message}. Original: ${errMsg}`,
         );
       }
 
@@ -408,103 +494,18 @@ export async function finalizeIngestionCommitInternal(data: FinalizeIngestionCom
     }
   }
 
-  // Step 3: S3 Artwork Copy with Explicit Failure State & Compensation Check
-  let artworkKeyInUse = canonicalArtworkKey;
-  if (canonicalArtworkKey && session.artwork_staging_key) {
-    try {
-      await s3.send(
-        new CopyObjectCommand({
-          Bucket: BUCKET_NAME,
-          CopySource: `${BUCKET_NAME}/${session.artwork_staging_key}`,
-          Key: canonicalArtworkKey,
-        }),
-      );
-    } catch (s3ArtErr: any) {
-      const isNetworkError =
-        s3ArtErr?.code === "ETIMEDOUT" ||
-        s3ArtErr?.name === "TimeoutError" ||
-        s3ArtErr?.name === "NetworkingError" ||
-        s3ArtErr?.message?.includes("ETIMEDOUT") ||
-        s3ArtErr?.message?.includes("ECONNREFUSED") ||
-        s3ArtErr?.message?.includes("fetch failed");
-
-      if (isNetworkError) {
-        console.warn(
-          "[Duckroom Ingestion] S3 Artwork CopyObject timed out from Serverless IP, binding directly to uploaded artwork key:",
-          s3ArtErr,
-        );
-        artworkKeyInUse = session.artwork_staging_key;
-        const artCol = isVideo ? "thumb_storage_key" : "cover_storage_key";
-        await db
-          .from(table)
-          .update({ [artCol]: artworkKeyInUse })
-          .eq("id", deterministicResourceId);
-      } else {
-        let s3MediaCleanupSucceeded = false;
-        try {
-          await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: canonicalMediaKey }));
-          s3MediaCleanupSucceeded = true;
-        } catch {
-          s3MediaCleanupSucceeded = false;
-        }
-
-        let dbRollbackSucceeded = false;
-        try {
-          const { data: deleted, error: delErr } = await db
-            .from(table)
-            .delete()
-            .eq("id", deterministicResourceId)
-            .select()
-            .maybeSingle();
-          dbRollbackSucceeded = !delErr && !!deleted;
-        } catch {
-          dbRollbackSucceeded = false;
-        }
-
-        const compensationSucceeded = s3MediaCleanupSucceeded && dbRollbackSucceeded;
-        const nextStatus = compensationSucceeded ? "artwork_copy_failed" : "cleanup_pending";
-        const errMsg =
-          `S3 Artwork Copy failed: ${s3ArtErr instanceof Error ? s3ArtErr.message : String(s3ArtErr)}` +
-          (compensationSucceeded
-            ? ""
-            : " (Compensation incomplete: S3 media delete or DB delete failed - cleanup required)");
-
-        const { error: recoveryErr } = await db
-          .from("upload_sessions")
-          .update({
-            status: nextStatus,
-            stage: "cleanup_pending",
-            error_message: errMsg,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", data.sessionId)
-          .in("status", ["committing"]);
-
-        if (recoveryErr) {
-          throw new Error(
-            `S3 artwork move failed and recovery state persistence failed: ${recoveryErr.message}. Original: ${errMsg}`,
-          );
-        }
-
-        throw new Error(`S3 move failed: ${errMsg}`);
-      }
-    }
-  }
-
-  // Step 4: Cleanup Staging Objects (if media was copied to canonical)
+  // Step 4: Cleanup Staging Objects (media and artwork copied to canonical)
   let stagingCleanupSucceeded = true;
   let stagingCleanupError: string | null = null;
 
-  if (mediaKeyInUse !== session.staging_storage_key) {
-    try {
-      await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: session.staging_storage_key }));
-      if (session.artwork_staging_key && artworkKeyInUse !== session.artwork_staging_key) {
-        await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: session.artwork_staging_key }));
-      }
-    } catch (cleanErr) {
-      stagingCleanupSucceeded = false;
-      stagingCleanupError = cleanErr instanceof Error ? cleanErr.message : String(cleanErr);
+  try {
+    await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: session.staging_storage_key }));
+    if (session.artwork_staging_key) {
+      await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: session.artwork_staging_key }));
     }
+  } catch (cleanErr) {
+    stagingCleanupSucceeded = false;
+    stagingCleanupError = cleanErr instanceof Error ? cleanErr.message : String(cleanErr);
   }
 
   // Step 5: Upsert Authoritative Media File Metadata & Link Analysis Record

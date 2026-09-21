@@ -19,6 +19,7 @@ import { albumById, formatTime, type Track } from "../data/library";
 import { useLibrary } from "../lib/useLibrary";
 import { usePlayerIsCurrent, usePlayer, usePlayerIsPlaying } from "../lib/player";
 import { viFold } from "../lib/vi-search";
+import { ModalPortal } from "./ui/modal-portal";
 import { cn } from "../lib/utils";
 
 /**
@@ -99,7 +100,11 @@ const ROUTE_OF_ACTION: Record<string, string> = {
 };
 
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
-  return <AnimatePresence>{open && <CommandPaletteModal onClose={onClose} />}</AnimatePresence>;
+  return (
+    <ModalPortal>
+      <AnimatePresence>{open && <CommandPaletteModal onClose={onClose} />}</AnimatePresence>
+    </ModalPortal>
+  );
 }
 
 function CommandPaletteModal({ onClose }: { onClose: () => void }) {

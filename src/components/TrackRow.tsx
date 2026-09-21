@@ -14,6 +14,7 @@ import { createAndShareLink } from "../lib/share-client";
 import { springSnappy, tapScale } from "../lib/motion";
 import { useIsPhoneLayout } from "../hooks/use-media-query";
 import { useScrollLock } from "../hooks/use-scroll-lock";
+import { ModalPortal } from "./ui/modal-portal";
 import { toast } from "sonner";
 
 /** Wrapper nhỏ để dùng hook trong component điều kiện (không phải TrackRow). */
@@ -310,44 +311,46 @@ export const TrackRow = memo(function TrackRow({
 
       <AnimatePresence>
         {showLoginPrompt && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[80] grid place-items-center bg-black/60 p-6 backdrop-blur-sm"
-            onClick={() => setShowLoginPrompt(false)}
-          >
+          <ModalPortal>
             <motion.div
-              initial={{ opacity: 0, y: 14, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.98 }}
-              className="border-border bg-card w-full max-w-sm rounded-3xl border p-7 shadow-2xl"
-              onClick={(event) => event.stopPropagation()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[80] grid place-items-center bg-black/60 p-6 backdrop-blur-sm"
+              onClick={() => setShowLoginPrompt(false)}
             >
-              <div className="size-12 rounded-2xl bg-primary/10 grid place-items-center mb-4">
-                <Heart className="text-primary size-6" fill="currentColor" />
-              </div>
-              <h2 className="font-display text-2xl font-semibold">Lưu bài hát này?</h2>
-              <p className="text-muted-foreground mt-2 text-sm leading-6">
-                Đăng nhập để thêm <span className="text-foreground font-medium">"{track.title}"</span> vào kho yêu thích
-                và đồng bộ bài hát giữa các thiết bị của bạn.
-              </p>
-              <div className="mt-6 flex items-center gap-3">
-                <Link
-                  to="/login"
-                  className="bg-primary text-primary-foreground rounded-full px-6 py-2.5 text-sm font-semibold shadow hover:opacity-90 transition-opacity"
-                >
-                  Đăng nhập
-                </Link>
-                <button
-                  onClick={() => setShowLoginPrompt(false)}
-                  className="text-muted-foreground hover:text-foreground rounded-full px-4 py-2.5 text-sm cursor-pointer"
-                >
-                  Để sau
-                </button>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, y: 14, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                className="border-border bg-card w-full max-w-sm rounded-3xl border p-7 shadow-2xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="size-12 rounded-2xl bg-primary/10 grid place-items-center mb-4">
+                  <Heart className="text-primary size-6" fill="currentColor" />
+                </div>
+                <h2 className="font-display text-2xl font-semibold">Lưu bài hát này?</h2>
+                <p className="text-muted-foreground mt-2 text-sm leading-6">
+                  Đăng nhập để thêm <span className="text-foreground font-medium">"{track.title}"</span> vào kho yêu
+                  thích và đồng bộ bài hát giữa các thiết bị của bạn.
+                </p>
+                <div className="mt-6 flex items-center gap-3">
+                  <Link
+                    to="/login"
+                    className="bg-primary text-primary-foreground rounded-full px-6 py-2.5 text-sm font-semibold shadow hover:opacity-90 transition-opacity"
+                  >
+                    Đăng nhập
+                  </Link>
+                  <button
+                    onClick={() => setShowLoginPrompt(false)}
+                    className="text-muted-foreground hover:text-foreground rounded-full px-4 py-2.5 text-sm cursor-pointer"
+                  >
+                    Để sau
+                  </button>
+                </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
+          </ModalPortal>
         )}
 
         {showActionsSheet && (

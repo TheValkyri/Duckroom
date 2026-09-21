@@ -62,6 +62,7 @@ export const Route = createFileRoute("/albums/")({
 
 import { AlbumCard } from "../components/AlbumCard";
 import { EditAlbumModal } from "../components/EditAlbumModal";
+import { ModalPortal } from "../components/ui/modal-portal";
 import { useDuckroomRole } from "../lib/useRole";
 
 function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreated?: () => void }) {
@@ -155,7 +156,7 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
   };
 
   return (
-    <>
+    <ModalPortal>
       <motion.div
         variants={modalOverlayVariants}
         initial="hidden"
@@ -381,7 +382,7 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
           />
         )}
       </AnimatePresence>
-    </>
+    </ModalPortal>
   );
 }
 

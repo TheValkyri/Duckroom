@@ -9,6 +9,7 @@ import { compressAndResizeImageFile, cropBlackLetterbox, dataURLtoFile } from ".
 import { modalOverlayVariants, modalPanelVariants, springSnappy, tapScale } from "../lib/motion";
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
 import { useDuckroomRole } from "../lib/useRole";
+import { ModalPortal } from "./ui/modal-portal";
 import { cn } from "../lib/utils";
 
 interface EditAlbumModalProps {
@@ -149,7 +150,7 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
   };
 
   return (
-    <>
+    <ModalPortal>
       <motion.div
         variants={modalOverlayVariants}
         initial="hidden"
@@ -387,6 +388,6 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
           />
         )}
       </AnimatePresence>
-    </>
+    </ModalPortal>
   );
 }

@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
@@ -40,8 +41,8 @@ export function getS3ServerClient() {
     forcePathStyle: true,
     maxAttempts: 1,
     requestHandler: new NodeHttpHandler({
-      connectionTimeout: 1500,
-      requestTimeout: 2500,
+      connectionTimeout: 3000,
+      requestTimeout: 10000,
     }),
     // Fix 2026-08-25 (403 playback + ERR_HTTP2_PROTOCOL_ERROR khi upload):
     // SDK v3.729+ mặc định "WHEN_SUPPORTED" — gắn x-amz-checksum-mode=ENABLED
@@ -49,6 +50,35 @@ export function getS3ServerClient() {
     // compatible (Pikamc) tính chữ ký trên TOÀN BỘ query → chữ ký lệch →
     // 403 mọi ảnh bìa/nhạc, và PUT upload bị ngắt stream giữa chừng.
     // "WHEN_REQUIRED" chỉ thêm checksum khi bucket thực sự yêu cầu.
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
+  });
+}
+
+/**
+ * Durable S3 Client for heavy internal media operations:
+ * CopyObjectCommand, direct streaming, large uploads.
+ * Extended requestTimeout (60s) to tolerate international cross-region WAN latency (US -> VN-HCM).
+ */
+export function getS3DurableClient() {
+  const endpoint = getOptionalServerEnv("S3_ENDPOINT") || "https://s3.pikamc.vn";
+  const region = getOptionalServerEnv("S3_REGION") || "vn-hcm-1";
+  const accessKeyId = requireServerEnv("S3_ACCESS_KEY_ID");
+  const secretAccessKey = requireServerEnv("S3_SECRET_ACCESS_KEY");
+
+  return new S3Client({
+    endpoint,
+    region,
+    credentials: {
+      accessKeyId,
+      secretAccessKey,
+    },
+    forcePathStyle: true,
+    maxAttempts: 3,
+    requestHandler: new NodeHttpHandler({
+      connectionTimeout: 5000,
+      requestTimeout: 60000,
+    }),
     requestChecksumCalculation: "WHEN_REQUIRED",
     responseChecksumValidation: "WHEN_REQUIRED",
   });
@@ -103,6 +133,52 @@ export async function getTrackPlaybackUrlInternal(
 
   if (!track.storage_key) {
     throw new StorageOperationError("RESOURCE_NOT_FOUND", "Track has no storage key", 404);
+  }
+
+  // Self-healing: if track.storage_key starts with temp/, query upload_sessions
+  // where committed_entity_id = trackId or staging_storage_key = track.storage_key
+  // to check if canonical_storage_key exists on S3. If it exists on S3, heal the database
+  // by updating tracks.storage_key to canonical_storage_key before signing.
+  if (track.storage_key.startsWith("temp/")) {
+    const { data: session } = await db
+      .from("upload_sessions")
+      .select("canonical_storage_key")
+      .or(`committed_entity_id.eq.${trackId},staging_storage_key.eq.${track.storage_key}`)
+      .not("canonical_storage_key", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (session?.canonical_storage_key) {
+      const s3 = getS3ServerClient();
+      try {
+        await s3.send(
+          new HeadObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: session.canonical_storage_key,
+          }),
+        );
+        // Canonical file confirmed on S3! Heal database in place:
+        await db
+          .from("tracks")
+          .update({
+            storage_key: session.canonical_storage_key,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", trackId);
+
+        await db
+          .from("track_files")
+          .update({
+            storage_key: session.canonical_storage_key,
+          })
+          .eq("track_id", trackId);
+
+        track.storage_key = session.canonical_storage_key;
+      } catch {
+        // Canonical object not found on S3, proceed with current storage_key
+      }
+    }
   }
 
   validateStorageKey(track.storage_key);
@@ -209,6 +285,41 @@ export async function getTrackArtworkUrlInternal(
 
   if (!track.cover_storage_key) {
     return { assetUrl: "", expiresIn: ARTWORK_URL_TTL_SECONDS };
+  }
+
+  // Self-healing for artwork: if cover_storage_key starts with temp/, check upload_sessions & S3
+  if (track.cover_storage_key.startsWith("temp/")) {
+    const { data: session } = await db
+      .from("upload_sessions")
+      .select("artwork_canonical_key")
+      .or(`committed_entity_id.eq.${trackId},artwork_staging_key.eq.${track.cover_storage_key}`)
+      .not("artwork_canonical_key", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (session?.artwork_canonical_key) {
+      const s3 = getS3ServerClient();
+      try {
+        await s3.send(
+          new HeadObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: session.artwork_canonical_key,
+          }),
+        );
+        await db
+          .from("tracks")
+          .update({
+            cover_storage_key: session.artwork_canonical_key,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", trackId);
+
+        track.cover_storage_key = session.artwork_canonical_key;
+      } catch {
+        // Canonical artwork not found on S3, proceed with current key
+      }
+    }
   }
 
   validateVisualAssetKey(track.cover_storage_key);
