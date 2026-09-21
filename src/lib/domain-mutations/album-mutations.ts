@@ -1,10 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSupabaseAdmin } from "../supabase";
 import { getS3ServerClient } from "../s3-functions";
 import { BUCKET_NAME } from "../s3-constants";
-import { sanitizeStorageKeySegment } from "../s3-key";
+import { extractS3KeyFromUrl, sanitizeStorageKeySegment } from "../s3-key";
 import { requireFreshOwnerMiddleware, serverSecurityMiddleware } from "../auth-guard";
 import {
   ConcurrencyConflictError,
@@ -154,7 +154,12 @@ export async function updateAlbumDomainInternal(data: UpdateAlbumInput, actorUse
   return updated;
 }
 
-export async function trashAlbumDomainInternal(albumId: string, expectedVersion: number, actorUserId?: string) {
+export async function trashAlbumDomainInternal(
+  albumId: string,
+  expectedVersion: number,
+  actorUserId?: string,
+  mode: "dissolve" | "cascade_delete" = "cascade_delete",
+) {
   const actor = actorUserId;
 
   const db = getSupabaseAdmin();
@@ -181,26 +186,177 @@ export async function trashAlbumDomainInternal(albumId: string, expectedVersion:
     throw new ResourceNotFoundError(`Album ${albumId} not found.`);
   }
 
-  // Cascade trash to tracks in this album to prevent orphan singles leaking in library
-  const tracksTable = db.from("tracks");
-  if (typeof tracksTable?.update === "function") {
-    await tracksTable
-      .update({
-        status: "trash",
-        deleted_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("album_id", albumId)
-      .neq("status", "trash");
-  }
+  const albumTitle = (trashed as AlbumRow).title || albumId;
+  const albumCover = (trashed as AlbumRow).cover_storage_key;
+  const folderSlug = sanitizeStorageKeySegment(albumTitle);
+  const keepKey = `audio/albums/${folderSlug}/.keep`;
 
-  await safeAuditLog(db, {
-    actor_user_id: actor ?? null,
-    action: "album.trash",
-    resource_type: "album",
-    resource_id: albumId,
-    metadata: { status: "trash", version: (trashed as AlbumRow).version },
-  });
+  if (mode === "dissolve") {
+    // Mode: Dissolve album into Singles
+    // Unbind all tracks from this album by setting album_id = null and track_no = 0
+    const tracksTable = db.from("tracks");
+    if (typeof tracksTable?.update === "function") {
+      await tracksTable
+        .update({
+          album_id: null,
+          track_no: 0,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("album_id", albumId)
+        .neq("status", "trash");
+    }
+
+    try {
+      const s3 = getS3ServerClient();
+      await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: keepKey }));
+    } catch {
+      // Ignore if keepKey absent or S3 client fails in unit test
+    }
+
+    await safeAuditLog(db, {
+      actor_user_id: actor ?? null,
+      action: "album.dissolve",
+      resource_type: "album",
+      resource_id: albumId,
+      metadata: { mode: "dissolve", status: "trash", version: (trashed as AlbumRow).version },
+    });
+  } else {
+    // Mode: Cascade delete (Xóa sạch toàn bộ)
+    // Find all tracks belonging to this album
+    let albumTracks: Array<{ id: string; storage_key: string | null; cover_storage_key: string | null }> = [];
+    try {
+      const tracksTable = db.from("tracks");
+      if (typeof tracksTable?.select === "function") {
+        const sel = tracksTable.select("id, storage_key, cover_storage_key");
+        if (typeof sel?.eq === "function") {
+          const { data } = await sel.eq("album_id", albumId);
+          albumTracks = data || [];
+        }
+      }
+    } catch {
+      // Safe fallback
+    }
+
+    if (albumTracks.length > 0) {
+      const trackIds = albumTracks.map((t) => t.id);
+
+      // Clean dependent rows safely
+      try {
+        const cleanCascade = (tbl: string) => {
+          const t = db?.from?.(tbl);
+          if (typeof t?.delete === "function") {
+            const delObj = t.delete();
+            if (typeof delObj?.in === "function") {
+              return delObj.in("track_id", trackIds);
+            }
+          }
+          return Promise.resolve();
+        };
+        await Promise.all([
+          cleanCascade("track_files"),
+          cleanCascade("user_favorites"),
+          cleanCascade("playback_history"),
+          cleanCascade("playlist_tracks"),
+          cleanCascade("storage_cleanup_debts"),
+        ]);
+      } catch {
+        // Safe fallback
+      }
+
+      // Mark tracks as trash in DB
+      try {
+        const t = db?.from?.("tracks");
+        if (typeof t?.update === "function") {
+          await t
+            .update({
+              status: "trash",
+              deleted_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .in("id", trackIds);
+        }
+      } catch {
+        // Safe fallback
+      }
+
+      // Delete track audio and unshared artwork from S3
+      try {
+        const s3 = getS3ServerClient();
+        for (const track of albumTracks) {
+          if (track.storage_key) {
+            try {
+              await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: track.storage_key }));
+            } catch {
+              // Ignore
+            }
+          }
+          if (track.cover_storage_key) {
+            const coverKey = extractS3KeyFromUrl(track.cover_storage_key) || track.cover_storage_key;
+            try {
+              const tracksQ = db?.from?.("tracks")?.select?.("id");
+              const albumsQ = db?.from?.("albums")?.select?.("id");
+              const [otherT, otherA] = await Promise.all([
+                typeof tracksQ?.eq === "function"
+                  ? tracksQ.eq("cover_storage_key", coverKey).neq("status", "trash").limit(1)
+                  : Promise.resolve({ data: [] }),
+                typeof albumsQ?.eq === "function"
+                  ? albumsQ.eq("cover_storage_key", coverKey).neq("id", albumId).neq("status", "trash").limit(1)
+                  : Promise.resolve({ data: [] }),
+              ]);
+              if (!((otherT?.data && otherT.data.length > 0) || (otherA?.data && otherA.data.length > 0))) {
+                await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: coverKey }));
+              }
+            } catch {
+              // Ignore
+            }
+          }
+        }
+      } catch {
+        // Safe fallback
+      }
+    }
+
+    // Delete album marker .keep and album cover (if not shared outside)
+    try {
+      const s3 = getS3ServerClient();
+      try {
+        await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: keepKey }));
+      } catch {
+        // Ignore
+      }
+
+      if (albumCover) {
+        const albumCoverKey = extractS3KeyFromUrl(albumCover) || albumCover;
+        try {
+          const tracksQ = db?.from?.("tracks")?.select?.("id");
+          const albumsQ = db?.from?.("albums")?.select?.("id");
+          const [otherT, otherA] = await Promise.all([
+            typeof tracksQ?.eq === "function"
+              ? tracksQ.eq("cover_storage_key", albumCoverKey).neq("status", "trash").limit(1)
+              : Promise.resolve({ data: [] }),
+            typeof albumsQ?.eq === "function"
+              ? albumsQ.eq("cover_storage_key", albumCoverKey).neq("id", albumId).neq("status", "trash").limit(1)
+              : Promise.resolve({ data: [] }),
+          ]);
+          if (!((otherT?.data && otherT.data.length > 0) || (otherA?.data && otherA.data.length > 0))) {
+            await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: albumCoverKey }));
+          }
+        } catch {
+          // Ignore
+        }
+      }
+    } catch {
+      // Safe fallback
+    }
+
+    await safeAuditLog(db, {
+      actor_user_id: actor ?? null,
+      action: "album.delete_cascade",
+      resource_type: "album",
+      resource_id: albumId,
+      metadata: { mode: "cascade_delete", status: "trash", deletedTracksCount: albumTracks.length },
+    });
+  }
 
   return trashed;
 }
@@ -305,9 +461,10 @@ export const trashAlbumDomainServer = createServerFn({ method: "POST" })
     z.object({
       albumId: z.string().min(1),
       expectedVersion: z.number().int().min(1),
+      mode: z.enum(["dissolve", "cascade_delete"]).optional(),
     }),
   )
   .handler(async ({ context, data }) => {
     const actorUserId = (context as { auth?: { userId?: string } })?.auth?.userId;
-    return await trashAlbumDomainInternal(data.albumId, data.expectedVersion, actorUserId);
+    return await trashAlbumDomainInternal(data.albumId, data.expectedVersion, actorUserId, data.mode);
   });

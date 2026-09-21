@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TrackRow } from "../components/TrackRow";
 import { EditAlbumModal } from "../components/EditAlbumModal";
+import { DeleteAlbumDialog } from "../components/DeleteAlbumDialog";
 import { ModalPortal } from "../components/ui/modal-portal";
 import {
   addTracksToAlbum,
@@ -214,6 +215,7 @@ function AlbumPage() {
   const navigate = useNavigate();
   const [showAddTracks, setShowAddTracks] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
 
@@ -232,13 +234,19 @@ function AlbumPage() {
   const total = list.reduce((a, t) => a + t.duration, 0);
   const currentIds = useMemo(() => new Set(list.map((t) => t.id)), [list]);
 
-  const handleDeleteAlbum = useCallback(async () => {
+  const handleDeleteAlbum = useCallback(() => {
     if (!isOwner || !album) return;
-    if (confirm(`Chuyển album "${album.title}" vào thùng rác?`)) {
-      await deleteAlbum(album.id);
+    setShowDeleteDialog(true);
+  }, [isOwner, album]);
+
+  const handleConfirmDeleteAlbum = useCallback(
+    async (mode: "dissolve" | "cascade_delete") => {
+      if (!album) return;
+      await deleteAlbum(album.id, mode);
       void navigate({ to: "/albums" });
-    }
-  }, [isOwner, album, navigate]);
+    },
+    [album, navigate],
+  );
 
   const handleRemoveFromAlbum = useCallback(
     async (trackId: string) => {
@@ -460,6 +468,14 @@ function AlbumPage() {
       <AnimatePresence>
         {showEditModal && <EditAlbumModal album={album} onClose={() => setShowEditModal(false)} onUpdated={refresh} />}
       </AnimatePresence>
+
+      <DeleteAlbumDialog
+        album={album}
+        isOpen={showDeleteDialog}
+        trackCount={list.length}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={handleConfirmDeleteAlbum}
+      />
     </div>
   );
 }

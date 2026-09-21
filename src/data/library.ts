@@ -389,15 +389,40 @@ export async function updateAlbum(
   return mappedAlbum;
 }
 
-export async function deleteAlbum(albumId: string): Promise<boolean> {
+export async function deleteAlbum(
+  albumId: string,
+  mode: "dissolve" | "cascade_delete" = "cascade_delete",
+): Promise<boolean> {
   const album = albums.find((item) => item.id === albumId);
   if (!album || typeof album.version !== "number") throw new Error("Cannot delete album without a current revision");
-  await trashAlbumDomainServer({ data: { albumId, expectedVersion: album.version } });
+  await trashAlbumDomainServer({ data: { albumId, expectedVersion: album.version, mode } });
   const idx = albums.findIndex((a) => a.id === albumId);
   if (idx >= 0) {
     albums.splice(idx, 1);
-    notifyLibrarySubscribers();
   }
+
+  if (mode === "dissolve") {
+    // Unbind tracks to become singles
+    for (let i = 0; i < tracks.length; i++) {
+      if (tracks[i]?.albumId === albumId) {
+        tracks[i] = {
+          ...tracks[i]!,
+          albumId: "singles",
+          trackNo: 0,
+        };
+      }
+    }
+  } else {
+    // Cascade delete: remove all tracks in this album
+    for (let i = tracks.length - 1; i >= 0; i--) {
+      if (tracks[i]?.albumId === albumId) {
+        tracks.splice(i, 1);
+      }
+    }
+  }
+
+  notifyLibrarySubscribers();
+  void syncLibraryWithS3(true);
   return true;
 }
 

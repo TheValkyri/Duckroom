@@ -62,6 +62,7 @@ export const Route = createFileRoute("/albums/")({
 
 import { AlbumCard } from "../components/AlbumCard";
 import { EditAlbumModal } from "../components/EditAlbumModal";
+import { DeleteAlbumDialog } from "../components/DeleteAlbumDialog";
 import { ModalPortal } from "../components/ui/modal-portal";
 import { useDuckroomRole } from "../lib/useRole";
 
@@ -399,6 +400,7 @@ function AlbumsPage() {
   const { isOwner } = useDuckroomRole();
   const [showCreate, setShowCreate] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
+  const [deletingAlbum, setDeletingAlbum] = useState<Album | null>(null);
 
   /* WP3: hydrate lần đầu (chưa data + chưa xong sync) → skeleton đúng
    * grid, không empty-state sai. "idle" cũng tính để không flash. */
@@ -407,9 +409,15 @@ function AlbumsPage() {
     return <AlbumsSkeleton />;
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (album: Album) => {
     if (!isOwner) return;
-    await deleteAlbum(id);
+    setDeletingAlbum(album);
+  };
+
+  const handleConfirmDelete = async (mode: "dissolve" | "cascade_delete") => {
+    if (!deletingAlbum) return;
+    await deleteAlbum(deletingAlbum.id, mode);
+    setDeletingAlbum(null);
   };
 
   return (
@@ -449,7 +457,7 @@ function AlbumsPage() {
               <AlbumCard
                 album={a}
                 onEdit={() => setEditingAlbum(a)}
-                onDelete={() => handleDelete(a.id)}
+                onDelete={() => handleDelete(a)}
                 onPlay={() => playQueue(albumTracks(a.id), 0)}
               />
             </motion.div>
@@ -494,6 +502,14 @@ function AlbumsPage() {
           />
         )}
       </AnimatePresence>
+
+      <DeleteAlbumDialog
+        album={deletingAlbum}
+        isOpen={Boolean(deletingAlbum)}
+        trackCount={albumTracks(deletingAlbum?.id || "").length}
+        onClose={() => setDeletingAlbum(null)}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

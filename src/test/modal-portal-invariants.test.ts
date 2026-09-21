@@ -96,4 +96,11 @@ describe("ModalPortal & Viewport Centering Architecture", () => {
     const albumDetail = readSrc("routes/albums.$albumId.tsx");
     expect(albumDetail).toContain("<ModalPortal>");
   });
+
+  it("DeleteAlbumDialog portals into document.body via ModalPortal", () => {
+    const source = readSrc("components/DeleteAlbumDialog.tsx");
+    expect(source).toMatch(/import\s*\{\s*ModalPortal\s*\}\s*from\s*["']\.\/ui\/modal-portal["']/);
+    expect(source).toContain("<ModalPortal>");
+    expect(source).toContain("</ModalPortal>");
+  });
 });

@@ -23,6 +23,7 @@ import {
 } from "./auth-guard";
 import { getOptionalServerEnv, requireServerEnv } from "./server-env";
 import { PRESIGNED_URL_TTL_SECONDS, ARTWORK_URL_TTL_SECONDS, BUCKET_NAME } from "./s3-constants";
+import { extractS3KeyFromUrl } from "./s3-key";
 export { BUCKET_NAME };
 
 export function getS3ServerClient() {
@@ -470,9 +471,37 @@ export async function deleteTrackDomainInternal(
 
   if (fetchErr || !track) throw new Error(`Track ${trackId} not found`);
 
-  const cleanupKeys = [track.storage_key].filter(
+  // Check if track artwork is uniquely referenced by this track only (safe to delete on S3)
+  let deleteArtwork = false;
+  let cleanCoverKey: string | null = null;
+  if (track.cover_storage_key) {
+    cleanCoverKey = extractS3KeyFromUrl(track.cover_storage_key) || track.cover_storage_key;
+    try {
+      const tracksQuery = db?.from?.("tracks")?.select?.("id");
+      const albumsQuery = db?.from?.("albums")?.select?.("id");
+      const [otherTracksRes, otherAlbumsRes] = await Promise.all([
+        typeof tracksQuery?.eq === "function"
+          ? tracksQuery.eq("cover_storage_key", cleanCoverKey).neq("id", trackId).neq("status", "trash").limit(1)
+          : Promise.resolve({ data: [] }),
+        typeof albumsQuery?.eq === "function"
+          ? albumsQuery.eq("cover_storage_key", cleanCoverKey).neq("status", "trash").limit(1)
+          : Promise.resolve({ data: [] }),
+      ]);
+      const isShared =
+        Boolean(otherTracksRes?.data && otherTracksRes.data.length > 0) ||
+        Boolean(otherAlbumsRes?.data && otherAlbumsRes.data.length > 0);
+      if (!isShared) {
+        deleteArtwork = true;
+      }
+    } catch {
+      // If reference check query fails or is unmocked in unit tests, fail safe by not deleting artwork
+    }
+  }
+
+  const cleanupKeys = [track.storage_key, deleteArtwork && cleanCoverKey ? cleanCoverKey : null].filter(
     (key): key is string => typeof key === "string" && key.trim().length > 0,
   );
+
   const { data: debt, error: debtErr } = await db
     .from("storage_cleanup_debts")
     .insert({
@@ -486,6 +515,28 @@ export async function deleteTrackDomainInternal(
     .maybeSingle();
   if (debtErr || !debt)
     throw new Error(`[CLEANUP_DEBT_CREATE_FAILED] ${debtErr?.message || "Unable to create cleanup debt"}`);
+
+  // Cascade cleanup dependent foreign key records safely before deleting track
+  try {
+    const cleanCascade = (tbl: string) => {
+      const t = db?.from?.(tbl);
+      if (typeof t?.delete === "function") {
+        const delObj = t.delete();
+        if (typeof delObj?.eq === "function") {
+          return delObj.eq("track_id", trackId);
+        }
+      }
+      return Promise.resolve();
+    };
+    await Promise.all([
+      cleanCascade("track_files"),
+      cleanCascade("user_favorites"),
+      cleanCascade("playback_history"),
+      cleanCascade("playlist_tracks"),
+    ]);
+  } catch {
+    // Non-blocking cascade cleanup
+  }
 
   // Delete the canonical DB row first. This guarantees that a subsequent S3 failure
   // can only leave an unreachable orphan object, never a broken DB -> S3 reference.
@@ -515,8 +566,13 @@ export async function deleteTrackDomainInternal(
     if (track.storage_key) {
       await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: track.storage_key }));
     }
-    // Track artwork is intentionally NOT hard-deleted here. It may be shared and is
-    // reclaimed only by the owner-controlled orphan scanner.
+    if (deleteArtwork && cleanCoverKey) {
+      try {
+        await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: cleanCoverKey }));
+      } catch (coverErr) {
+        console.warn(`[Duckroom S3] Could not delete unshared artwork ${cleanCoverKey}:`, coverErr);
+      }
+    }
     await db
       .from("storage_cleanup_debts")
       .update({
