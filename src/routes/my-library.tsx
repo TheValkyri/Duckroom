@@ -284,7 +284,12 @@ function MyLibraryPage() {
                   className="card-lift group block rounded-2xl bg-card/60 transition-transform duration-300 hover:-translate-y-1.5"
                 >
                   <div className="relative aspect-square overflow-hidden rounded-2xl">
-                    {album.cover ? (
+                    {album.cover &&
+                    (album.cover.startsWith("http://") ||
+                      album.cover.startsWith("https://") ||
+                      album.cover.startsWith("data:") ||
+                      album.cover.startsWith("blob:") ||
+                      album.cover.startsWith("/")) ? (
                       <img
                         src={album.cover}
                         alt={`Bìa album ${album.title}`}

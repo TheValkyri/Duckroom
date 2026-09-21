@@ -19,6 +19,7 @@ import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
 import { cn } from "../lib/utils";
 import { getPublicLibrarySummaryServer } from "../lib/ssr-loaders";
 import { AlbumsSkeleton } from "../components/LibrarySkeleton";
+import { sanitizeStorageKeySegment } from "../lib/s3-key";
 
 export const Route = createFileRoute("/albums/")({
   staleTime: 60_000,
@@ -108,7 +109,7 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
       if (artworkFile) {
         setUploadStatus("Đang tải ảnh bìa lên Pikamc S3...");
         const artExt = artworkFile.name.split(".").pop() || "jpg";
-        const cleanName = title.trim().replace(/[\\/:*?"<>|]+/g, "-") || "album";
+        const cleanName = sanitizeStorageKeySegment(title);
         const artKey = `artwork/album-${Date.now()}-${cleanName}.${artExt}`;
         const artContentType = artworkFile.type || "image/jpeg";
 
@@ -140,6 +141,7 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
         artist: artist.trim() || "Nghệ sĩ",
         year: parseInt(year, 10) || new Date().getFullYear(),
         ...(finalCover ? { cover: finalCover } : {}),
+        previewUrl: artworkPreview || coverUrl.trim() || "",
         ...(note.trim() ? { note: note.trim() } : {}),
       });
 

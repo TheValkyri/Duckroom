@@ -17,6 +17,7 @@ import {
   syncLibraryWithS3,
   type Track,
 } from "../data/library";
+import { fetchAlbumArtworkUrl } from "../lib/s3";
 import {
   listContainerVariants,
   listItemVariants,
@@ -58,7 +59,14 @@ export const Route = createFileRoute("/albums/$albumId")({
     const a = loaderData?.album;
     const t = a?.title ?? "Album";
     const artist = a?.artist ? ` — ${a.artist}` : "";
-    const cover = a?.cover || "https://duckroom.vercel.app/og-image.jpg";
+    const rawCover = a?.cover;
+    const cover =
+      rawCover &&
+      (rawCover.startsWith("http://") ||
+        rawCover.startsWith("https://") ||
+        rawCover.startsWith("/"))
+        ? rawCover
+        : "https://duckroom.vercel.app/og-image.jpg";
     const desc = a ? `Nghe album ${a.title}${artist} ở chất lượng gốc, không nén lại.` : "Nghe album ở chất lượng gốc.";
     return {
       meta: [
@@ -207,6 +215,18 @@ function AddTracksModal({
   );
 }
 
+function isDisplayableImageUrl(url: string | null | undefined): boolean {
+  if (!url || typeof url !== "string") return false;
+  const trimmed = url.trim();
+  return (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("blob:") ||
+    trimmed.startsWith("data:") ||
+    trimmed.startsWith("/")
+  );
+}
+
 function AlbumPage() {
   const { album: loadedAlbum, tracks: loadedTracks, albumId: paramAlbumId } = Route.useLoaderData();
   const { tracks, albums, refresh, status } = useLibrary();
@@ -219,13 +239,32 @@ function AlbumPage() {
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
 
+  const album = loadedAlbum || albumById(paramAlbumId);
+  const [resolvedCover, setResolvedCover] = useState<string>(() =>
+    album && isDisplayableImageUrl(album.cover) ? album.cover! : "",
+  );
+
   // Reset image loading states on route transition between albums
   useEffect(() => {
     setImgLoaded(false);
     setImgError(false);
   }, [paramAlbumId]);
 
-  const album = loadedAlbum || albumById(paramAlbumId);
+  useEffect(() => {
+    if (album && isDisplayableImageUrl(album.cover)) {
+      setResolvedCover(album.cover!);
+      setImgError(false);
+    } else if (album?.id) {
+      void fetchAlbumArtworkUrl(album.id)
+        .then((url) => {
+          if (url) {
+            setResolvedCover(url);
+            setImgError(false);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [album?.id, album?.cover]);
 
   const clientList = albumTracks(album?.id || "");
   const list = useMemo(() => {
@@ -325,17 +364,30 @@ function AlbumPage() {
             {!imgLoaded && !imgError && (
               <div className="absolute inset-0 bg-muted/40 animate-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
             )}
-            {!imgError ? (
+            {!imgError && resolvedCover ? (
               <motion.img
                 layoutId={`cover-${album.id}`}
                 transition={springSmooth}
-                src={album.cover || undefined}
+                src={resolvedCover}
                 alt={`Bìa album ${album.title}`}
                 width={320}
                 height={320}
                 decoding="async"
                 onLoad={() => setImgLoaded(true)}
-                onError={() => {
+                onError={async (e) => {
+                  if (album?.id) {
+                    try {
+                      const fresh = await fetchAlbumArtworkUrl(album.id);
+                      if (fresh && fresh !== e.currentTarget.src) {
+                        e.currentTarget.src = fresh;
+                        setResolvedCover(fresh);
+                        setImgLoaded(true);
+                        return;
+                      }
+                    } catch {
+                      // fallback below
+                    }
+                  }
                   setImgError(true);
                   setImgLoaded(true);
                 }}

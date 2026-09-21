@@ -1,4 +1,5 @@
 import { deleteTrackDomainServer, deleteVideoDomainServer } from "../lib/s3-functions";
+import { fetchAlbumArtworkUrl } from "../lib/s3";
 import { getPublicMasterLibraryServer } from "../lib/master-library";
 import {
   createAlbumDomainServer,
@@ -312,14 +313,33 @@ export async function createAlbum(data: {
   cover?: string | undefined;
   accent?: string | undefined;
   note?: string | undefined;
+  previewUrl?: string | undefined;
 }): Promise<Album> {
   const created = await createAlbumDomainServer({ data });
+  const serverCoverUrl = (created as any).cover_url as string | undefined;
+  const cleanCover =
+    serverCoverUrl && (serverCoverUrl.startsWith("http://") || serverCoverUrl.startsWith("https://"))
+      ? serverCoverUrl
+      : data.previewUrl &&
+        (data.previewUrl.startsWith("http://") ||
+          data.previewUrl.startsWith("https://") ||
+          data.previewUrl.startsWith("blob:") ||
+          data.previewUrl.startsWith("data:"))
+      ? data.previewUrl
+      : data.cover &&
+        (data.cover.startsWith("http://") ||
+          data.cover.startsWith("https://") ||
+          data.cover.startsWith("blob:") ||
+          data.cover.startsWith("data:"))
+      ? data.cover
+      : "";
+
   const newAlbum: Album = {
     id: created.id,
     title: created.title,
     artist: created.artist,
     year: created.year,
-    cover: created.cover_storage_key || "",
+    cover: cleanCover,
     accent: created.accent,
     note: created.note || "",
     display_priority: typeof created.display_priority === "number" ? created.display_priority : 999,
@@ -329,6 +349,18 @@ export async function createAlbum(data: {
   };
   albums.push(newAlbum);
   notifyLibrarySubscribers();
+
+  if (created.cover_storage_key && (!cleanCover || cleanCover.startsWith("blob:") || cleanCover.startsWith("data:"))) {
+    void fetchAlbumArtworkUrl(created.id)
+      .then((signedUrl) => {
+        if (signedUrl && newAlbum.cover !== signedUrl) {
+          newAlbum.cover = signedUrl;
+          notifyLibrarySubscribers();
+        }
+      })
+      .catch(() => {});
+  }
+
   return newAlbum;
 }
 
@@ -343,6 +375,7 @@ export async function updateAlbum(
     accent?: string | undefined;
     note?: string | undefined;
     displayPriority?: number | undefined;
+    previewUrl?: string | undefined;
   },
 ): Promise<Album> {
   const current = albums.find((a) => a.id === albumId);
@@ -356,12 +389,21 @@ export async function updateAlbum(
     },
   });
   const idx = albums.findIndex((a) => a.id === albumId);
+  const serverCoverUrl = (updated as any).cover_url as string | undefined;
   const cleanCover =
-    data.cover &&
-    (data.cover.startsWith("http://") ||
-      data.cover.startsWith("https://") ||
-      data.cover.startsWith("blob:") ||
-      data.cover.startsWith("data:"))
+    serverCoverUrl && (serverCoverUrl.startsWith("http://") || serverCoverUrl.startsWith("https://"))
+      ? serverCoverUrl
+      : data.previewUrl &&
+        (data.previewUrl.startsWith("http://") ||
+          data.previewUrl.startsWith("https://") ||
+          data.previewUrl.startsWith("blob:") ||
+          data.previewUrl.startsWith("data:"))
+      ? data.previewUrl
+      : data.cover &&
+        (data.cover.startsWith("http://") ||
+          data.cover.startsWith("https://") ||
+          data.cover.startsWith("blob:") ||
+          data.cover.startsWith("data:"))
       ? data.cover
       : current?.cover || "";
 
@@ -385,7 +427,18 @@ export async function updateAlbum(
     albums.push(mappedAlbum);
   }
   notifyLibrarySubscribers();
-  void syncLibraryWithS3(true);
+
+  if (updated.cover_storage_key && (!cleanCover || cleanCover.startsWith("blob:") || cleanCover.startsWith("data:"))) {
+    void fetchAlbumArtworkUrl(albumId)
+      .then((signedUrl) => {
+        if (signedUrl && mappedAlbum.cover !== signedUrl) {
+          mappedAlbum.cover = signedUrl;
+          notifyLibrarySubscribers();
+        }
+      })
+      .catch(() => {});
+  }
+
   return mappedAlbum;
 }
 

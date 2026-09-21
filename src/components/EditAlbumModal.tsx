@@ -10,6 +10,7 @@ import { modalOverlayVariants, modalPanelVariants, springSnappy, tapScale } from
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
 import { useDuckroomRole } from "../lib/useRole";
 import { ModalPortal } from "./ui/modal-portal";
+import { sanitizeStorageKeySegment } from "../lib/s3-key";
 import { cn } from "../lib/utils";
 
 interface EditAlbumModalProps {
@@ -95,7 +96,7 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
       if (artworkFile) {
         setUploadStatus("Đang tải ảnh bìa lên Pikamc S3...");
         const artExt = artworkFile.name.split(".").pop() || "jpg";
-        const cleanName = title.trim().replace(/[\\/:*?"<>|]+/g, "-") || "album";
+        const cleanName = sanitizeStorageKeySegment(title);
         const artKey = `artwork/album-${Date.now()}-${cleanName}.${artExt}`;
         const artContentType = artworkFile.type || "image/jpeg";
 
@@ -131,6 +132,7 @@ export function EditAlbumModal({ album, onClose, onUpdated }: EditAlbumModalProp
         artist: artist.trim() || "Nghệ sĩ",
         year: parseInt(year, 10) || new Date().getFullYear(),
         cover: finalCover,
+        previewUrl: artworkPreview || coverUrl.trim() || "",
         note: note.trim(),
         displayPriority: isNaN(parsedPriority) ? undefined : parsedPriority,
       });

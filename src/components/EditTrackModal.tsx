@@ -13,6 +13,7 @@ import { autoTimePacingLyrics } from "../lib/metadata";
 import { useDuckroomRole } from "../lib/useRole";
 import { useScrollLock } from "../hooks/use-scroll-lock";
 import { ModalPortal } from "./ui/modal-portal";
+import { sanitizeStorageKeySegment } from "../lib/s3-key";
 import { cn } from "../lib/utils";
 
 function formatTimeSec(s: number): string {
@@ -111,7 +112,7 @@ export function EditTrackModal({
       // Upload new Artwork image if selected
       if (artworkFile) {
         const artExt = artworkFile.name.split(".").pop() || "jpg";
-        const cleanName = title.trim().replace(/[\\/:*?"<>|]+/g, "-");
+        const cleanName = sanitizeStorageKeySegment(title);
         const artKey = `artwork/edit-${Date.now()}-${cleanName}.${artExt}`;
         const artContentType = artworkFile.type || "image/jpeg";
 

@@ -6,6 +6,7 @@ import { getS3ServerClient } from "../s3-functions";
 import { BUCKET_NAME } from "../s3-constants";
 import { extractS3KeyFromUrl, sanitizeStorageKeySegment } from "../s3-key";
 import { requireFreshOwnerMiddleware, serverSecurityMiddleware } from "../auth-guard";
+import { signArtworkUrl } from "../ssr-loaders";
 import {
   ConcurrencyConflictError,
   DomainValidationError,
@@ -83,7 +84,16 @@ export async function createAlbumDomainInternal(data: CreateAlbumInput, actorUse
     metadata: { title: row.title, artist: row.artist },
   });
 
-  return inserted;
+  let coverUrl = "";
+  if (inserted.cover_storage_key) {
+    try {
+      coverUrl = await signArtworkUrl(inserted.cover_storage_key);
+    } catch {
+      coverUrl = "";
+    }
+  }
+
+  return { ...inserted, cover_url: coverUrl };
 }
 
 export async function updateAlbumDomainInternal(data: UpdateAlbumInput, actorUserId?: string) {
@@ -151,7 +161,16 @@ export async function updateAlbumDomainInternal(data: UpdateAlbumInput, actorUse
     metadata: { updates: updates as Record<string, unknown>, newVersion: (updated as AlbumRow).version },
   });
 
-  return updated;
+  let coverUrl = "";
+  if ((updated as AlbumRow).cover_storage_key) {
+    try {
+      coverUrl = await signArtworkUrl((updated as AlbumRow).cover_storage_key);
+    } catch {
+      coverUrl = "";
+    }
+  }
+
+  return { ...updated, cover_url: coverUrl };
 }
 
 export async function trashAlbumDomainInternal(

@@ -6,6 +6,7 @@ import { albumTracks, type Album } from "../data/library";
 import { springSnappy, tapScale } from "../lib/motion";
 import { usePlayerActions } from "../lib/player";
 import { useDuckroomRole } from "../lib/useRole";
+import { fetchAlbumArtworkUrl } from "../lib/s3";
 import { cn } from "../lib/utils";
 import { EditAlbumModal } from "./EditAlbumModal";
 
@@ -99,15 +100,33 @@ export const AlbumCard = memo(function AlbumCard({
              * thuần (transform/opacity) như cũ. */}
             <motion.img
               src={
-                album.cover ||
-                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='600' height='600' fill='%2318181b'/%3E%3C/svg%3E"
+                album.cover &&
+                (album.cover.startsWith("http://") ||
+                  album.cover.startsWith("https://") ||
+                  album.cover.startsWith("data:") ||
+                  album.cover.startsWith("blob:") ||
+                  album.cover.startsWith("/"))
+                  ? album.cover
+                  : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='600' height='600' fill='%2318181b'/%3E%3C/svg%3E"
               }
               alt={`Bìa album ${album.title}`}
               loading="lazy"
               decoding="async"
               onLoad={() => setImgLoaded(true)}
-              onError={(e) => {
+              onError={async (e) => {
                 const target = e.currentTarget;
+                if (album?.id) {
+                  try {
+                    const fresh = await fetchAlbumArtworkUrl(album.id);
+                    if (fresh && fresh !== target.src) {
+                      target.src = fresh;
+                      setImgLoaded(true);
+                      return;
+                    }
+                  } catch {
+                    // fallback below
+                  }
+                }
                 const fallback =
                   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='600' height='600' fill='%2318181b'/%3E%3C/svg%3E";
                 if (target.src !== fallback) {

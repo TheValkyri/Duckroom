@@ -12,8 +12,8 @@ describe("Deletion Lifecycle & S3 Storage Reconciliation Suite", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     s3SentCommands = [];
-    process.env.S3_ACCESS_KEY_ID = "mock-access-key";
-    process.env.S3_SECRET_ACCESS_KEY = "mock-secret-key";
+    process.env["S3_ACCESS_KEY_ID"] = "mock-access-key";
+    process.env["S3_SECRET_ACCESS_KEY"] = "mock-secret-key";
     vi.spyOn(S3Client.prototype, "send").mockImplementation(async (command: any) => {
       s3SentCommands.push(command);
       return {} as any;
@@ -337,28 +337,28 @@ describe("Deletion Lifecycle & S3 Storage Reconciliation Suite", () => {
 
   describe("Client Library deleteAlbum Mutation (data/library.ts)", () => {
     it("dissolve mode converts tracks to albumId = singles in memory", async () => {
-      const mockAlbum: libraryData.Album = {
+      const mockAlbum = {
         id: "album-test-dissolve",
         title: "Test Dissolve",
         artist: "Artist",
         version: 1,
-      };
-      const mockTrack1: libraryData.Track = {
+      } as unknown as libraryData.Album;
+      const mockTrack1 = {
         id: "t-d1",
         title: "Track 1",
         artist: "Artist",
         albumId: "album-test-dissolve",
         trackNo: 1,
         duration: 180,
-      };
-      const mockTrack2: libraryData.Track = {
+      } as unknown as libraryData.Track;
+      const mockTrack2 = {
         id: "t-d2",
         title: "Track 2",
         artist: "Artist",
         albumId: "album-test-dissolve",
         trackNo: 2,
         duration: 200,
-      };
+      } as unknown as libraryData.Track;
 
       libraryData.albums.length = 0;
       libraryData.albums.push(mockAlbum);
@@ -385,20 +385,20 @@ describe("Deletion Lifecycle & S3 Storage Reconciliation Suite", () => {
     });
 
     it("cascade_delete mode removes tracks from memory entirely", async () => {
-      const mockAlbum: libraryData.Album = {
+      const mockAlbum = {
         id: "album-test-cascade",
         title: "Test Cascade",
         artist: "Artist",
         version: 1,
-      };
-      const mockTrack1: libraryData.Track = {
+      } as unknown as libraryData.Album;
+      const mockTrack1 = {
         id: "t-c1",
         title: "Track 1",
         artist: "Artist",
         albumId: "album-test-cascade",
         trackNo: 1,
         duration: 180,
-      };
+      } as unknown as libraryData.Track;
 
       libraryData.albums.length = 0;
       libraryData.albums.push(mockAlbum);

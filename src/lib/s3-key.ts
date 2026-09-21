@@ -43,6 +43,7 @@ export function sanitizeStorageKeySegment(segment: string): string {
   if (!segment || typeof segment !== "string") return "unknown";
   return (
     segment
+      .replace(/[đĐ]/g, (match) => (match === "đ" ? "d" : "d"))
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-zA-Z0-9._-]/g, "-")
