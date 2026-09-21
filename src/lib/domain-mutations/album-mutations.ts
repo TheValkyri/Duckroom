@@ -1,6 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSupabaseAdmin } from "../supabase";
+import { getS3ServerClient } from "../s3-functions";
+import { BUCKET_NAME } from "../s3-constants";
+import { sanitizeStorageKeySegment } from "../s3-key";
 import { requireFreshOwnerMiddleware, serverSecurityMiddleware } from "../auth-guard";
 import {
   ConcurrencyConflictError,
@@ -55,6 +59,22 @@ export async function createAlbumDomainInternal(data: CreateAlbumInput, actorUse
   const { data: inserted, error } = await db.from("albums").insert(row).select().single();
   if (error) throw new Error(`Album creation failed: ${error.message}`);
 
+  // Create clean canonical S3 folder marker so the album immediately exists in S3 storage
+  try {
+    const s3 = getS3ServerClient();
+    const folderSlug = sanitizeStorageKeySegment(row.title);
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: `audio/albums/${folderSlug}/.keep`,
+        Body: "",
+        ContentType: "text/plain",
+      }),
+    );
+  } catch (s3Err) {
+    console.warn(`[Duckroom S3] Could not create album folder marker on S3 for ${row.title}:`, s3Err);
+  }
+
   await safeAuditLog(db, {
     actor_user_id: actorUserId ?? null,
     action: "album.create",
@@ -106,6 +126,23 @@ export async function updateAlbumDomainInternal(data: UpdateAlbumInput, actorUse
     throw new ResourceNotFoundError(`Album ${data.id} not found.`);
   }
 
+  if (data.title) {
+    try {
+      const s3 = getS3ServerClient();
+      const folderSlug = sanitizeStorageKeySegment(data.title.trim());
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: BUCKET_NAME,
+          Key: `audio/albums/${folderSlug}/.keep`,
+          Body: "",
+          ContentType: "text/plain",
+        }),
+      );
+    } catch (s3Err) {
+      console.warn(`[Duckroom S3] Could not create album folder marker on S3 for ${data.title}:`, s3Err);
+    }
+  }
+
   await safeAuditLog(db, {
     actor_user_id: actorUserId ?? null,
     action: "album.update",
@@ -144,6 +181,19 @@ export async function trashAlbumDomainInternal(albumId: string, expectedVersion:
     throw new ResourceNotFoundError(`Album ${albumId} not found.`);
   }
 
+  // Cascade trash to tracks in this album to prevent orphan singles leaking in library
+  const tracksTable = db.from("tracks");
+  if (typeof tracksTable?.update === "function") {
+    await tracksTable
+      .update({
+        status: "trash",
+        deleted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("album_id", albumId)
+      .neq("status", "trash");
+  }
+
   await safeAuditLog(db, {
     actor_user_id: actor ?? null,
     action: "album.trash",
@@ -180,6 +230,19 @@ export async function restoreAlbumDomainInternal(albumId: string, expectedVersio
       );
     }
     throw new ResourceNotFoundError(`Album ${albumId} not found.`);
+  }
+
+  // Cascade restore to tracks in this album
+  const restoreTracksTable = db.from("tracks");
+  if (typeof restoreTracksTable?.update === "function") {
+    await restoreTracksTable
+      .update({
+        status: "active",
+        deleted_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("album_id", albumId)
+      .eq("status", "trash");
   }
 
   await safeAuditLog(db, {

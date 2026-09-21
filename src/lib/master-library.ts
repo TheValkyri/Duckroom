@@ -342,6 +342,7 @@ export async function getPublicMasterLibraryInternal() {
       sampleRate,
       sizeMB,
       src: "",
+      storage_key: t.storage_key,
       cover: await sign(t.cover_storage_key),
       year: t.year ?? undefined,
       lyrics: t.lyrics ?? [],
@@ -366,7 +367,20 @@ export async function getPublicMasterLibraryInternal() {
     albumOrderMap.set(a.title.toLowerCase().trim(), { priority: idx });
   });
 
-  trackRows.sort((a, b) => {
+  // Filter out any ghost tracks whose album is trashed or inactive, or pointing to uncommitted temp/
+  const validTracks = trackRows.filter((t) => {
+    if (t.storage_key !== undefined && (!t.storage_key || t.storage_key.startsWith("temp/"))) {
+      return false;
+    }
+    if (!t.albumId) return true;
+    const cleanAlbum = t.albumId.toLowerCase().trim();
+    if (cleanAlbum === "singles" || cleanAlbum === "single" || cleanAlbum === "single-collection") {
+      return true;
+    }
+    return albumOrderMap.has(cleanAlbum);
+  });
+
+  validTracks.sort((a, b) => {
     const cleanAlbumA = a.albumId?.toLowerCase().trim();
     const cleanAlbumB = b.albumId?.toLowerCase().trim();
 
@@ -434,7 +448,7 @@ export async function getPublicMasterLibraryInternal() {
     };
   });
 
-  return { albums: albumRows, tracks: trackRows, videos: videoRows };
+  return { albums: albumRows, tracks: validTracks, videos: videoRows };
 }
 
 export function clearSignedUrlCache() {

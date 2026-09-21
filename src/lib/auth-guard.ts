@@ -32,6 +32,7 @@ const ALLOWED_EXTENSIONS = new Set([
   "gif",
   "vtt",
   "json",
+  "keep",
 ]);
 
 /**
@@ -94,8 +95,10 @@ export function validateStorageKey(key: string, mode: "read" | "write" = "read")
     }
   }
 
-  // Validate extension if key is not library_manifest.json
-  if (cleanKey !== "library_manifest.json") {
+  // Validate extension if key is not library_manifest.json or an album folder marker (.keep)
+  const isManifest = cleanKey === "library_manifest.json";
+  const isFolderMarker = cleanKey.startsWith("audio/albums/") && cleanKey.endsWith("/.keep");
+  if (!isManifest && !isFolderMarker) {
     const ext = cleanKey.split(".").pop()?.toLowerCase();
     if (!ext || !ALLOWED_EXTENSIONS.has(ext)) {
       throw new Error(`File extension .${ext} is not allowed.`);

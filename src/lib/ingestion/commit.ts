@@ -277,10 +277,10 @@ export async function finalizeIngestionCommitInternal(data: FinalizeIngestionCom
       const albumId = data.metadataOverrides?.albumId;
       const isSingle = !albumId || albumId === "singles";
       if (isSingle) {
-        canonicalMediaKey = `audio/${deterministicResourceId}-${safeTitle}.${ext}`;
+        canonicalMediaKey = `audio/singles/${deterministicResourceId}-${safeTitle}.${ext}`;
       } else {
         const albumFolder = sanitizeStorageKeySegment(data.metadataOverrides?.albumTitle || albumId);
-        canonicalMediaKey = `audio/${albumFolder}-${deterministicResourceId}-${safeTitle}.${ext}`;
+        canonicalMediaKey = `audio/albums/${albumFolder}/${deterministicResourceId}-${safeTitle}.${ext}`;
       }
 
       if (session.artwork_status === "verified" && session.artwork_staging_key) {

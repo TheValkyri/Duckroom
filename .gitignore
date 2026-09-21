@@ -39,3 +39,6 @@ test-results/
 *.njsproj
 *.sln
 *.sw?
+
+# Backups and snapshots
+scripts/*.json

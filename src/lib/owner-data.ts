@@ -13,7 +13,7 @@ import {
 } from "./s3-functions";
 import { BUCKET_NAME } from "./s3-constants";
 import { requireFreshOwnerMiddleware, requireOwnerMiddleware, serverSecurityMiddleware } from "./auth-guard";
-import { extractS3KeyFromUrl } from "./s3-key";
+import { extractS3KeyFromUrl, sanitizeStorageKeySegment } from "./s3-key";
 import { safeAuditLog } from "./domain-mutations/common";
 import type { UploadSessionRow, ShareLinkRow, TrackFileRow, VideoFileRow, TrackRow, VideoRow } from "./db-types";
 
@@ -112,9 +112,9 @@ export const scanOrphanS3ObjectsServer = createServerFn({ method: "GET" })
     }
 
     const [tracks, albums, videos, liveSessions] = await Promise.all([
-      db.from("tracks").select("storage_key,cover_storage_key"),
-      db.from("albums").select("cover_storage_key"),
-      db.from("videos").select("storage_key,thumb_storage_key"),
+      db.from("tracks").select("storage_key,cover_storage_key").neq("status", "trash"),
+      db.from("albums").select("title,cover_storage_key").neq("status", "trash"),
+      db.from("videos").select("storage_key,thumb_storage_key").neq("status", "trash"),
       // In-flight upload sessions must NEVER be classified as orphans —
       // purging their staging bytes would kill active transfers.
       db
@@ -133,6 +133,10 @@ export const scanOrphanS3ObjectsServer = createServerFn({ method: "GET" })
 
     (albums.data || []).forEach((a) => {
       if (a.cover_storage_key) activeKeys.add(extractS3KeyFromUrl(a.cover_storage_key) || a.cover_storage_key);
+      if (a.title) {
+        const slug = sanitizeStorageKeySegment(a.title);
+        activeKeys.add(`audio/albums/${slug}/.keep`);
+      }
     });
 
     (videos.data || []).forEach((v) => {
@@ -218,41 +222,221 @@ export const cleanupOrphanS3ObjectsServer = createServerFn({ method: "POST" })
     return { success: true, deletedCount: deleted.length, failed, skippedStale };
   });
 
-export const createBackupSnapshotServer = createServerFn({ method: "POST" })
-  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
-  .handler(async () => {
-    const db = getSupabaseAdmin();
-    const [albums, tracks, videos] = await Promise.all([
-      db.from("albums").select("*").order("year", { ascending: false }),
-      db.from("tracks").select("*").order("created_at", { ascending: true }),
-      db.from("videos").select("*").order("year", { ascending: false }),
-    ]);
+export interface ReconcileStorageResult {
+  totalDbTracks: number;
+  validDbTracks: number;
+  ghostTracks: Array<{ id: string; title: string; albumId?: string | null; storageKey: string }>;
+  stagingLeaks: Array<{ id: string; title: string; storageKey: string }>;
+  brokenCovers: Array<{ id: string; title: string; coverKey: string }>;
+  ghostVideos: Array<{ id: string; title: string; storageKey: string }>;
+  brokenVideoThumbs: Array<{ id: string; title: string; thumbKey: string }>;
+  orphanS3Keys: string[];
+  totalS3Objects: number;
+  purgedGhostCount?: number;
+  manifestUpdated?: boolean;
+}
 
-    const snapshot = {
-      version: 2,
-      createdAt: new Date().toISOString(),
-      albums: albums.data || [],
-      tracks: tracks.data || [],
-      videos: videos.data || [],
-    };
+export async function reconcileStorageWithDbInternal(
+  autoPurgeGhosts = false,
+  actorUserId?: string,
+): Promise<ReconcileStorageResult> {
+  const db = getSupabaseAdmin();
+  let allS3: string[] = [];
+  try {
+    allS3 = await listS3ObjectsInternal();
+  } catch (err: any) {
+    throw new Error(`S3 storage listing failed during reconciliation: ${err?.message || err}`);
+  }
 
-    let s3DirectWriteWarning: string | null = null;
-    try {
-      await saveLibraryManifestInternal(JSON.stringify(snapshot, null, 2));
-    } catch (err) {
-      console.warn("[Duckroom Backup Snapshot] Direct S3 write unavailable:", err);
-      s3DirectWriteWarning = "Đã chuẩn bị snapshot từ PostgreSQL. Kết nối S3 trực tiếp từ serverless IP bị giới hạn.";
+  const s3KeySet = new Set(allS3);
+
+  const [tracksRes, albumsRes, videosRes, liveSessionsRes] = await Promise.all([
+    db.from("tracks").select("id, title, album_id, storage_key, cover_storage_key, status").neq("status", "trash"),
+    db.from("albums").select("id, title, cover_storage_key, status").neq("status", "trash"),
+    db.from("videos").select("id, title, storage_key, thumb_storage_key, status").neq("status", "trash"),
+    db
+      .from("upload_sessions")
+      .select("staging_storage_key, artwork_staging_key")
+      .not("status", "in", ["complete", "cancelled", "resolved_to_existing"]),
+  ]);
+
+  const activeTracks = tracksRes.data || [];
+  const activeAlbums = albumsRes.data || [];
+  const activeVideos = videosRes.data || [];
+
+  const ghostTracks: Array<{ id: string; title: string; albumId?: string | null; storageKey: string }> = [];
+  const stagingLeaks: Array<{ id: string; title: string; storageKey: string }> = [];
+  const brokenCovers: Array<{ id: string; title: string; coverKey: string }> = [];
+  const ghostVideos: Array<{ id: string; title: string; storageKey: string }> = [];
+  const brokenVideoThumbs: Array<{ id: string; title: string; thumbKey: string }> = [];
+
+  for (const track of activeTracks) {
+    const key = track.storage_key ? extractS3KeyFromUrl(track.storage_key) || track.storage_key : "";
+    if (key.startsWith("temp/")) {
+      stagingLeaks.push({ id: track.id, title: track.title, storageKey: key });
     }
 
-    return {
-      success: true,
-      createdAt: snapshot.createdAt,
-      tracks: snapshot.tracks.length,
-      albums: snapshot.albums.length,
-      videos: snapshot.videos.length,
-      s3DirectWriteWarning,
-    };
+    if (!key || !s3KeySet.has(key)) {
+      ghostTracks.push({ id: track.id, title: track.title, albumId: track.album_id, storageKey: key });
+    }
+
+    if (track.cover_storage_key) {
+      const coverKey = extractS3KeyFromUrl(track.cover_storage_key) || track.cover_storage_key;
+      if (!s3KeySet.has(coverKey)) {
+        brokenCovers.push({ id: track.id, title: track.title, coverKey });
+      }
+    }
+  }
+
+  for (const video of activeVideos) {
+    const key = video.storage_key ? extractS3KeyFromUrl(video.storage_key) || video.storage_key : "";
+    if (!key || !s3KeySet.has(key)) {
+      ghostVideos.push({ id: video.id, title: video.title, storageKey: key });
+    }
+    if (video.thumb_storage_key) {
+      const thumbKey = extractS3KeyFromUrl(video.thumb_storage_key) || video.thumb_storage_key;
+      if (!s3KeySet.has(thumbKey)) {
+        brokenVideoThumbs.push({ id: video.id, title: video.title, thumbKey });
+      }
+    }
+  }
+
+  let purgedGhostCount = 0;
+  let manifestUpdated = false;
+
+  if (autoPurgeGhosts && (ghostTracks.length > 0 || ghostVideos.length > 0)) {
+    if (ghostTracks.length > 0) {
+      const ghostIds = ghostTracks.map((g) => g.id);
+      await db.from("track_files").delete().in("track_id", ghostIds);
+      await db.from("user_favorites").delete().in("track_id", ghostIds);
+      await db.from("playback_history").delete().in("track_id", ghostIds);
+      await db.from("playlist_tracks").delete().in("track_id", ghostIds);
+      await db.from("storage_cleanup_debts").delete().in("resource_id", ghostIds);
+      const { error: delErr } = await db.from("tracks").delete().in("id", ghostIds);
+      if (!delErr) {
+        purgedGhostCount += ghostIds.length;
+      }
+    }
+
+    if (ghostVideos.length > 0) {
+      const ghostVideoIds = ghostVideos.map((g) => g.id);
+      await db.from("video_files").delete().in("video_id", ghostVideoIds);
+      await db.from("storage_cleanup_debts").delete().in("resource_id", ghostVideoIds);
+      const { error: delVideoErr } = await db.from("videos").delete().in("id", ghostVideoIds);
+      if (!delVideoErr) {
+        purgedGhostCount += ghostVideoIds.length;
+      }
+    }
+
+    try {
+      await createBackupSnapshotInternal();
+      manifestUpdated = true;
+    } catch (snapErr) {
+      console.warn("[Duckroom S3 Reconcile] Manifest update failed after purge:", snapErr);
+    }
+  }
+
+  const activeReferenced = new Set<string>();
+  activeReferenced.add("library_manifest.json");
+  activeTracks.forEach((t) => {
+    if (t.storage_key) activeReferenced.add(extractS3KeyFromUrl(t.storage_key) || t.storage_key);
+    if (t.cover_storage_key) activeReferenced.add(extractS3KeyFromUrl(t.cover_storage_key) || t.cover_storage_key);
   });
+  activeAlbums.forEach((a) => {
+    if (a.cover_storage_key) activeReferenced.add(extractS3KeyFromUrl(a.cover_storage_key) || a.cover_storage_key);
+    if (a.title) {
+      const slug = sanitizeStorageKeySegment(a.title);
+      activeReferenced.add(`audio/albums/${slug}/.keep`);
+    }
+  });
+  activeVideos.forEach((v) => {
+    if (v.storage_key) activeReferenced.add(extractS3KeyFromUrl(v.storage_key) || v.storage_key);
+    if (v.thumb_storage_key) activeReferenced.add(extractS3KeyFromUrl(v.thumb_storage_key) || v.thumb_storage_key);
+  });
+  (liveSessionsRes.data || []).forEach((s) => {
+    if (s.staging_storage_key)
+      activeReferenced.add(extractS3KeyFromUrl(s.staging_storage_key) || s.staging_storage_key);
+    if (s.artwork_staging_key)
+      activeReferenced.add(extractS3KeyFromUrl(s.artwork_staging_key) || s.artwork_staging_key);
+  });
+
+  const orphanS3Keys = allS3.filter((k) => !activeReferenced.has(k));
+
+  await safeAuditLog(db, {
+    actor_user_id: actorUserId ?? null,
+    action: "storage.reconcile",
+    resource_type: "storage",
+    resource_id: "reconcile-audit",
+    metadata: {
+      totalDbTracks: activeTracks.length,
+      ghostCount: ghostTracks.length,
+      ghostVideoCount: ghostVideos.length,
+      purgedGhostCount,
+      stagingLeakCount: stagingLeaks.length,
+      orphanS3Count: orphanS3Keys.length,
+    },
+  });
+
+  return {
+    totalDbTracks: activeTracks.length,
+    validDbTracks: activeTracks.length - ghostTracks.length,
+    ghostTracks,
+    stagingLeaks,
+    brokenCovers,
+    ghostVideos,
+    brokenVideoThumbs,
+    orphanS3Keys,
+    totalS3Objects: allS3.length,
+    purgedGhostCount,
+    manifestUpdated,
+  };
+}
+
+export const reconcileStorageWithDbServer = createServerFn({ method: "POST" })
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
+  .validator(z.object({ autoPurgeGhosts: z.boolean().default(false) }))
+  .handler(async ({ context, data }) => {
+    const actorUserId = (context as { auth?: { userId?: string } })?.auth?.userId;
+    return await reconcileStorageWithDbInternal(data.autoPurgeGhosts, actorUserId);
+  });
+
+export async function createBackupSnapshotInternal() {
+  const db = getSupabaseAdmin();
+  const [albums, tracks, videos] = await Promise.all([
+    db.from("albums").select("*").neq("status", "trash").order("year", { ascending: false }),
+    db.from("tracks").select("*").neq("status", "trash").order("created_at", { ascending: true }),
+    db.from("videos").select("*").neq("status", "trash").order("year", { ascending: false }),
+  ]);
+
+  const snapshot = {
+    version: 2,
+    createdAt: new Date().toISOString(),
+    albums: albums.data || [],
+    tracks: tracks.data || [],
+    videos: videos.data || [],
+  };
+
+  let s3DirectWriteWarning: string | null = null;
+  try {
+    await saveLibraryManifestInternal(JSON.stringify(snapshot, null, 2));
+  } catch (err) {
+    console.warn("[Duckroom Backup Snapshot] Direct S3 write unavailable:", err);
+    s3DirectWriteWarning = "Đã chuẩn bị snapshot từ PostgreSQL. Kết nối S3 trực tiếp từ serverless IP bị giới hạn.";
+  }
+
+  return {
+    success: true,
+    createdAt: snapshot.createdAt,
+    tracks: snapshot.tracks.length,
+    albums: snapshot.albums.length,
+    videos: snapshot.videos.length,
+    s3DirectWriteWarning,
+  };
+}
+
+export const createBackupSnapshotServer = createServerFn({ method: "POST" })
+  .middleware([serverSecurityMiddleware, requireFreshOwnerMiddleware])
+  .handler(async () => createBackupSnapshotInternal());
 
 // ---------------------------------------------------------------------------
 // Phase 10 — Owner Console completion (Master Plan §25)
