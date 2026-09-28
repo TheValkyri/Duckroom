@@ -6,8 +6,13 @@ import { getOwnerUsersServer, setUserRoleServer, type OwnerUserProfile } from ".
 import { cn } from "../../lib/utils";
 import { SectionCard } from "./SectionCard";
 
-export function UsersSection() {
-  const [users, setUsers] = useState<OwnerUserProfile[] | null>(null);
+export interface UsersSectionProps {
+  initialUsers?: OwnerUserProfile[] | null;
+  onRefreshUsers?: () => Promise<void>;
+}
+
+export function UsersSection({ initialUsers, onRefreshUsers }: UsersSectionProps = {}) {
+  const [users, setUsers] = useState<OwnerUserProfile[] | null>(initialUsers ?? null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -16,7 +21,17 @@ export function UsersSection() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { user: me } = useAuth();
 
+  useEffect(() => {
+    if (initialUsers) {
+      setUsers(initialUsers);
+    }
+  }, [initialUsers]);
+
   const loadUsers = useCallback(async (silent = false) => {
+    if (onRefreshUsers) {
+      await onRefreshUsers();
+      return;
+    }
     if (!silent) setError(null);
     try {
       const res = await getOwnerUsersServer();
@@ -24,10 +39,12 @@ export function UsersSection() {
     } catch (err) {
       if (!silent) setError(err instanceof Error ? err.message : "Không thể tải danh sách người dùng.");
     }
-  }, []);
+  }, [onRefreshUsers]);
 
   useEffect(() => {
-    void loadUsers();
+    if (!initialUsers) {
+      void loadUsers();
+    }
 
     // Realtime listener for instant updates when a user logs in or profile changes
     const channel = supabase
@@ -48,7 +65,7 @@ export function UsersSection() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [loadUsers]);
+  }, [loadUsers, initialUsers]);
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
@@ -65,6 +82,9 @@ export function UsersSection() {
     try {
       await setUserRoleServer({ data: { userId: target.user_id, role: nextRole } });
       setUsers((prev) => (prev ?? []).map((u) => (u.user_id === target.user_id ? { ...u, role: nextRole } : u)));
+      if (onRefreshUsers) {
+        void onRefreshUsers();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Đổi vai trò thất bại.");
     } finally {

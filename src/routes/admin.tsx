@@ -32,8 +32,10 @@ import {
   getOwnerAuditLogServer,
   getOwnerHealthServer,
   getOwnerLibraryInventoryServer,
+  getOwnerUsersServer,
   scanOrphanS3ObjectsServer,
   type OwnerLibraryInventory,
+  type OwnerUserProfile,
 } from "../lib/owner-data";
 import { getOrphanPreviewUrlServer } from "../lib/s3-functions";
 import { springSnappy, tapScale, tweenBase } from "../lib/motion";
@@ -79,6 +81,7 @@ function AdminPage() {
   const [health, setHealth] = useState<Awaited<ReturnType<typeof getOwnerHealthServer>> | null>(null);
   const [audit, setAudit] = useState<Awaited<ReturnType<typeof getOwnerAuditLogServer>>>([]);
   const [inventory, setInventory] = useState<OwnerLibraryInventory | null>(null);
+  const [users, setUsers] = useState<OwnerUserProfile[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -112,17 +115,22 @@ function AdminPage() {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const [h, a, inv] = await Promise.all([
+      const [h, a, inv, u] = await Promise.all([
         getOwnerHealthServer(),
         getOwnerAuditLogServer(),
         getOwnerLibraryInventoryServer().catch((e) => {
           console.warn("[Duckroom Admin] Inventory fetch error:", e);
           return null;
         }),
+        getOwnerUsersServer().catch((e) => {
+          console.warn("[Duckroom Admin] Users fetch error:", e);
+          return null;
+        }),
       ]);
       setHealth(h);
       setAudit(Array.isArray(a) ? a : []);
       if (inv) setInventory(inv);
+      if (u?.users) setUsers(u.users);
     } catch (err) {
       if (!silent) setError(err instanceof Error ? err.message : "Không thể tải Owner console.");
     } finally {
@@ -243,7 +251,7 @@ function AdminPage() {
   const totalTracks = inventory?.tracks.length ?? health?.counts.tracks ?? 0;
   const totalAlbums = inventory?.albums.length ?? health?.counts.albums ?? 0;
   const totalSingles = inventory?.singles.length ?? 0;
-  const totalUsers = health?.counts.users ?? 0;
+  const totalUsers = users?.length ?? health?.counts.users ?? 0;
 
   const statCards: StatCardItem[] = health?.counts
     ? [
@@ -557,7 +565,9 @@ function AdminPage() {
               )}
 
               {/* TAB 4: USERS */}
-              {activeTab === "users" && <UsersSection />}
+              {activeTab === "users" && (
+                <UsersSection initialUsers={users} onRefreshUsers={() => refresh(true)} />
+              )}
 
               {/* TAB 5: SYSTEM & TOOLS */}
               {activeTab === "system" && (

@@ -353,6 +353,7 @@ export function PlayerBar() {
             className="fixed left-1/2 -translate-x-1/2 bottom-[calc(8rem+var(--safe-bottom,0px))] lg:bottom-[calc(5.25rem)] z-50 flex max-w-[90vw] sm:max-w-md items-center pointer-events-auto"
           >
             <button
+              type="button"
               onClick={() => {
                 seek(resumeHint.positionSeconds);
                 togglePlayback();

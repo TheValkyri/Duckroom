@@ -16,7 +16,95 @@ import { requireFreshOwnerMiddleware, requireOwnerMiddleware, serverSecurityMidd
 import { extractS3KeyFromUrl, sanitizeStorageKeySegment } from "./s3-key";
 import { safeAuditLog } from "./domain-mutations/common";
 import { generateFriendCode, generateTemporaryHandle } from "./social/social-types";
-import type { UploadSessionRow, ShareLinkRow, TrackFileRow, VideoFileRow, TrackRow, VideoRow } from "./db-types";
+import type { UploadSessionRow, TrackRow, VideoRow, ShareLinkRow } from "./db-types";
+/**
+ * Shared helper to sync Supabase Auth users into public.profiles:
+ * - Fetches all auth users via Supabase Admin API
+ * - Detects users without a profiles row (e.g. mobile Google OAuth)
+ * - Safely backfills missing profiles with metadata (name, Google avatar, generated handle & friend code)
+ * - Returns the list of auth users, map of user_id -> auth user, and lastSignInMap
+ */
+export async function syncAndBackfillAuthProfilesInternal(db: any): Promise<{
+  authUsers: any[];
+  authUserMap: Map<string, any>;
+  lastSignInMap: Map<string, string>;
+  syncedCount: number;
+}> {
+  const authUserMap = new Map<string, any>();
+  const lastSignInMap = new Map<string, string>();
+  let authUsers: any[] = [];
+  let syncedCount = 0;
+
+  try {
+    if (db.auth?.admin?.listUsers) {
+      const { data: authData, error: authListErr } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      if (authListErr) {
+        console.warn("[Duckroom Owner] listUsers returned error:", authListErr);
+      }
+      if (authData?.users && authData.users.length > 0) {
+        authUsers = authData.users;
+        for (const u of authUsers) {
+          authUserMap.set(u.id, u);
+          if (u.last_sign_in_at) lastSignInMap.set(u.id, u.last_sign_in_at);
+        }
+
+        const profilesQuery: any = db.from("profiles").select("user_id");
+        const profilesRes = typeof profilesQuery?.limit === "function"
+          ? await profilesQuery.limit(5000)
+          : await profilesQuery;
+        const existingProfiles = Array.isArray(profilesRes?.data)
+          ? profilesRes.data
+          : Array.isArray(profilesRes?.rows)
+            ? profilesRes.rows
+            : [];
+        const existingSet = new Set(existingProfiles.map((p: any) => p.user_id));
+        const missing = authUsers.filter((u: any) => !existingSet.has(u.id));
+
+        if (missing.length > 0) {
+          for (const u of missing) {
+            const email = (u.email || "unknown@example.invalid").toLowerCase();
+            const meta = u.user_metadata || {};
+            const displayName = meta.full_name || meta.name || meta.user_name || email.split("@")[0] || "Thành viên";
+            const metaAvatar = meta.picture || meta.avatar_url || null;
+
+            for (let attempt = 0; attempt < 3; attempt++) {
+              try {
+                const handle = generateTemporaryHandle();
+                const friendCode = generateFriendCode();
+                const { error: insError } = await db.from("profiles").insert({
+                  user_id: u.id,
+                  email,
+                  role: "member",
+                  display_name: displayName,
+                  handle,
+                  friend_code: friendCode,
+                  avatar_storage_key: metaAvatar,
+                  created_at: u.created_at || new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                });
+                if (!insError) {
+                  syncedCount++;
+                  break;
+                }
+                if ((insError as any).code !== "23505") {
+                  console.warn("[Duckroom Owner] Failed to backfill profile for user:", u.id, insError);
+                  break;
+                }
+              } catch (insErr) {
+                console.warn("[Duckroom Owner] Backfill attempt error for user:", u.id, insErr);
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (authErr) {
+    console.warn("[Duckroom Owner] Failed to sync auth users:", authErr);
+  }
+
+  return { authUsers, authUserMap, lastSignInMap, syncedCount };
+}
 
 export async function getOwnerHealthInternal(dbClient?: any) {
   const db = dbClient || getSupabaseAdmin();
@@ -51,42 +139,9 @@ export async function getOwnerHealthInternal(dbClient?: any) {
   if (errors.length) throw new Error(errors[0]?.error?.message || "Không thể đọc trạng thái Owner.");
 
   let realUserCount = profiles.count ?? 0;
-  try {
-    if (db.auth?.admin?.listUsers) {
-      const { data: authData } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      if (authData?.users && authData.users.length > 0) {
-        const authUsers = authData.users;
-        realUserCount = Math.max(realUserCount, authUsers.length);
-        const { data: existingProfiles } = await db.from("profiles").select("user_id");
-        const existingSet = new Set((existingProfiles || []).map((p: any) => p.user_id));
-        const missing = authUsers.filter((u: any) => !existingSet.has(u.id));
-        if (missing.length > 0) {
-          for (const u of missing) {
-            try {
-              const email = (u.email || "unknown@example.invalid").toLowerCase();
-              const meta = u.user_metadata || {};
-              const displayName = meta.full_name || meta.name || meta.user_name || email.split("@")[0] || "Thành viên";
-              const handle = generateTemporaryHandle();
-              const friendCode = generateFriendCode();
-              await db.from("profiles").insert({
-                user_id: u.id,
-                email,
-                role: "member",
-                display_name: displayName,
-                handle,
-                friend_code: friendCode,
-                created_at: u.created_at || new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              });
-            } catch (insErr) {
-              console.warn("[Duckroom Owner] Failed to backfill profile for user:", u.id, insErr);
-            }
-          }
-        }
-      }
-    }
-  } catch (authErr) {
-    console.warn("[Duckroom Owner] Failed to sync auth users:", authErr);
+  const { authUsers } = await syncAndBackfillAuthProfilesInternal(db);
+  if (authUsers.length > 0) {
+    realUserCount = Math.max(realUserCount, authUsers.length);
   }
 
   const audioCount = trackFiles.count ?? tracks.count ?? 0;
@@ -499,49 +554,7 @@ export interface OwnerUserProfile {
 
 export async function getOwnerUsersInternal(dbClient?: any): Promise<{ users: OwnerUserProfile[] }> {
   const db = dbClient || getSupabaseAdmin();
-
-  const lastSignInMap = new Map<string, string>();
-  const authUserMap = new Map<string, any>();
-  try {
-    if (db.auth?.admin?.listUsers) {
-      const { data: authData } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      if (authData?.users) {
-        const authUsers = authData.users;
-        for (const u of authUsers) {
-          authUserMap.set(u.id, u);
-          if (u.last_sign_in_at) lastSignInMap.set(u.id, u.last_sign_in_at);
-        }
-        const { data: existingProfiles } = await db.from("profiles").select("user_id");
-        const existingSet = new Set((existingProfiles || []).map((p: any) => p.user_id));
-        const missing = authUsers.filter((u: any) => !existingSet.has(u.id));
-        if (missing.length > 0) {
-          for (const u of missing) {
-            try {
-              const email = (u.email || "unknown@example.invalid").toLowerCase();
-              const meta = u.user_metadata || {};
-              const displayName = meta.full_name || meta.name || meta.user_name || email.split("@")[0] || "Thành viên";
-              const handle = generateTemporaryHandle();
-              const friendCode = generateFriendCode();
-              await db.from("profiles").insert({
-                user_id: u.id,
-                email,
-                role: "member",
-                display_name: displayName,
-                handle,
-                friend_code: friendCode,
-                created_at: u.created_at || new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              });
-            } catch (insErr) {
-              console.warn("[Duckroom Owner] Failed to backfill profile for user in list:", u.id, insErr);
-            }
-          }
-        }
-      }
-    }
-  } catch (authErr) {
-    console.warn("[Duckroom Owner] Failed to sync auth users in list:", authErr);
-  }
+  const { authUsers, authUserMap, lastSignInMap } = await syncAndBackfillAuthProfilesInternal(db);
 
   const { data: profileRows, error } = await db
     .from("profiles")
@@ -738,18 +751,50 @@ export async function setUserRoleInternal(
     .eq("user_id", data.userId)
     .maybeSingle();
   if (fetchError) throw new Error(fetchError.message);
-  if (!target) throw new Error("Người dùng không tồn tại.");
-  if (target.role === data.role) return { success: true, userId: data.userId, role: data.role };
 
-  const { error } = await db.from("profiles").update({ role: data.role }).eq("user_id", data.userId);
-  if (error) throw new Error(error.message);
+  let previousRole = target?.role;
+  if (!target) {
+    if (db.auth?.admin?.getUserById) {
+      try {
+        const { data: authUserRes } = await db.auth.admin.getUserById(data.userId);
+        const authUser = authUserRes?.user;
+        if (authUser) {
+          const meta = (authUser.user_metadata || {}) as Record<string, any>;
+          const email = (authUser.email || "unknown@example.invalid").toLowerCase();
+          const displayName = meta["full_name"] || meta["name"] || meta["user_name"] || email.split("@")[0] || "Thành viên";
+          const metaAvatar = meta["picture"] || meta["avatar_url"] || null;
+          const handle = generateTemporaryHandle();
+          const friendCode = generateFriendCode();
+          await db.from("profiles").insert({
+            user_id: authUser.id,
+            email,
+            role: data.role,
+            display_name: displayName,
+            handle,
+            friend_code: friendCode,
+            avatar_storage_key: metaAvatar,
+            created_at: authUser.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+          previousRole = "member";
+        }
+      } catch (backfillErr) {
+        console.warn("[Duckroom Owner] Failed to backfill profile during role change:", backfillErr);
+      }
+    }
+    if (!previousRole) throw new Error("Người dùng không tồn tại.");
+  } else {
+    if (target.role === data.role) return { success: true, userId: data.userId, role: data.role };
+    const { error } = await db.from("profiles").update({ role: data.role }).eq("user_id", data.userId);
+    if (error) throw new Error(error.message);
+  }
 
   await safeAuditLog(db, {
     actor_user_id: actorUserId ?? null,
     action: "user.role_changed",
     resource_type: "profile",
     resource_id: data.userId,
-    metadata: { from: target.role, to: data.role },
+    metadata: { from: target?.role ?? previousRole ?? "member", to: data.role },
   });
 
   try {

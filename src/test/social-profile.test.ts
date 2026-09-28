@@ -448,6 +448,31 @@ describe("Social Profile Server Domain Functions (social-profile.server.ts)", ()
       expect(deleteS3Spy).not.toHaveBeenCalled();
     });
 
+    it("does not attempt to delete protocol-relative or data URIs from S3 when replaced", async () => {
+      const mock = createMockDb({
+        profiles: [
+          {
+            user_id: USER_ID,
+            email: "user@duckroom.test",
+            handle: "proto_user",
+            display_name: "Proto User",
+            friend_code: "DUCK-3333-4444",
+            avatar_storage_key: "//cdn.example.com/avatar.png",
+            banner_storage_key: "data:image/png;base64,iVBORw0KGgo...",
+          },
+        ],
+      });
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mock.db as any);
+      const deleteS3Spy = vi.spyOn(s3FunctionsModule, "deleteS3ObjectInternal").mockResolvedValue(true);
+
+      await updateMyProfileInternal(USER_ID, {
+        avatarStorageKey: "artwork/avatars/clean-avatar.jpg",
+        bannerStorageKey: "artwork/banners/clean-banner.jpg",
+      });
+
+      expect(deleteS3Spy).not.toHaveBeenCalled();
+    });
+
     it("rejects invalid avatar storage keys (path traversal or non-visual namespaces)", async () => {
       const mock = createMockDb({
         profiles: [

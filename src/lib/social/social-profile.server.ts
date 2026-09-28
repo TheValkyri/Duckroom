@@ -227,10 +227,10 @@ export async function updateMyProfileInternal(userId: string, input: UpdateProfi
     updatePayload.handle = normalizeHandle(validated.handle);
   }
   if (validated.avatarStorageKey !== undefined) {
-    updatePayload.avatar_storage_key = validated.avatarStorageKey;
+    updatePayload.avatar_storage_key = validated.avatarStorageKey ? validated.avatarStorageKey.trim() || null : null;
   }
   if (validated.bannerStorageKey !== undefined) {
-    updatePayload.banner_storage_key = validated.bannerStorageKey;
+    updatePayload.banner_storage_key = validated.bannerStorageKey ? validated.bannerStorageKey.trim() || null : null;
   }
   if (validated.bannerColor !== undefined) {
     updatePayload.banner_color = validated.bannerColor;
@@ -260,9 +260,10 @@ export async function updateMyProfileInternal(userId: string, input: UpdateProfi
   if (
     validated.avatarStorageKey !== undefined &&
     oldAvatarKey &&
-    oldAvatarKey !== validated.avatarStorageKey &&
-    !oldAvatarKey.startsWith("http://") &&
-    !oldAvatarKey.startsWith("https://")
+    oldAvatarKey !== updatePayload.avatar_storage_key &&
+    !oldAvatarKey.includes("://") &&
+    !oldAvatarKey.startsWith("//") &&
+    !oldAvatarKey.startsWith("data:")
   ) {
     try {
       const { data: otherWithAvatar } = await db
@@ -283,9 +284,10 @@ export async function updateMyProfileInternal(userId: string, input: UpdateProfi
   if (
     validated.bannerStorageKey !== undefined &&
     oldBannerKey &&
-    oldBannerKey !== validated.bannerStorageKey &&
-    !oldBannerKey.startsWith("http://") &&
-    !oldBannerKey.startsWith("https://")
+    oldBannerKey !== updatePayload.banner_storage_key &&
+    !oldBannerKey.includes("://") &&
+    !oldBannerKey.startsWith("//") &&
+    !oldBannerKey.startsWith("data:")
   ) {
     try {
       const { data: otherWithBanner } = await db

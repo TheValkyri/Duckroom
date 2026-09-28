@@ -391,4 +391,38 @@ describe("getOwnerHealthInternal & getOwnerUsersInternal — real accurate user 
     expect(googleUser?.avatar_url).toBe("https://lh3.googleusercontent.com/a/phone-avatar");
     expect(googleUser?.last_sign_in_at).toBe("2026-09-28T12:01:00Z");
   });
+
+  it("setUserRoleInternal automatically backfills an un-profiled auth user when role is updated", async () => {
+    const unprofiledAuthUser = {
+      id: "u-unprofiled",
+      email: "newuser@duckroom.test",
+      user_metadata: { full_name: "New Person", picture: "https://lh3.googleusercontent.com/a/pic" },
+    };
+
+    const db = makeDb({
+      profiles: {
+        rows: [],
+      },
+    });
+
+    (db as any).auth = {
+      admin: {
+        getUserById: vi.fn().mockResolvedValue({
+          data: { user: unprofiledAuthUser },
+          error: null,
+        }),
+      },
+    };
+
+    vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(db);
+
+    const res = await setUserRoleInternal({ userId: "u-unprofiled", role: "owner" }, "admin-actor");
+    expect(res.success).toBe(true);
+    expect(res.role).toBe("owner");
+    const inserted = (db as any).__captured["profiles.insert"];
+    expect(inserted).toBeDefined();
+    expect(inserted.user_id).toBe("u-unprofiled");
+    expect(inserted.role).toBe("owner");
+    expect(inserted.avatar_storage_key).toBe("https://lh3.googleusercontent.com/a/pic");
+  });
 });
