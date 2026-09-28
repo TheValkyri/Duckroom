@@ -59,22 +59,19 @@ const nav = [
   { to: "/stats", label: "Thống kê", icon: BarChart3 },
   { to: "/albums", label: "Albums", icon: Disc3 },
   { to: "/singles", label: "Đĩa đơn", icon: Disc },
-  { to: "/videos", label: "MV", icon: Film },
   { to: "/upload", label: "Tải lên", icon: UploadCloud },
 ] as const;
 
 /**
  * Bottom navigation (mobile <lg only — MOBILE_UI_ARCHITECTURE §2).
- * 4 destinations duy nhất; các nơi đến phụ (Albums/Đĩa đơn/Tải lên/
- * Owner Console) vào header + liên kết ngữ cảnh. Tab nào cũng đạt chuẩn
- * touch target 44px+ và aria-current. Active state là CSS thuần (không
- * layoutId) theo quy ước perf 2026-08-25.
+ * 4 destinations duy nhất: Trang chủ, Bạn bè, Thư viện, Kho của tôi.
+ * Touch target 44px+ và aria-current.
  */
 const bottomNav = [
   { to: "/", label: "Trang chủ", icon: Home, match: "exact" },
+  { to: "/friends", label: "Bạn bè", icon: Users, match: "prefix" },
   { to: "/library", label: "Thư viện", icon: ListMusic, match: "prefix" },
   { to: "/my-library", label: "Kho của tôi", icon: Heart, match: "prefix" },
-  { to: "/videos", label: "MV", icon: Film, match: "prefix" },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {

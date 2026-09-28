@@ -6,7 +6,6 @@ import {
   BarChart3,
   Command,
   Disc3,
-  Film,
   Heart,
   ListMusic,
   Music2,
@@ -82,20 +81,12 @@ const QUICK_ACTIONS = (player: ReturnType<typeof usePlayer>): CommandItem[] => [
     icon: Disc3,
     run: () => {},
   },
-  {
-    kind: "action",
-    id: "videos",
-    label: "Duyệt MV",
-    icon: Film,
-    run: () => {},
-  },
 ];
 
 const ROUTE_OF_ACTION: Record<string, string> = {
   stats: "/stats",
   "my-library": "/my-library",
   albums: "/albums",
-  videos: "/videos",
   library: "/library",
 };
 

@@ -340,28 +340,30 @@ export function PlayerBar() {
         </div>
       </motion.footer>
 
-      {/* DESKTOP resume chip — v2 fix "bị cắt đôi bên phải":
-          footer dùng .glass (contain: paint) → CLIP mọi con tràn biên
-          (chip absolute -top-4 bị chặt sổ theo đúng mô tả). Đưa chip
-          RA KHỎI footer: fixed neo trên mép bar (bottom = chiều cao
-          bar + 8px), không thuộc footer nên không bị contain cắt. */}
+      {/* Resume playback chip — neo chính giữa phía trên player bar dock:
+          Đưa chip ra khỏi footer để tránh bị glass contain cắt,
+          căn giữa chiều ngang (left-1/2 -translate-x-1/2) nổi bật và cân đối trên cả mobile và desktop. */}
       <AnimatePresence>
         {resumeHint && !isPlaying && (
-          <motion.button
-            initial={{ y: 6, opacity: 0 }}
+          <motion.div
+            initial={{ y: 8, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 6, opacity: 0 }}
+            exit={{ y: 8, opacity: 0 }}
             transition={tweenFast}
-            onClick={() => {
-              seek(resumeHint.positionSeconds);
-              togglePlayback();
-              clearResumeHint();
-            }}
-            className="glass-strong border-primary/30 text-foreground fixed right-6 bottom-[calc(4.5rem)] z-50 hidden max-w-xs items-center gap-2 rounded-full border px-3.5 py-1.5 shadow-lg cursor-pointer hover:border-primary/60 transition-colors lg:flex"
-            aria-label={`Phát tiếp từ vị trí ${formatTime(resumeHint.positionSeconds)}: ${current.title}`}
+            className="fixed left-1/2 -translate-x-1/2 bottom-[calc(8rem+var(--safe-bottom,0px))] lg:bottom-[calc(5.25rem)] z-50 flex max-w-[90vw] sm:max-w-md items-center pointer-events-auto"
           >
-            <ResumeChipLabel title={current.title} position={resumeHint.positionSeconds} />
-          </motion.button>
+            <button
+              onClick={() => {
+                seek(resumeHint.positionSeconds);
+                togglePlayback();
+                clearResumeHint();
+              }}
+              className="glass-strong border-primary/30 text-foreground flex items-center gap-2 rounded-full border px-4 py-2 shadow-xl cursor-pointer hover:border-primary/60 transition-colors"
+              aria-label={`Phát tiếp từ vị trí ${formatTime(resumeHint.positionSeconds)}: ${current.title}`}
+            >
+              <ResumeChipLabel title={current.title} position={resumeHint.positionSeconds} />
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
     </>

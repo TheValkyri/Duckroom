@@ -7,7 +7,6 @@ import { HomeSkeleton } from "../components/LibrarySkeleton";
 import { EditAlbumModal } from "../components/EditAlbumModal";
 import { TrackRow } from "../components/TrackRow";
 import { Visualizer } from "../components/Visualizer";
-import { VideoThumb } from "../components/VideoThumb";
 import { albumTracks, type Album, type Track } from "../data/library";
 import { listContainerVariants, listItemVariants, springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { usePlayer, usePlayerActions, usePlayerIsCurrent, usePlayerIsPlaying } from "../lib/player";
@@ -35,11 +34,10 @@ export const Route = createFileRoute("/")({
     const s = loaderData?.summary;
     const albumCount = s?.totalAlbums ?? s?.albums?.length ?? 0;
     const trackCount = s?.totalTracks ?? s?.tracks?.length ?? 0;
-    const videoCount = s?.totalVideos ?? s?.videos?.length ?? 0;
     const desc =
       albumCount > 0
-        ? `Kho nhạc cá nhân lossless: ${albumCount} album, ${trackCount} bài hát, ${videoCount} MV master 24-bit.`
-        : "Nghe và lưu trữ bản thu FLAC 24-bit cùng MV bản gốc: trộn bài, lặp lại, lời bài hát theo thời gian thực.";
+        ? `Kho nhạc cá nhân lossless: ${albumCount} album, ${trackCount} bài hát.`
+        : "Nghe và lưu trữ bản thu FLAC 24-bit chất lượng cao: trộn bài, lặp lại, lời bài hát theo thời gian thực.";
     const ogImage = s?.primaryCover || s?.albums?.[0]?.cover || "https://duckroom.vercel.app/og-image.jpg";
     return {
       meta: [
@@ -177,7 +175,7 @@ function Index() {
   const { playQueue } = usePlayerActions();
   const { summary } = Route.useLoaderData();
   const isPlaying = usePlayerIsPlaying();
-  const { tracks: clientTracks, albums: clientAlbums, videos: clientVideos, status } = useLibrary();
+  const { tracks: clientTracks, albums: clientAlbums, status } = useLibrary();
   const albums = useMemo(
     () => (clientAlbums.length > 0 ? clientAlbums : summary?.albums || []),
     [clientAlbums, summary?.albums],
@@ -185,10 +183,6 @@ function Index() {
   const tracks = useMemo(
     () => (clientTracks.length > 0 ? clientTracks : summary?.tracks || []),
     [clientTracks, summary?.tracks],
-  );
-  const videos = useMemo(
-    () => (clientVideos.length > 0 ? clientVideos : summary?.videos || []),
-    [clientVideos, summary?.videos],
   );
   const { isLoggedIn } = useAuth();
   const { isOwner } = useDuckroomRole();
@@ -201,7 +195,7 @@ function Index() {
    * frame trước khi root effect bắt đầu sync) để không flash empty-state.
    * Sync ngầm sau này (đã có data) không hiện skeleton. */
   const isInitialHydrating =
-    (status === "idle" || status === "syncing") && tracks.length === 0 && albums.length === 0 && videos.length === 0;
+    (status === "idle" || status === "syncing") && tracks.length === 0 && albums.length === 0;
 
   const hero = albums[0];
   const heroTracks = useMemo(() => (hero ? albumTracks(hero.id) : []), [hero]);
@@ -282,7 +276,7 @@ function Index() {
               Kho nhạc của bạn đã sẵn sàng
             </h1>
             <p className="text-muted-foreground mt-4 text-sm md:text-base leading-relaxed">
-              Duckroom đã được dọn sạch tất cả dữ liệu mẫu. Hãy đưa các bản thu FLAC 24-bit, WAV hoặc MV bản gốc của bạn
+              Duckroom đã được dọn sạch tất cả dữ liệu mẫu. Hãy đưa các bản thu FLAC 24-bit, WAV của bạn
               vào kho lưu trữ cá nhân ngay bây giờ.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
@@ -291,7 +285,7 @@ function Index() {
                   to="/upload"
                   className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-transform hover:scale-[1.03]"
                 >
-                  <UploadCloud className="size-4" /> Tải lên nhạc & MV gốc
+                  <UploadCloud className="size-4" /> Tải lên nhạc Lossless
                 </Link>
               )}
               <Link
@@ -474,38 +468,6 @@ function Index() {
         </motion.div>
       </section>
 
-      {/* Videos Section — defer-paint (cuối trang). */}
-      {videos.length > 0 && (
-        <section className="defer-paint mx-auto max-w-6xl px-4 sm:px-6 pb-16 sm:pb-24">
-          <SectionHead title="MV Bản Gốc" to="/videos" />
-          <motion.div
-            variants={listContainerVariants}
-            initial="hidden"
-            animate="show"
-            className="mt-6 grid gap-4 sm:gap-8 md:grid-cols-2 sm:mt-8"
-          >
-            {videos.map((v) => (
-              <motion.div key={v.id} variants={listItemVariants}>
-                <Link to="/videos/$videoId" params={{ videoId: v.id }} className="group block">
-                  <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-card/60">
-                    <VideoThumb
-                      src={v.src || undefined}
-                      thumb={v.thumb || undefined}
-                      alt={`Ảnh nền MV ${v.title}`}
-                      className="transition-transform duration-500 group-hover:scale-[1.02]"
-                    />
-                  </div>
-                  <h3 className="font-display mt-3 text-xl">{v.title}</h3>
-                  <p className="text-muted-foreground text-xs">
-                    {v.resolution} · {v.codec}
-                  </p>
-                </Link>
-              </motion.div>
-            ))}
-          </motion.div>
-        </section>
-      )}
-
       <AnimatePresence>
         {editingHeroAlbum && (
           <EditAlbumModal
@@ -525,7 +487,7 @@ function SectionHead({
   badge,
 }: {
   title: string;
-  to: "/albums" | "/library" | "/videos" | "/singles";
+  to: "/albums" | "/library" | "/singles";
   badge?: string;
 }) {
   return (

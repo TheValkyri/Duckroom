@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  getOwnerHealthInternal,
+  getOwnerUsersInternal,
   revokeShareByIdInternal,
   scanDuplicateMastersInternal,
   setUserRoleInternal,
@@ -39,8 +41,10 @@ function makeDb(tables: Record<string, any>) {
         return chain;
       };
       if (spec.count !== undefined) {
-        // head-count queries resolve directly after select()
-        b.select = () => Promise.resolve({ count: spec.count, error: spec.error ?? null });
+        // head-count queries resolve directly after select() or after .not()
+        const countPromise: any = Promise.resolve({ count: spec.count, error: spec.error ?? null });
+        countPromise.not = () => Promise.resolve({ count: spec.count, error: spec.error ?? null });
+        b.select = () => countPromise;
       }
       b.insert = async (row: unknown) => {
         captured[`${table}.insert`] = row;
@@ -283,5 +287,108 @@ describe("updateAlbumDisplayPriorityInternal — database-driven album display p
     await expect(updateAlbumDisplayPriorityInternal({ albumId: "nonexistent", displayPriority: 1 })).rejects.toThrow(
       "Album không tồn tại.",
     );
+  });
+});
+
+describe("getOwnerHealthInternal & getOwnerUsersInternal — real accurate user count and sync", () => {
+  it("accurately counts 7 users when 6 profiles exist but 7 auth users exist, and videos is 0", async () => {
+    const authUsers = [
+      { id: "u1", email: "user1@duckroom.test", user_metadata: { full_name: "User 1" } },
+      { id: "u2", email: "user2@duckroom.test", user_metadata: { full_name: "User 2" } },
+      { id: "u3", email: "user3@duckroom.test", user_metadata: { full_name: "User 3" } },
+      { id: "u4", email: "user4@duckroom.test", user_metadata: { full_name: "User 4" } },
+      { id: "u5", email: "user5@duckroom.test", user_metadata: { full_name: "User 5" } },
+      { id: "u6", email: "user6@duckroom.test", user_metadata: { full_name: "User 6" } },
+      {
+        id: "u7-mobile",
+        email: "user7.phone@gmail.com",
+        user_metadata: { full_name: "Phone Google User", picture: "https://lh3.googleusercontent.com/a/phone-avatar" },
+      },
+    ];
+
+    const db = makeDb({
+      tracks: { count: 97 },
+      albums: { count: 11 },
+      videos: { count: 4 },
+      profiles: {
+        count: 6,
+        rows: authUsers.slice(0, 6).map((u) => ({ user_id: u.id })),
+      },
+      playlists: { count: 2 },
+      user_favorites: { count: 10 },
+      playback_history: { count: 50 },
+      track_files: { count: 97 },
+      video_files: { count: 0 },
+    });
+
+    (db as any).auth = {
+      admin: {
+        listUsers: vi.fn().mockResolvedValue({
+          data: { users: authUsers },
+          error: null,
+        }),
+      },
+    };
+
+    vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(db);
+
+    const health = await getOwnerHealthInternal(db);
+    expect(health.counts.users).toBe(7);
+    expect(health.counts.videos).toBe(0);
+  });
+
+  it("merges newly registered Google mobile users into getOwnerUsersInternal even if profiles row is not yet backfilled", async () => {
+    const authUsers = [
+      { id: "u1", email: "user1@duckroom.test", user_metadata: { full_name: "User 1" } },
+      { id: "u2", email: "user2@duckroom.test", user_metadata: { full_name: "User 2" } },
+      { id: "u3", email: "user3@duckroom.test", user_metadata: { full_name: "User 3" } },
+      { id: "u4", email: "user4@duckroom.test", user_metadata: { full_name: "User 4" } },
+      { id: "u5", email: "user5@duckroom.test", user_metadata: { full_name: "User 5" } },
+      { id: "u6", email: "user6@duckroom.test", user_metadata: { full_name: "User 6" } },
+      {
+        id: "u7-mobile",
+        email: "user7.phone@gmail.com",
+        created_at: "2026-09-28T12:00:00Z",
+        last_sign_in_at: "2026-09-28T12:01:00Z",
+        user_metadata: { full_name: "Phone Google User", picture: "https://lh3.googleusercontent.com/a/phone-avatar" },
+      },
+    ];
+
+    const existingProfiles = authUsers.slice(0, 6).map((u, i) => ({
+      user_id: u.id,
+      email: u.email,
+      role: i === 0 ? "owner" : "member",
+      display_name: u.user_metadata.full_name,
+      handle: `duck_user_${i + 1}`,
+      avatar_storage_key: null,
+      friend_code: `DUCK-100${i}-200${i}`,
+      created_at: "2026-01-01T00:00:00Z",
+    }));
+
+    const db = makeDb({
+      profiles: {
+        rows: existingProfiles,
+      },
+    });
+
+    (db as any).auth = {
+      admin: {
+        listUsers: vi.fn().mockResolvedValue({
+          data: { users: authUsers },
+          error: null,
+        }),
+      },
+    };
+
+    vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(db);
+
+    const { users } = await getOwnerUsersInternal(db);
+    expect(users).toHaveLength(7);
+    const googleUser = users.find((u) => u.user_id === "u7-mobile");
+    expect(googleUser).toBeDefined();
+    expect(googleUser?.email).toBe("user7.phone@gmail.com");
+    expect(googleUser?.display_name).toBe("Phone Google User");
+    expect(googleUser?.avatar_url).toBe("https://lh3.googleusercontent.com/a/phone-avatar");
+    expect(googleUser?.last_sign_in_at).toBe("2026-09-28T12:01:00Z");
   });
 });

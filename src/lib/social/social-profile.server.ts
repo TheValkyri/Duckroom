@@ -4,7 +4,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSupabaseAdmin } from "../supabase";
-import { getS3ServerClient } from "../s3-functions";
+import { deleteS3ObjectInternal, getS3ServerClient } from "../s3-functions";
 import { BUCKET_NAME, ARTWORK_URL_TTL_SECONDS } from "../s3-constants";
 import {
   createRateLimitMiddleware,
@@ -183,6 +183,16 @@ export async function updateMyProfileInternal(userId: string, input: UpdateProfi
   const validated = updateProfileSchema.parse(input);
   const db = getSupabaseAdmin();
 
+  // 0. Fetch current profile to capture old avatar & banner keys for S3 cleanup
+  const { data: currentProfile } = await db
+    .from("profiles")
+    .select("avatar_storage_key, banner_storage_key")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const oldAvatarKey = currentProfile?.avatar_storage_key ? String(currentProfile.avatar_storage_key).trim() : null;
+  const oldBannerKey = currentProfile?.banner_storage_key ? String(currentProfile.banner_storage_key).trim() : null;
+
   // If changing handle, verify uniqueness
   if (validated.handle !== undefined) {
     const normalized = normalizeHandle(validated.handle);
@@ -244,6 +254,52 @@ export async function updateMyProfileInternal(userId: string, input: UpdateProfi
       throw new Error("Handle này đã có người sử dụng. Vui lòng chọn handle khác.");
     }
     throw new Error(`Failed to update profile: ${updateError.message}`);
+  }
+
+  // Cleanup old avatar from S3 if changed or removed to prevent storage accumulation
+  if (
+    validated.avatarStorageKey !== undefined &&
+    oldAvatarKey &&
+    oldAvatarKey !== validated.avatarStorageKey &&
+    !oldAvatarKey.startsWith("http://") &&
+    !oldAvatarKey.startsWith("https://")
+  ) {
+    try {
+      const { data: otherWithAvatar } = await db
+        .from("profiles")
+        .select("user_id")
+        .eq("avatar_storage_key", oldAvatarKey)
+        .neq("user_id", userId)
+        .maybeSingle();
+      if (!otherWithAvatar) {
+        await deleteS3ObjectInternal(oldAvatarKey);
+      }
+    } catch (err) {
+      console.warn("[Duckroom Social] Failed to delete previous avatar from S3:", oldAvatarKey, err);
+    }
+  }
+
+  // Cleanup old banner from S3 if changed or removed to prevent storage accumulation
+  if (
+    validated.bannerStorageKey !== undefined &&
+    oldBannerKey &&
+    oldBannerKey !== validated.bannerStorageKey &&
+    !oldBannerKey.startsWith("http://") &&
+    !oldBannerKey.startsWith("https://")
+  ) {
+    try {
+      const { data: otherWithBanner } = await db
+        .from("profiles")
+        .select("user_id")
+        .eq("banner_storage_key", oldBannerKey)
+        .neq("user_id", userId)
+        .maybeSingle();
+      if (!otherWithBanner) {
+        await deleteS3ObjectInternal(oldBannerKey);
+      }
+    } catch (err) {
+      console.warn("[Duckroom Social] Failed to delete previous banner from S3:", oldBannerKey, err);
+    }
   }
 
   return getMyProfileInternal(userId);

@@ -15,71 +15,114 @@ import { BUCKET_NAME } from "./s3-constants";
 import { requireFreshOwnerMiddleware, requireOwnerMiddleware, serverSecurityMiddleware } from "./auth-guard";
 import { extractS3KeyFromUrl, sanitizeStorageKeySegment } from "./s3-key";
 import { safeAuditLog } from "./domain-mutations/common";
+import { generateFriendCode, generateTemporaryHandle } from "./social/social-types";
 import type { UploadSessionRow, ShareLinkRow, TrackFileRow, VideoFileRow, TrackRow, VideoRow } from "./db-types";
+
+export async function getOwnerHealthInternal(dbClient?: any) {
+  const db = dbClient || getSupabaseAdmin();
+
+  const [
+    tracks,
+    albums,
+    videos,
+    profiles,
+    playlists,
+    favorites,
+    history,
+    trackFiles,
+    videoFiles,
+    albumCovers,
+    trackCovers,
+  ] = await Promise.all([
+    db.from("tracks").select("id", { count: "exact", head: true }),
+    db.from("albums").select("id", { count: "exact", head: true }),
+    db.from("videos").select("id", { count: "exact", head: true }),
+    db.from("profiles").select("user_id", { count: "exact", head: true }),
+    db.from("playlists").select("id", { count: "exact", head: true }),
+    db.from("user_favorites").select("track_id", { count: "exact", head: true }),
+    db.from("playback_history").select("id", { count: "exact", head: true }),
+    db.from("track_files").select("id", { count: "exact", head: true }),
+    db.from("video_files").select("id", { count: "exact", head: true }),
+    db.from("albums").select("id", { count: "exact", head: true }).not("cover_storage_key", "is", null),
+    db.from("tracks").select("id", { count: "exact", head: true }).not("cover_storage_key", "is", null),
+  ]);
+
+  const errors = [tracks, albums, videos, profiles, playlists, favorites, history].filter((result) => result.error);
+  if (errors.length) throw new Error(errors[0]?.error?.message || "Không thể đọc trạng thái Owner.");
+
+  let realUserCount = profiles.count ?? 0;
+  try {
+    if (db.auth?.admin?.listUsers) {
+      const { data: authData } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      if (authData?.users && authData.users.length > 0) {
+        const authUsers = authData.users;
+        realUserCount = Math.max(realUserCount, authUsers.length);
+        const { data: existingProfiles } = await db.from("profiles").select("user_id");
+        const existingSet = new Set((existingProfiles || []).map((p: any) => p.user_id));
+        const missing = authUsers.filter((u: any) => !existingSet.has(u.id));
+        if (missing.length > 0) {
+          for (const u of missing) {
+            try {
+              const email = (u.email || "unknown@example.invalid").toLowerCase();
+              const meta = u.user_metadata || {};
+              const displayName = meta.full_name || meta.name || meta.user_name || email.split("@")[0] || "Thành viên";
+              const handle = generateTemporaryHandle();
+              const friendCode = generateFriendCode();
+              await db.from("profiles").insert({
+                user_id: u.id,
+                email,
+                role: "member",
+                display_name: displayName,
+                handle,
+                friend_code: friendCode,
+                created_at: u.created_at || new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+            } catch (insErr) {
+              console.warn("[Duckroom Owner] Failed to backfill profile for user:", u.id, insErr);
+            }
+          }
+        }
+      }
+    }
+  } catch (authErr) {
+    console.warn("[Duckroom Owner] Failed to sync auth users:", authErr);
+  }
+
+  const audioCount = trackFiles.count ?? tracks.count ?? 0;
+  const artworkCount = (albumCovers.count ?? 0) + (trackCovers.count ?? 0);
+  const totalObjects = audioCount + artworkCount;
+
+  return {
+    counts: {
+      tracks: tracks.count ?? 0,
+      albums: albums.count ?? 0,
+      videos: 0,
+      users: realUserCount,
+      playlists: playlists.count ?? 0,
+      favorites: favorites.count ?? 0,
+      history: history.count ?? 0,
+      objects: totalObjects,
+    },
+    storage: {
+      audioObjects: audioCount,
+      videoObjects: 0,
+      artworkObjects: artworkCount,
+      manifestPresent: true,
+      // Boolean khai báo tường minh — tránh TS hẹp type union về literal
+      // `true` khiến mọi so sánh `=== false` ở consumer thành lỗi TS2367.
+      // (Giá trị gốc vẫn luôn true ở happy path như trước.)
+      s3Available: true as boolean,
+      s3Error: null as string | null,
+    },
+    generatedAt: new Date().toISOString(),
+  };
+}
 
 export const getOwnerHealthServer = createServerFn({ method: "GET" })
   .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
   .handler(async () => {
-    const db = getSupabaseAdmin();
-
-    const [
-      tracks,
-      albums,
-      videos,
-      profiles,
-      playlists,
-      favorites,
-      history,
-      trackFiles,
-      videoFiles,
-      albumCovers,
-      trackCovers,
-    ] = await Promise.all([
-      db.from("tracks").select("id", { count: "exact", head: true }),
-      db.from("albums").select("id", { count: "exact", head: true }),
-      db.from("videos").select("id", { count: "exact", head: true }),
-      db.from("profiles").select("user_id", { count: "exact", head: true }),
-      db.from("playlists").select("id", { count: "exact", head: true }),
-      db.from("user_favorites").select("track_id", { count: "exact", head: true }),
-      db.from("playback_history").select("id", { count: "exact", head: true }),
-      db.from("track_files").select("id", { count: "exact", head: true }),
-      db.from("video_files").select("id", { count: "exact", head: true }),
-      db.from("albums").select("id", { count: "exact", head: true }).not("cover_storage_key", "is", null),
-      db.from("tracks").select("id", { count: "exact", head: true }).not("cover_storage_key", "is", null),
-    ]);
-
-    const errors = [tracks, albums, videos, profiles, playlists, favorites, history].filter((result) => result.error);
-    if (errors.length) throw new Error(errors[0]?.error?.message || "Không thể đọc trạng thái Owner.");
-
-    const audioCount = trackFiles.count ?? tracks.count ?? 0;
-    const videoCount = videoFiles.count ?? videos.count ?? 0;
-    const artworkCount = (albumCovers.count ?? 0) + (trackCovers.count ?? 0);
-    const totalObjects = audioCount + videoCount + artworkCount;
-
-    return {
-      counts: {
-        tracks: tracks.count ?? 0,
-        albums: albums.count ?? 0,
-        videos: videos.count ?? 0,
-        users: profiles.count ?? 0,
-        playlists: playlists.count ?? 0,
-        favorites: favorites.count ?? 0,
-        history: history.count ?? 0,
-        objects: totalObjects,
-      },
-      storage: {
-        audioObjects: audioCount,
-        videoObjects: videoCount,
-        artworkObjects: artworkCount,
-        manifestPresent: true,
-        // Boolean khai báo tường minh — tránh TS hẹp type union về literal
-        // `true` khiến mọi so sánh `=== false` ở consumer thành lỗi TS2367.
-        // (Giá trị gốc vẫn luôn true ở happy path như trước.)
-        s3Available: true as boolean,
-        s3Error: null as string | null,
-      },
-      generatedAt: new Date().toISOString(),
-    };
+    return await getOwnerHealthInternal();
   });
 
 export const getOwnerAuditLogServer = createServerFn({ method: "GET" })
@@ -447,20 +490,230 @@ export interface OwnerUserProfile {
   email: string;
   role: string;
   display_name: string | null;
+  handle?: string | null;
+  avatar_url?: string | null;
+  friend_code?: string | null;
   created_at: string;
+  last_sign_in_at?: string | null;
+}
+
+export async function getOwnerUsersInternal(dbClient?: any): Promise<{ users: OwnerUserProfile[] }> {
+  const db = dbClient || getSupabaseAdmin();
+
+  const lastSignInMap = new Map<string, string>();
+  const authUserMap = new Map<string, any>();
+  try {
+    if (db.auth?.admin?.listUsers) {
+      const { data: authData } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      if (authData?.users) {
+        const authUsers = authData.users;
+        for (const u of authUsers) {
+          authUserMap.set(u.id, u);
+          if (u.last_sign_in_at) lastSignInMap.set(u.id, u.last_sign_in_at);
+        }
+        const { data: existingProfiles } = await db.from("profiles").select("user_id");
+        const existingSet = new Set((existingProfiles || []).map((p: any) => p.user_id));
+        const missing = authUsers.filter((u: any) => !existingSet.has(u.id));
+        if (missing.length > 0) {
+          for (const u of missing) {
+            try {
+              const email = (u.email || "unknown@example.invalid").toLowerCase();
+              const meta = u.user_metadata || {};
+              const displayName = meta.full_name || meta.name || meta.user_name || email.split("@")[0] || "Thành viên";
+              const handle = generateTemporaryHandle();
+              const friendCode = generateFriendCode();
+              await db.from("profiles").insert({
+                user_id: u.id,
+                email,
+                role: "member",
+                display_name: displayName,
+                handle,
+                friend_code: friendCode,
+                created_at: u.created_at || new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+            } catch (insErr) {
+              console.warn("[Duckroom Owner] Failed to backfill profile for user in list:", u.id, insErr);
+            }
+          }
+        }
+      }
+    }
+  } catch (authErr) {
+    console.warn("[Duckroom Owner] Failed to sync auth users in list:", authErr);
+  }
+
+  const { data: profileRows, error } = await db
+    .from("profiles")
+    .select("user_id,email,role,display_name,handle,avatar_storage_key,friend_code,created_at")
+    .order("created_at", { ascending: false })
+    .limit(300);
+  if (error) throw new Error(error.message);
+
+  const { resolveAvatarUrlInternal } = await import("./social/social-profile.server");
+  const seenUserIds = new Set<string>();
+
+  const usersWithAvatars: OwnerUserProfile[] = await Promise.all(
+    (profileRows ?? []).map(async (u: any) => {
+      seenUserIds.add(u.user_id);
+      let avatarUrl: string | null = null;
+      if (u.avatar_storage_key) {
+        avatarUrl = await resolveAvatarUrlInternal(u.avatar_storage_key);
+      } else {
+        // Check if Google user metadata contains an avatar URL
+        const authUser = authUserMap.get(u.user_id);
+        const metaAvatar = authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture;
+        if (metaAvatar && typeof metaAvatar === "string") {
+          avatarUrl = metaAvatar;
+        }
+      }
+      return {
+        user_id: u.user_id,
+        email: u.email,
+        role: u.role,
+        display_name: u.display_name,
+        handle: u.handle ?? null,
+        avatar_url: avatarUrl,
+        friend_code: u.friend_code ?? null,
+        created_at: u.created_at,
+        last_sign_in_at: lastSignInMap.get(u.user_id) ?? null,
+      };
+    }),
+  );
+
+  // Merge any auth users not yet in profiles (e.g. freshly signed in on mobile)
+  for (const [userId, authUser] of authUserMap.entries()) {
+    if (!seenUserIds.has(userId)) {
+      const meta = authUser.user_metadata || {};
+      const email = authUser.email || "unknown@example.invalid";
+      const displayName = meta.full_name || meta.name || meta.user_name || email.split("@")[0] || "Thành viên";
+      const metaAvatar = meta.avatar_url || meta.picture || null;
+      usersWithAvatars.push({
+        user_id: userId,
+        email,
+        role: "member",
+        display_name: displayName,
+        handle: null,
+        avatar_url: metaAvatar,
+        friend_code: null,
+        created_at: authUser.created_at || new Date().toISOString(),
+        last_sign_in_at: authUser.last_sign_in_at || null,
+      });
+    }
+  }
+
+  return { users: usersWithAvatars };
 }
 
 export const getOwnerUsersServer = createServerFn({ method: "GET" })
   .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
   .handler(async (): Promise<{ users: OwnerUserProfile[] }> => {
-    const db = getSupabaseAdmin();
-    const { data, error } = await db
-      .from("profiles")
-      .select("user_id,email,role,display_name,created_at")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) throw new Error(error.message);
-    return { users: (data ?? []) as OwnerUserProfile[] };
+    return await getOwnerUsersInternal();
+  });
+
+export interface OwnerAlbumItem {
+  id: string;
+  title: string;
+  artist: string;
+  year: number;
+  cover: string;
+  display_priority: number;
+  trackCount: number;
+  totalDurationSeconds: number;
+  status: string;
+}
+
+export interface OwnerTrackItem {
+  id: string;
+  title: string;
+  artist: string;
+  albumId?: string | undefined;
+  albumTitle?: string | undefined;
+  trackNo: number;
+  duration: number;
+  format: string;
+  bitDepth: number;
+  sampleRate: number;
+  sizeMB: number;
+  storage_key?: string | undefined;
+  cover?: string | undefined;
+  hasLyrics: boolean;
+  status?: string | undefined;
+}
+
+export interface OwnerLibraryInventory {
+  albums: OwnerAlbumItem[];
+  singles: OwnerTrackItem[];
+  tracks: OwnerTrackItem[];
+}
+
+export const getOwnerLibraryInventoryServer = createServerFn({ method: "GET" })
+  .middleware([serverSecurityMiddleware, requireOwnerMiddleware])
+  .handler(async (): Promise<OwnerLibraryInventory> => {
+    const { getPublicMasterLibraryInternal } = await import("./master-library");
+    const master = await getPublicMasterLibraryInternal();
+
+    const albumMap = new Map<string, (typeof master.albums)[0]>();
+    const albumTrackCount = new Map<string, number>();
+    const albumDuration = new Map<string, number>();
+
+    for (const a of master.albums) {
+      albumMap.set(a.id, a);
+      albumTrackCount.set(a.id, 0);
+      albumDuration.set(a.id, 0);
+    }
+
+    const allTracks: OwnerTrackItem[] = [];
+    const singles: OwnerTrackItem[] = [];
+
+    for (const t of master.tracks) {
+      const album = t.albumId ? albumMap.get(t.albumId) : undefined;
+      const isSingle = !t.albumId || t.albumId === "singles" || t.albumId === "single" || !album;
+
+      const trackItem: OwnerTrackItem = {
+        id: t.id,
+        title: t.title,
+        artist: t.artist,
+        albumId: t.albumId,
+        albumTitle: album?.title || (isSingle ? "Đĩa đơn" : undefined),
+        trackNo: t.trackNo,
+        duration: t.duration,
+        format: t.format,
+        bitDepth: t.bitDepth,
+        sampleRate: t.sampleRate,
+        sizeMB: t.sizeMB,
+        storage_key: t.storage_key,
+        cover: t.cover,
+        hasLyrics: Array.isArray(t.lyrics) && t.lyrics.length > 0,
+      };
+
+      allTracks.push(trackItem);
+
+      if (isSingle) {
+        singles.push(trackItem);
+      } else if (t.albumId) {
+        albumTrackCount.set(t.albumId, (albumTrackCount.get(t.albumId) || 0) + 1);
+        albumDuration.set(t.albumId, (albumDuration.get(t.albumId) || 0) + t.duration);
+      }
+    }
+
+    const albums: OwnerAlbumItem[] = master.albums.map((a) => ({
+      id: a.id,
+      title: a.title,
+      artist: a.artist,
+      year: a.year,
+      cover: a.cover,
+      display_priority: a.display_priority ?? 999,
+      trackCount: albumTrackCount.get(a.id) || 0,
+      totalDurationSeconds: albumDuration.get(a.id) || 0,
+      status: a.status || "active",
+    }));
+
+    return {
+      albums,
+      singles,
+      tracks: allTracks,
+    };
   });
 
 /**

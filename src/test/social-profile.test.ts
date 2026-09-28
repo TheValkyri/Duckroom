@@ -387,6 +387,67 @@ describe("Social Profile Server Domain Functions (social-profile.server.ts)", ()
       expect(updated.handle).toBe("my_handle");
     });
 
+    it("deletes previous avatar and banner from S3 when replaced or removed", async () => {
+      const mock = createMockDb({
+        profiles: [
+          {
+            user_id: USER_ID,
+            email: "user@duckroom.test",
+            handle: "clean_user",
+            display_name: "Clean User",
+            friend_code: "DUCK-1111-2222",
+            avatar_storage_key: "artwork/avatars/old-avatar.jpg",
+            banner_storage_key: "artwork/banners/old-banner.jpg",
+          },
+        ],
+      });
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mock.db as any);
+      const deleteS3Spy = vi.spyOn(s3FunctionsModule, "deleteS3ObjectInternal").mockResolvedValue(true);
+
+      // Replace avatar and banner with new keys
+      await updateMyProfileInternal(USER_ID, {
+        avatarStorageKey: "artwork/avatars/new-avatar.jpg",
+        bannerStorageKey: "artwork/banners/new-banner.jpg",
+      });
+
+      expect(deleteS3Spy).toHaveBeenCalledWith("artwork/avatars/old-avatar.jpg");
+      expect(deleteS3Spy).toHaveBeenCalledWith("artwork/banners/old-banner.jpg");
+
+      deleteS3Spy.mockClear();
+
+      // Remove avatar (set to null)
+      await updateMyProfileInternal(USER_ID, {
+        avatarStorageKey: null,
+      });
+
+      expect(deleteS3Spy).toHaveBeenCalledWith("artwork/avatars/new-avatar.jpg");
+    });
+
+    it("does not attempt to delete external HTTP/HTTPS avatar or banner URLs from S3 when replaced", async () => {
+      const mock = createMockDb({
+        profiles: [
+          {
+            user_id: USER_ID,
+            email: "user@duckroom.test",
+            handle: "google_user",
+            display_name: "Google User",
+            friend_code: "DUCK-2222-3333",
+            avatar_storage_key: "https://lh3.googleusercontent.com/a/external-avatar.jpg",
+            banner_storage_key: "https://example.com/external-banner.jpg",
+          },
+        ],
+      });
+      vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(mock.db as any);
+      const deleteS3Spy = vi.spyOn(s3FunctionsModule, "deleteS3ObjectInternal").mockResolvedValue(true);
+
+      await updateMyProfileInternal(USER_ID, {
+        avatarStorageKey: "artwork/avatars/fresh-avatar.jpg",
+        bannerStorageKey: "artwork/banners/fresh-banner.jpg",
+      });
+
+      expect(deleteS3Spy).not.toHaveBeenCalled();
+    });
+
     it("rejects invalid avatar storage keys (path traversal or non-visual namespaces)", async () => {
       const mock = createMockDb({
         profiles: [

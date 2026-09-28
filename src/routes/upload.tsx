@@ -46,11 +46,11 @@ export const Route = createFileRoute("/upload")({
       { title: "Tải lên & Trung tâm Tiếp nhận — Duckroom" },
       {
         name: "description",
-        content: "Đưa file FLAC, WAV và MV bản gốc vào kho lưu trữ Duckroom qua quy trình tiếp nhận chuẩn xác.",
+        content: "Đưa file FLAC, WAV, ALAC vào kho lưu trữ Duckroom qua quy trình tiếp nhận chuẩn xác.",
       },
       { property: "og:site_name", content: "Duckroom" },
       { property: "og:title", content: "Tải lên & Trung tâm Tiếp nhận — Duckroom" },
-      { property: "og:description", content: "Đưa file FLAC, WAV và MV bản gốc vào kho lưu trữ." },
+      { property: "og:description", content: "Đưa file FLAC, WAV, ALAC vào kho lưu trữ." },
       { property: "og:image", content: "https://duckroom.vercel.app/og-image.jpg" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:image", content: "https://duckroom.vercel.app/og-image.jpg" },
@@ -190,7 +190,7 @@ function UploadPage() {
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4">
           <UploadCloud className="h-8 w-8" />
         </div>
-        <h3 className="text-lg font-bold text-foreground">Kéo thả tệp âm thanh (FLAC, WAV, M4A) hoặc MV vào đây</h3>
+        <h3 className="text-lg font-bold text-foreground">Kéo thả tệp âm thanh (FLAC, WAV, ALAC, M4A, MP3) vào đây</h3>
         <p className="mt-1 text-xs text-muted-foreground max-w-md">
           Hỗ trợ chọn nhiều tệp cùng lúc. Hệ thống sẽ tự động trích xuất thẻ ID3/Vorbis, ảnh bìa và lời bài hát nhúng
           sẵn.
@@ -201,7 +201,7 @@ function UploadPage() {
           <input
             type="file"
             multiple
-            accept="audio/*,video/*,.flac,.alac,.wav,.mp3,.m4a,.mp4,.mkv"
+            accept="audio/*,.flac,.alac,.wav,.mp3,.m4a,.aac,.ogg,.opus"
             className="hidden"
             onChange={(e) => {
               if (e.target.files) handleSelectFiles(Array.from(e.target.files));

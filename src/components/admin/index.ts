@@ -7,3 +7,5 @@ export * from "./DuplicatesSection";
 export * from "./SharesSection";
 export * from "./UploadHealthSection";
 export * from "./SnapshotVerifySection";
+export * from "./AlbumsManagerSection";
+export * from "./TracksManagerSection";
