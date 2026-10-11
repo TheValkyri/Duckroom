@@ -1,4 +1,4 @@
-import { Image, Loader2, Scissors, Sparkles, Wand2, X, Zap, FastForward, Rewind } from "lucide-react";
+import { Image, Loader2, Scissors, Sparkles, Wand2, X, Zap, FastForward, Rewind, FileText } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { ArtworkCropModal } from "./ArtworkCropModal";
@@ -387,6 +387,33 @@ export function EditTrackModal({
                   Lời bài hát (.LRC)
                 </label>
                 <div className="flex items-center gap-2">
+                  <label
+                    className="text-primary hover:underline text-xs flex items-center gap-1 font-semibold cursor-pointer"
+                    title="Chọn tệp .LRC trực tiếp từ máy để đồng bộ lời"
+                  >
+                    <FileText className="size-3" />
+                    <span>Tải tệp .LRC từ máy</span>
+                    <input
+                      type="file"
+                      accept=".lrc,.txt"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const text = await file.text();
+                        const lines = parseLrc(text);
+                        if (lines.length === 0) {
+                          setNoticeMsg("⚠️ Tệp này không chứa định dạng thời gian LRC hợp lệ [mm:ss.xx].");
+                          return;
+                        }
+                        setLyricsText(text);
+                        setLyricsSource(`Uploaded .LRC: ${file.name}`);
+                        setNoticeMsg(`✨ Đã nạp thành công ${lines.length} dòng lời đồng bộ từ "${file.name}"! Nhớ bấm Lưu để cập nhật.`);
+                        setTimeout(() => setNoticeMsg(""), 5000);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
                   <button
                     type="button"
                     disabled={isSaving}
@@ -457,7 +484,24 @@ export function EditTrackModal({
                 rows={5}
                 value={lyricsText}
                 onChange={(e) => setLyricsText(e.target.value)}
-                placeholder="[00:15.00] Nhập hoặc dán lời bài hát định dạng LRC..."
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={async (e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file && (file.name.toLowerCase().endsWith(".lrc") || file.name.toLowerCase().endsWith(".txt"))) {
+                    const text = await file.text();
+                    const lines = parseLrc(text);
+                    if (lines.length === 0) {
+                      setNoticeMsg("⚠️ Tệp này không chứa định dạng thời gian LRC hợp lệ [mm:ss.xx].");
+                      return;
+                    }
+                    setLyricsText(text);
+                    setLyricsSource(`Uploaded .LRC: ${file.name}`);
+                    setNoticeMsg(`✨ Đã nạp thành công ${lines.length} dòng lời đồng bộ từ "${file.name}"! Nhớ bấm Lưu để cập nhật.`);
+                    setTimeout(() => setNoticeMsg(""), 5000);
+                  }
+                }}
+                placeholder="[00:15.00] Nhập, dán hoặc kéo thả tệp .LRC vào đây..."
                 className="w-full bg-card border border-border rounded-lg p-3 font-mono text-xs outline-none focus:ring-1 focus:ring-primary"
               />
             </div>

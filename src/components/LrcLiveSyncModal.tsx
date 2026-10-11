@@ -5,6 +5,7 @@ import {
   ChevronUp,
   Eye,
   FastForward,
+  FileText,
   Minus,
   Pause,
   Play,
@@ -404,6 +405,41 @@ export function LrcLiveSyncModal({ isOpen, onClose, audioFile, initialLyrics, on
     }
   };
 
+  const handleImportLrcText = (text: string) => {
+    const raw = text.trim();
+    if (!raw) return;
+    const parsed: SyncLine[] = [];
+    const rawLines = raw.split(/\r?\n/);
+    let idCounter = 1;
+
+    for (const l of rawLines) {
+      const lineStr = l.trim();
+      if (!lineStr) continue;
+
+      const match = lineStr.match(/^\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]\s*(.*)$/);
+      if (match) {
+        const mm = parseInt(match[1]!, 10);
+        const ss = parseInt(match[2]!, 10);
+        const ms = match[3] ? parseInt(match[3]!.padEnd(3, "0").slice(0, 3), 10) / 1000 : 0;
+        const totalSec = mm * 60 + ss + ms;
+        const content = match[4]?.trim() || "";
+        parsed.push({
+          id: idCounter++,
+          text: content || lineStr,
+          timeSec: totalSec,
+        });
+      } else {
+        parsed.push({
+          id: idCounter++,
+          text: lineStr,
+          timeSec: null,
+        });
+      }
+    }
+    setLines(parsed);
+    setCurrentIndex(0);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -436,6 +472,25 @@ export function LrcLiveSyncModal({ isOpen, onClose, audioFile, initialLyrics, on
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <label
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-all cursor-pointer"
+                  title="Nhập tệp .LRC từ máy để nạp ngay vào timeline"
+                >
+                  <FileText className="size-3.5" />
+                  <span>Nhập tệp .LRC</span>
+                  <input
+                    type="file"
+                    accept=".lrc,.txt"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const text = await file.text();
+                      handleImportLrcText(text);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
                 <button
                   type="button"
                   onClick={() => setPreviewMode(!previewMode)}

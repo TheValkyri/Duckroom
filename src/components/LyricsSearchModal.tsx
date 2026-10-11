@@ -12,12 +12,13 @@ import {
   Rewind,
   Search,
   Sparkles,
+  UploadCloud,
   Wand2,
   X,
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { beautifyLrcString, shiftLrcTime } from "../lib/lyrics-formatter";
+import { beautifyLrcString, parseLrc, shiftLrcTime } from "../lib/lyrics-formatter";
 import { searchOnlineLyricsMultiSource, type LyricSearchResult } from "../lib/lyrics-search";
 import { autoTimePacingLyrics } from "../lib/metadata";
 import { ModalPortal } from "./ui/modal-portal";
@@ -40,7 +41,7 @@ export function LyricsSearchModal({
   audioDuration = 180,
   onSelectLyrics,
 }: LyricsSearchModalProps) {
-  const [activeTab, setActiveTab] = useState<"search" | "paste">("search");
+  const [activeTab, setActiveTab] = useState<"search" | "paste" | "file">("search");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<LyricSearchResult[]>([]);
   const [selectedResult, setSelectedResult] = useState<LyricSearchResult | null>(null);
@@ -55,6 +56,37 @@ export function LyricsSearchModal({
   const [pastedText, setPastedText] = useState("");
   const [pastedPacedLrc, setPastedPacedLrc] = useState("");
 
+  // File Upload Tab States
+  const [uploadedLrcFile, setUploadedLrcFile] = useState<File | null>(null);
+  const [uploadedLrcText, setUploadedLrcText] = useState("");
+  const [uploadedLrcError, setUploadedLrcError] = useState("");
+
+  const handleLoadLrcFile = async (file: File) => {
+    try {
+      setUploadedLrcError("");
+      const text = await file.text();
+      const lines = parseLrc(text);
+      if (lines.length === 0) {
+        setUploadedLrcError("Tệp này không chứa định dạng thời gian LRC hợp lệ [mm:ss.xx]!");
+        return;
+      }
+      setUploadedLrcFile(file);
+      setUploadedLrcText(text);
+    } catch {
+      setUploadedLrcError("Không thể đọc tệp văn bản này. Vui lòng thử lại.");
+    }
+  };
+
+  const handleApplyUploadedLrc = () => {
+    if (!uploadedLrcText.trim()) return;
+    onSelectLyrics(uploadedLrcText, {
+      title: initialTitle,
+      artist: initialArtist,
+      source: uploadedLrcFile ? `Uploaded: ${uploadedLrcFile.name}` : "Uploaded .LRC",
+    });
+    onClose();
+  };
+
   // Initialize query on open
   useEffect(() => {
     if (!isOpen) return;
@@ -66,6 +98,9 @@ export function LyricsSearchModal({
     setSearchTime(0);
     setPastedText("");
     setPastedPacedLrc("");
+    setUploadedLrcFile(null);
+    setUploadedLrcText("");
+    setUploadedLrcError("");
     setActiveTab("search");
     if (q) {
       void handleSearch(q);
@@ -227,6 +262,19 @@ export function LyricsSearchModal({
               >
                 <FileText className="size-3.5" />
                 <span>Dán lời từ Genius / YouTube</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("file")}
+                className={cn(
+                  "px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer",
+                  activeTab === "file"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-white/5",
+                )}
+              >
+                <UploadCloud className="size-3.5" />
+                <span>Tải tệp .LRC từ máy</span>
               </button>
             </div>
 
@@ -470,7 +518,7 @@ export function LyricsSearchModal({
                   </div>
                 </div>
               </>
-            ) : (
+            ) : activeTab === "paste" ? (
               /* ─── TAB 2: Paste Lyrics from Genius / YouTube ─── */
               <div className="flex-1 grid grid-cols-1 md:grid-cols-2 min-h-0 overflow-hidden divide-y md:divide-y-0 md:divide-x divide-border bg-background/30">
                 {/* Left: Input Textarea */}
@@ -591,6 +639,136 @@ export function LyricsSearchModal({
                       (pastedText.trim()
                         ? autoTimePacingLyrics(pastedText, audioDuration, true)
                         : "Lời bài hát sau khi canh nhịp sẽ hiển thị tại đây với mốc thời gian [mm:ss.ms] chuẩn xác.")}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ─── TAB 3: Upload .LRC File from Computer ─── */
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 min-h-0 overflow-hidden divide-y md:divide-y-0 md:divide-x divide-border bg-background/30">
+                {/* Left: Dropzone & File Metadata */}
+                <div className="p-4 sm:p-6 flex flex-col gap-4 overflow-y-auto">
+                  <div
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const f = e.dataTransfer.files?.[0];
+                      if (f) void handleLoadLrcFile(f);
+                    }}
+                    className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-border hover:border-primary/60 bg-muted/20 hover:bg-muted/40 transition-all text-center"
+                  >
+                    <div className="size-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                      <UploadCloud className="size-6" />
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">
+                      Kéo thả tệp .LRC vào đây
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                      Hệ thống đọc trực tiếp trong trình duyệt của bạn (không lưu vào S3 storage) và bóc tách các mốc thời gian [mm:ss.xx].
+                    </p>
+                    <label className="mt-4 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer shadow-sm">
+                      <span>Chọn tệp .LRC từ máy</span>
+                      <input
+                        type="file"
+                        accept=".lrc,.txt"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) void handleLoadLrcFile(f);
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  {uploadedLrcFile && (
+                    <div className="p-4 rounded-xl bg-card border border-border space-y-2">
+                      <div className="flex items-center justify-between text-xs font-medium">
+                        <span className="text-muted-foreground">Tên tệp:</span>
+                        <span className="font-semibold text-foreground font-mono truncate max-w-[220px]">
+                          {uploadedLrcFile.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs font-medium">
+                        <span className="text-muted-foreground">Dung lượng:</span>
+                        <span className="font-mono text-muted-foreground">
+                          {(uploadedLrcFile.size / 1024).toFixed(1)} KB
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs font-medium">
+                        <span className="text-muted-foreground">Số dòng đồng bộ:</span>
+                        <span className="text-emerald-400 font-bold font-mono">
+                          {parseLrc(uploadedLrcText).length} dòng
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {uploadedLrcError && (
+                    <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive font-medium">
+                      {uploadedLrcError}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right: Synced Preview */}
+                <div className="p-4 sm:p-6 flex flex-col min-h-0 gap-3 bg-black/20 overflow-y-auto">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-1.5">
+                        <Sparkles className="size-4 text-emerald-400" />
+                        <span>Xem trước Lời Đồng Bộ (.LRC)</span>
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {uploadedLrcText
+                          ? `✨ Đã nhận diện ${parseLrc(uploadedLrcText).length} mốc thời gian`
+                          : "Chờ bạn chọn hoặc kéo thả tệp .LRC"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!uploadedLrcText.trim()}
+                      onClick={handleApplyUploadedLrc}
+                      className="px-4 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 shadow-md flex items-center gap-1.5 shrink-0 transition-transform hover:scale-[1.02] cursor-pointer disabled:opacity-40"
+                    >
+                      <Check className="size-3.5" />
+                      <span>Áp dụng vào bài hát</span>
+                    </button>
+                  </div>
+
+                  {uploadedLrcText && (
+                    <div className="px-3 py-1.5 bg-black/40 border border-white/10 rounded-lg flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
+                      <span className="text-muted-foreground text-[10px] uppercase font-mono tracking-wider flex items-center gap-1">
+                        <Rewind className="size-3" /> Dịch chuyển:
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {[
+                          { label: "-2s", val: -2 },
+                          { label: "-1s", val: -1 },
+                          { label: "-0.5s", val: -0.5 },
+                          { label: "+0.5s", val: 0.5 },
+                          { label: "+1s", val: 1 },
+                          { label: "+2s", val: 2 },
+                        ].map((btn) => (
+                          <button
+                            key={btn.label}
+                            type="button"
+                            onClick={() => {
+                              const shifted = shiftLrcTime(uploadedLrcText, btn.val);
+                              setUploadedLrcText(shifted);
+                            }}
+                            className="bg-card hover:bg-primary/20 hover:text-primary border border-border px-1.5 py-0.5 rounded text-[10px] font-mono transition-colors cursor-pointer"
+                          >
+                            {btn.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div
+                    className="flex-1 min-h-[220px] p-3.5 bg-card/60 border border-border rounded-xl font-mono text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap select-text overflow-y-auto"
+                    style={{ scrollbarGutter: "stable" }}
+                  >
+                    {uploadedLrcText || "Nội dung tệp .LRC sẽ hiển thị tại đây sau khi chọn tệp..."}
                   </div>
                 </div>
               </div>

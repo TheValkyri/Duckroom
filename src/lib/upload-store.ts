@@ -17,6 +17,15 @@ import { calculateFileSha256, extractAudioMetadata, extractVideoThumbnail } from
 import { extractWaveformPeaksFromFile } from "./waveform-peaks";
 import { parseLrc } from "./lyrics-formatter";
 import { syncLibraryWithS3, createAlbum, albums } from "../data/library";
+import { toast } from "sonner";
+
+export function normalizeBaseFileName(name: string): string {
+  return name
+    .replace(/\.[^/.]+$/, "")
+    .replace(/^(?:[IVXLCDM]+\.|\d+\.|\d+\s*[-–—]|track\s*\d+[:\-.]?)\s*/i, "")
+    .trim()
+    .toLowerCase();
+}
 
 export type IngestionStage =
   | "idle"
@@ -126,7 +135,29 @@ export function updateIngestionItem(id: string, partial: Partial<IngestionItem>)
  * Enqueues new files into the ingestion pipeline, performs local pre-analysis and session creation.
  */
 export async function enqueueFilesForIngestion(files: File[]): Promise<void> {
-  const newItems: IngestionItem[] = files.map((file) => {
+  const lrcFiles = files.filter((f) => f.name.toLowerCase().endsWith(".lrc"));
+  const mediaFiles = files.filter((f) => !f.name.toLowerCase().endsWith(".lrc"));
+
+  // Read all .lrc files in memory client-side (NO S3 upload!)
+  const lrcEntries: Array<{ file: File; baseName: string; text: string }> = [];
+  for (const lrcFile of lrcFiles) {
+    try {
+      const text = await lrcFile.text();
+      if (text.trim()) {
+        lrcEntries.push({
+          file: lrcFile,
+          baseName: normalizeBaseFileName(lrcFile.name),
+          text,
+        });
+      }
+    } catch (err) {
+      console.warn("[Duckroom Ingestion] Failed to read .lrc file:", lrcFile.name, err);
+    }
+  }
+
+  const pairedLrcSet = new Set<File>();
+
+  const newItems: IngestionItem[] = mediaFiles.map((file) => {
     const isVid = file.type.startsWith("video/") || file.name.endsWith(".mkv");
     let autoTitle = "";
     let autoArtist = "";
@@ -136,6 +167,15 @@ export async function enqueueFilesForIngestion(files: File[]): Promise<void> {
       autoTitle = parts.slice(1).join(" - ").trim();
     } else {
       autoTitle = file.name.replace(/\.[^/.]+$/, "");
+    }
+
+    const mediaBase = normalizeBaseFileName(file.name);
+    const matchedLrc = lrcEntries.find((l) => l.baseName === mediaBase);
+    let initialLyrics = "";
+    if (matchedLrc) {
+      initialLyrics = matchedLrc.text;
+      pairedLrcSet.add(matchedLrc.file);
+      toast.success(`Đã tự động nhận diện và ghép tệp lời .LRC cho "${autoTitle}"!`);
     }
 
     return {
@@ -155,7 +195,7 @@ export async function enqueueFilesForIngestion(files: File[]): Promise<void> {
         album: "",
         year: "",
         trackNo: "",
-        lyricsText: "",
+        lyricsText: initialLyrics,
       },
       artwork: {
         file: null,
@@ -168,7 +208,7 @@ export async function enqueueFilesForIngestion(files: File[]): Promise<void> {
       review: {
         metadataStatus: "warning",
         artworkStatus: "warning",
-        lyricsStatus: "missing",
+        lyricsStatus: initialLyrics ? (initialLyrics.includes("[") ? "synced" : "plain") : "missing",
         duplicateStatus: "none",
         integrityStatus: "pending",
         isApproved: false,
@@ -176,11 +216,47 @@ export async function enqueueFilesForIngestion(files: File[]): Promise<void> {
     };
   });
 
-  updateState({ items: [...storeState.items, ...newItems] });
+  // Try matching any remaining unpaired LRC files with existing items in storeState.items
+  for (const lrc of lrcEntries) {
+    if (pairedLrcSet.has(lrc.file)) continue;
+    const existingMatch = storeState.items.find((item) => {
+      const itemFileBase = normalizeBaseFileName(item.file.name);
+      const itemTitleBase = normalizeBaseFileName(item.metadata.title);
+      return itemFileBase === lrc.baseName || itemTitleBase === lrc.baseName;
+    });
 
-  // Pre-analyze each item in parallel locally
-  for (const item of newItems) {
-    void processLocalPreAnalysis(item.id);
+    if (existingMatch) {
+      updateIngestionItem(existingMatch.id, {
+        metadata: { ...existingMatch.metadata, lyricsText: lrc.text },
+        review: {
+          ...existingMatch.review,
+          lyricsStatus: lrc.text.includes("[") ? "synced" : "plain",
+        },
+      });
+      pairedLrcSet.add(lrc.file);
+      toast.success(`Đã ghép tệp lời .LRC vào bài hát "${existingMatch.metadata.title}"!`);
+    } else if (mediaFiles.length === 0 && storeState.items.length === 1 && !pairedLrcSet.has(lrc.file)) {
+      // User dropped only 1 LRC and there is exactly 1 item in the review queue
+      const singleItem = storeState.items[0]!;
+      updateIngestionItem(singleItem.id, {
+        metadata: { ...singleItem.metadata, lyricsText: lrc.text },
+        review: {
+          ...singleItem.review,
+          lyricsStatus: lrc.text.includes("[") ? "synced" : "plain",
+        },
+      });
+      pairedLrcSet.add(lrc.file);
+      toast.success(`Đã ghép tệp lời .LRC vào bài hát "${singleItem.metadata.title}"!`);
+    }
+  }
+
+  if (newItems.length > 0) {
+    updateState({ items: [...storeState.items, ...newItems] });
+
+    // Pre-analyze each item in parallel locally
+    for (const item of newItems) {
+      void processLocalPreAnalysis(item.id);
+    }
   }
 }
 
@@ -428,6 +504,16 @@ async function processLocalPreAnalysis(itemId: string) {
 
     const tags = "metadataTags" in localAnalysis ? localAnalysis.metadataTags : undefined;
 
+    // Preserve any existing lyrics if an .lrc file was already paired or provided
+    const currentItem = storeState.items.find((i) => i.id === itemId);
+    const existingLyrics = currentItem?.metadata.lyricsText || item.metadata.lyricsText || "";
+    const finalLyrics = existingLyrics || extractedLyrics || "";
+    const lyricsStatus = finalLyrics
+      ? finalLyrics.includes("[")
+        ? "synced"
+        : "plain"
+      : "missing";
+
     // Immediately present extracted metadata in UI so user has zero waiting time
     updateIngestionItem(itemId, {
       stage: "waiting_review",
@@ -440,7 +526,7 @@ async function processLocalPreAnalysis(itemId: string) {
         album: tags?.album || "",
         year: yearStr || (tags?.year ? String(tags?.year) : ""),
         trackNo: trackNoStr || (tags?.trackNo ? String(tags?.trackNo) : ""),
-        lyricsText: extractedLyrics || "",
+        lyricsText: finalLyrics,
       },
       artwork: {
         file: null,
@@ -450,7 +536,7 @@ async function processLocalPreAnalysis(itemId: string) {
       review: {
         metadataStatus: localAnalysis.analysisStatus === "error" ? "error" : "verified",
         artworkStatus: extractedCoverUrl ? "verified" : "warning",
-        lyricsStatus: extractedLyrics ? (extractedLyrics.includes("[") ? "synced" : "plain") : "missing",
+        lyricsStatus: lyricsStatus as any,
         duplicateStatus: "none",
         integrityStatus: "pending",
         isApproved: false,

@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangle,
   CheckCircle2,
+  FileText,
   Image,
   Loader2,
   Mic,
@@ -12,6 +13,7 @@ import {
   RefreshCw,
   Layers,
 } from "lucide-react";
+import { toast } from "sonner";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { ArtworkCropModal } from "../components/ArtworkCropModal";
@@ -190,10 +192,9 @@ function UploadPage() {
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4">
           <UploadCloud className="h-8 w-8" />
         </div>
-        <h3 className="text-lg font-bold text-foreground">Kéo thả tệp âm thanh (FLAC, WAV, ALAC, M4A, MP3) vào đây</h3>
+        <h3 className="text-lg font-bold text-foreground">Kéo thả tệp âm thanh (FLAC, WAV, ALAC, M4A, MP3) hoặc tệp lời (.LRC) vào đây</h3>
         <p className="mt-1 text-xs text-muted-foreground max-w-md">
-          Hỗ trợ chọn nhiều tệp cùng lúc. Hệ thống sẽ tự động trích xuất thẻ ID3/Vorbis, ảnh bìa và lời bài hát nhúng
-          sẵn.
+          Hỗ trợ chọn nhiều tệp cùng lúc. Hệ thống sẽ tự động ghép đôi tệp nhạc và tệp lời .LRC trùng tên, trích xuất thẻ ID3/Vorbis và ảnh bìa.
         </p>
 
         <label className="mt-6 cursor-pointer rounded-xl bg-secondary px-6 py-2.5 text-sm font-semibold text-secondary-foreground hover:bg-secondary/80 transition-colors">
@@ -201,7 +202,7 @@ function UploadPage() {
           <input
             type="file"
             multiple
-            accept="audio/*,.flac,.alac,.wav,.mp3,.m4a,.aac,.ogg,.opus"
+            accept="audio/*,.flac,.alac,.wav,.mp3,.m4a,.aac,.ogg,.opus,.lrc"
             className="hidden"
             onChange={(e) => {
               if (e.target.files) handleSelectFiles(Array.from(e.target.files));
@@ -531,6 +532,31 @@ function UploadPage() {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <label className="text-xs font-semibold text-foreground">Lời bài hát (LRC hoặc lời thường)</label>
                     <div className="flex flex-wrap gap-1.5">
+                      <label className="text-primary flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold hover:underline cursor-pointer">
+                        <FileText className="size-3.5" />
+                        Tải tệp .LRC từ máy
+                        <input
+                          type="file"
+                          accept=".lrc,.txt"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const text = await file.text();
+                            const lines = parseLrc(text);
+                            if (lines.length === 0) {
+                              toast.error("Tệp này không chứa định dạng thời gian LRC hợp lệ [mm:ss.xx]!");
+                              return;
+                            }
+                            updateIngestionItem(activeItem.id, {
+                              metadata: { ...activeItem.metadata, lyricsText: text },
+                              review: { ...activeItem.review, lyricsStatus: "synced" },
+                            });
+                            toast.success(`Đã nạp ${lines.length} dòng lời đồng bộ từ tệp "${file.name}"!`);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
                       {activeItem.metadata.lyricsText.trim() && (
                         <button
                           type="button"
@@ -589,8 +615,26 @@ function UploadPage() {
                         metadata: { ...activeItem.metadata, lyricsText: e.target.value },
                       })
                     }
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={async (e) => {
+                      e.preventDefault();
+                      const file = e.dataTransfer.files?.[0];
+                      if (file && (file.name.toLowerCase().endsWith(".lrc") || file.name.toLowerCase().endsWith(".txt"))) {
+                        const text = await file.text();
+                        const lines = parseLrc(text);
+                        if (lines.length === 0) {
+                          toast.error("Tệp này không chứa định dạng thời gian LRC hợp lệ [mm:ss.xx]!");
+                          return;
+                        }
+                        updateIngestionItem(activeItem.id, {
+                          metadata: { ...activeItem.metadata, lyricsText: text },
+                          review: { ...activeItem.review, lyricsStatus: "synced" },
+                        });
+                        toast.success(`Đã nạp ${lines.length} dòng lời đồng bộ từ tệp "${file.name}"!`);
+                      }
+                    }}
                     rows={4}
-                    placeholder="[00:12.00] Lời bài hát… (để trống nếu chưa có)"
+                    placeholder="[00:12.00] Lời bài hát… (hoặc kéo thả tệp .lrc vào đây)"
                     className="w-full rounded-xl border border-input bg-background px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
