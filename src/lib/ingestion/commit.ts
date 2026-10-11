@@ -30,7 +30,7 @@ export async function copyObjectWithVerifyRetry(
       await s3.send(
         new CopyObjectCommand({
           Bucket: bucket,
-          CopySource: `${bucket}/${sourceKey}`,
+          CopySource: encodeURI(`${bucket}/${sourceKey}`),
           Key: destinationKey,
         }),
       );

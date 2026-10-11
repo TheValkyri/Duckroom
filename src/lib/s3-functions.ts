@@ -31,6 +31,8 @@ export function getS3ServerClient() {
   const region = getOptionalServerEnv("S3_REGION") || "vn-hcm-1";
   const accessKeyId = requireServerEnv("S3_ACCESS_KEY_ID");
   const secretAccessKey = requireServerEnv("S3_SECRET_ACCESS_KEY");
+  const connectionTimeout = Number(getOptionalServerEnv("S3_CONNECTION_TIMEOUT_MS")) || 15000;
+  const requestTimeout = Number(getOptionalServerEnv("S3_REQUEST_TIMEOUT_MS")) || 30000;
 
   return new S3Client({
     endpoint,
@@ -40,10 +42,10 @@ export function getS3ServerClient() {
       secretAccessKey,
     },
     forcePathStyle: true,
-    maxAttempts: 1,
+    maxAttempts: 3,
     requestHandler: new NodeHttpHandler({
-      connectionTimeout: 3000,
-      requestTimeout: 10000,
+      connectionTimeout,
+      requestTimeout,
     }),
     // Fix 2026-08-25 (403 playback + ERR_HTTP2_PROTOCOL_ERROR khi upload):
     // SDK v3.729+ mặc định "WHEN_SUPPORTED" — gắn x-amz-checksum-mode=ENABLED
@@ -59,13 +61,15 @@ export function getS3ServerClient() {
 /**
  * Durable S3 Client for heavy internal media operations:
  * CopyObjectCommand, direct streaming, large uploads.
- * Extended requestTimeout (60s) to tolerate international cross-region WAN latency (US -> VN-HCM).
+ * Extended requestTimeout (60s) and resilient connectionTimeout (25s) to tolerate international cross-region WAN latency (US -> VN-HCM).
  */
 export function getS3DurableClient() {
   const endpoint = getOptionalServerEnv("S3_ENDPOINT") || "https://s3.pikamc.vn";
   const region = getOptionalServerEnv("S3_REGION") || "vn-hcm-1";
   const accessKeyId = requireServerEnv("S3_ACCESS_KEY_ID");
   const secretAccessKey = requireServerEnv("S3_SECRET_ACCESS_KEY");
+  const connectionTimeout = Number(getOptionalServerEnv("S3_DURABLE_CONNECTION_TIMEOUT_MS")) || 25000;
+  const requestTimeout = Number(getOptionalServerEnv("S3_DURABLE_REQUEST_TIMEOUT_MS")) || 60000;
 
   return new S3Client({
     endpoint,
@@ -77,8 +81,8 @@ export function getS3DurableClient() {
     forcePathStyle: true,
     maxAttempts: 3,
     requestHandler: new NodeHttpHandler({
-      connectionTimeout: 5000,
-      requestTimeout: 60000,
+      connectionTimeout,
+      requestTimeout,
     }),
     requestChecksumCalculation: "WHEN_REQUIRED",
     responseChecksumValidation: "WHEN_REQUIRED",

@@ -37,24 +37,24 @@ describe("Durable Media Ingestion & Self-Healing Playback Tests", () => {
   });
 
   describe("1. S3 Client Configurations", () => {
-    it("getS3ServerClient has fast presigning configuration (10s request, 3s connection, maxAttempts 1)", async () => {
+    it("getS3ServerClient has resilient configuration (30s request, 15s connection, maxAttempts 3)", async () => {
       const client = getS3ServerClient();
       const maxAttempts =
         typeof client.config.maxAttempts === "function" ? await client.config.maxAttempts() : client.config.maxAttempts;
-      expect(maxAttempts).toBe(1);
+      expect(maxAttempts).toBe(3);
       const handlerConfig = await (client.config.requestHandler as any).configProvider;
-      expect(handlerConfig.requestTimeout).toBe(10000);
-      expect(handlerConfig.connectionTimeout).toBe(3000);
+      expect(handlerConfig.requestTimeout).toBe(30000);
+      expect(handlerConfig.connectionTimeout).toBe(15000);
     });
 
-    it("getS3DurableClient has heavy media transfer configuration (60s request, 5s connection, maxAttempts 3)", async () => {
+    it("getS3DurableClient has heavy media transfer configuration (60s request, 25s connection, maxAttempts 3)", async () => {
       const client = getS3DurableClient();
       const maxAttempts =
         typeof client.config.maxAttempts === "function" ? await client.config.maxAttempts() : client.config.maxAttempts;
       expect(maxAttempts).toBe(3);
       const handlerConfig = await (client.config.requestHandler as any).configProvider;
       expect(handlerConfig.requestTimeout).toBe(60000);
-      expect(handlerConfig.connectionTimeout).toBe(5000);
+      expect(handlerConfig.connectionTimeout).toBe(25000);
     });
   });
 
