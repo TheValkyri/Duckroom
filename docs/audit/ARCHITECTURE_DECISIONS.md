@@ -564,4 +564,3 @@ auto` + `contain-intrinsic-size`; full suite 363/363 (không thay đổi
 - **Problem**: 12 mutation operations in `domain-mutations.ts` and several in `owner-data.ts` silently swallowed audit logging errors (`catch { // Ignore audit log failure }`), leaving zero observability trail when audit persistence failed.
 - **Chosen Design**: Introduce `safeAuditLog(db, entry)` helper. If writing to `audit_logs` fails, emit structured `console.warn("[AUDIT] Failed to write audit log:", ...)` with action, resource ID, and error details, while maintaining fail-open semantics so legitimate user mutations are not blocked by secondary telemetry storage errors.
 - **Testing**: Unit tests verify `console.warn` is called when database audit insert rejects.
-

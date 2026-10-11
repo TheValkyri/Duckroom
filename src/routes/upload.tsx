@@ -192,9 +192,12 @@ function UploadPage() {
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4">
           <UploadCloud className="h-8 w-8" />
         </div>
-        <h3 className="text-lg font-bold text-foreground">Kéo thả tệp âm thanh (FLAC, WAV, ALAC, M4A, MP3) hoặc tệp lời (.LRC) vào đây</h3>
+        <h3 className="text-lg font-bold text-foreground">
+          Kéo thả tệp âm thanh (FLAC, WAV, ALAC, M4A, MP3) hoặc tệp lời (.LRC) vào đây
+        </h3>
         <p className="mt-1 text-xs text-muted-foreground max-w-md">
-          Hỗ trợ chọn nhiều tệp cùng lúc. Hệ thống sẽ tự động ghép đôi tệp nhạc và tệp lời .LRC trùng tên, trích xuất thẻ ID3/Vorbis và ảnh bìa.
+          Hỗ trợ chọn nhiều tệp cùng lúc. Hệ thống sẽ tự động ghép đôi tệp nhạc và tệp lời .LRC trùng tên, trích xuất
+          thẻ ID3/Vorbis và ảnh bìa.
         </p>
 
         <label className="mt-6 cursor-pointer rounded-xl bg-secondary px-6 py-2.5 text-sm font-semibold text-secondary-foreground hover:bg-secondary/80 transition-colors">
@@ -619,7 +622,10 @@ function UploadPage() {
                     onDrop={async (e) => {
                       e.preventDefault();
                       const file = e.dataTransfer.files?.[0];
-                      if (file && (file.name.toLowerCase().endsWith(".lrc") || file.name.toLowerCase().endsWith(".txt"))) {
+                      if (
+                        file &&
+                        (file.name.toLowerCase().endsWith(".lrc") || file.name.toLowerCase().endsWith(".txt"))
+                      ) {
                         const text = await file.text();
                         const lines = parseLrc(text);
                         if (lines.length === 0) {

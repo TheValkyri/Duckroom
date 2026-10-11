@@ -61,10 +61,7 @@ export const Route = createFileRoute("/albums/$albumId")({
     const artist = a?.artist ? ` — ${a.artist}` : "";
     const rawCover = a?.cover;
     const cover =
-      rawCover &&
-      (rawCover.startsWith("http://") ||
-        rawCover.startsWith("https://") ||
-        rawCover.startsWith("/"))
+      rawCover && (rawCover.startsWith("http://") || rawCover.startsWith("https://") || rawCover.startsWith("/"))
         ? rawCover
         : "https://duckroom.vercel.app/og-image.jpg";
     const desc = a ? `Nghe album ${a.title}${artist} ở chất lượng gốc, không nén lại.` : "Nghe album ở chất lượng gốc.";

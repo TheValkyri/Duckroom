@@ -321,18 +321,18 @@ export async function createAlbum(data: {
     serverCoverUrl && (serverCoverUrl.startsWith("http://") || serverCoverUrl.startsWith("https://"))
       ? serverCoverUrl
       : data.previewUrl &&
-        (data.previewUrl.startsWith("http://") ||
-          data.previewUrl.startsWith("https://") ||
-          data.previewUrl.startsWith("blob:") ||
-          data.previewUrl.startsWith("data:"))
-      ? data.previewUrl
-      : data.cover &&
-        (data.cover.startsWith("http://") ||
-          data.cover.startsWith("https://") ||
-          data.cover.startsWith("blob:") ||
-          data.cover.startsWith("data:"))
-      ? data.cover
-      : "";
+          (data.previewUrl.startsWith("http://") ||
+            data.previewUrl.startsWith("https://") ||
+            data.previewUrl.startsWith("blob:") ||
+            data.previewUrl.startsWith("data:"))
+        ? data.previewUrl
+        : data.cover &&
+            (data.cover.startsWith("http://") ||
+              data.cover.startsWith("https://") ||
+              data.cover.startsWith("blob:") ||
+              data.cover.startsWith("data:"))
+          ? data.cover
+          : "";
 
   const newAlbum: Album = {
     id: created.id,
@@ -394,18 +394,18 @@ export async function updateAlbum(
     serverCoverUrl && (serverCoverUrl.startsWith("http://") || serverCoverUrl.startsWith("https://"))
       ? serverCoverUrl
       : data.previewUrl &&
-        (data.previewUrl.startsWith("http://") ||
-          data.previewUrl.startsWith("https://") ||
-          data.previewUrl.startsWith("blob:") ||
-          data.previewUrl.startsWith("data:"))
-      ? data.previewUrl
-      : data.cover &&
-        (data.cover.startsWith("http://") ||
-          data.cover.startsWith("https://") ||
-          data.cover.startsWith("blob:") ||
-          data.cover.startsWith("data:"))
-      ? data.cover
-      : current?.cover || "";
+          (data.previewUrl.startsWith("http://") ||
+            data.previewUrl.startsWith("https://") ||
+            data.previewUrl.startsWith("blob:") ||
+            data.previewUrl.startsWith("data:"))
+        ? data.previewUrl
+        : data.cover &&
+            (data.cover.startsWith("http://") ||
+              data.cover.startsWith("https://") ||
+              data.cover.startsWith("blob:") ||
+              data.cover.startsWith("data:"))
+          ? data.cover
+          : current?.cover || "";
 
   const mappedAlbum: Album = {
     id: updated.id,

@@ -17,6 +17,7 @@ describe("Album Artwork Resilience & Key Sanitization Suite", () => {
       expect(sanitized).not.toContain(" ");
       expect(sanitized).not.toContain("(");
       expect(sanitized).not.toContain(")");
+      // eslint-disable-next-line no-control-regex
       expect(sanitized).not.toMatch(/[^\x00-\x7F]/); // Strictly ASCII
     });
 

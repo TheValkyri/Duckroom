@@ -508,11 +508,7 @@ async function processLocalPreAnalysis(itemId: string) {
     const currentItem = storeState.items.find((i) => i.id === itemId);
     const existingLyrics = currentItem?.metadata.lyricsText || item.metadata.lyricsText || "";
     const finalLyrics = existingLyrics || extractedLyrics || "";
-    const lyricsStatus = finalLyrics
-      ? finalLyrics.includes("[")
-        ? "synced"
-        : "plain"
-      : "missing";
+    const lyricsStatus = finalLyrics ? (finalLyrics.includes("[") ? "synced" : "plain") : "missing";
 
     // Immediately present extracted metadata in UI so user has zero waiting time
     updateIngestionItem(itemId, {

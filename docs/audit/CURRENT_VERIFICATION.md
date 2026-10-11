@@ -35,13 +35,13 @@
 
 ## Gates (2026-09-18, sau Phase 0–3 Architectural Overhaul)
 
-| Gate                   | Kết quả                                                                                                            |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `npx tsc --noEmit`     | **PASS** (0 errors)                                                                                                |
-| `npx eslint .`         | **PASS** (0 errors / 15 warnings fast-refresh Shadcn)                                                               |
-| `npm test`             | **PASS 472/472 across 37 files** (100% xanh)                                                                       |
-| `npm run build`        | **PASS** (5.98 MB total, 1.3 MB gzip — Vite client + Nitro SSR Vercel preset)                                      |
-| `npm run scan:secrets` | **CLEAN** (80 client files đã quét, 0 rò rỉ secret)                                                                |
+| Gate                   | Kết quả                                                                       |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| `npx tsc --noEmit`     | **PASS** (0 errors)                                                           |
+| `npx eslint .`         | **PASS** (0 errors / 15 warnings fast-refresh Shadcn)                         |
+| `npm test`             | **PASS 472/472 across 37 files** (100% xanh)                                  |
+| `npm run build`        | **PASS** (5.98 MB total, 1.3 MB gzip — Vite client + Nitro SSR Vercel preset) |
+| `npm run scan:secrets` | **CLEAN** (80 client files đã quét, 0 rò rỉ secret)                           |
 
 ## Perf/playback/lyrics/loading pass (2026-09-04) — thay đổi chính
 

@@ -49,9 +49,8 @@ export async function syncAndBackfillAuthProfilesInternal(db: any): Promise<{
         }
 
         const profilesQuery: any = db.from("profiles").select("user_id");
-        const profilesRes = typeof profilesQuery?.limit === "function"
-          ? await profilesQuery.limit(5000)
-          : await profilesQuery;
+        const profilesRes =
+          typeof profilesQuery?.limit === "function" ? await profilesQuery.limit(5000) : await profilesQuery;
         const existingProfiles = Array.isArray(profilesRes?.data)
           ? profilesRes.data
           : Array.isArray(profilesRes?.rows)
@@ -761,7 +760,8 @@ export async function setUserRoleInternal(
         if (authUser) {
           const meta = (authUser.user_metadata || {}) as Record<string, any>;
           const email = (authUser.email || "unknown@example.invalid").toLowerCase();
-          const displayName = meta["full_name"] || meta["name"] || meta["user_name"] || email.split("@")[0] || "Thành viên";
+          const displayName =
+            meta["full_name"] || meta["name"] || meta["user_name"] || email.split("@")[0] || "Thành viên";
           const metaAvatar = meta["picture"] || meta["avatar_url"] || null;
           const handle = generateTemporaryHandle();
           const friendCode = generateFriendCode();

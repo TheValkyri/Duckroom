@@ -408,7 +408,9 @@ export function EditTrackModal({
                         }
                         setLyricsText(text);
                         setLyricsSource(`Uploaded .LRC: ${file.name}`);
-                        setNoticeMsg(`✨ Đã nạp thành công ${lines.length} dòng lời đồng bộ từ "${file.name}"! Nhớ bấm Lưu để cập nhật.`);
+                        setNoticeMsg(
+                          `✨ Đã nạp thành công ${lines.length} dòng lời đồng bộ từ "${file.name}"! Nhớ bấm Lưu để cập nhật.`,
+                        );
                         setTimeout(() => setNoticeMsg(""), 5000);
                         e.target.value = "";
                       }}
@@ -497,7 +499,9 @@ export function EditTrackModal({
                     }
                     setLyricsText(text);
                     setLyricsSource(`Uploaded .LRC: ${file.name}`);
-                    setNoticeMsg(`✨ Đã nạp thành công ${lines.length} dòng lời đồng bộ từ "${file.name}"! Nhớ bấm Lưu để cập nhật.`);
+                    setNoticeMsg(
+                      `✨ Đã nạp thành công ${lines.length} dòng lời đồng bộ từ "${file.name}"! Nhớ bấm Lưu để cập nhật.`,
+                    );
                     setTimeout(() => setNoticeMsg(""), 5000);
                   }
                 }}

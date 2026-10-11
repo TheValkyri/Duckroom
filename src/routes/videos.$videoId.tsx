@@ -56,7 +56,8 @@ function VideoPage() {
           Video không còn khả dụng
         </h1>
         <p className="text-muted-foreground max-w-md text-sm leading-relaxed">
-          Duckroom hiện tập trung hoàn toàn vào trải nghiệm phát nhạc Lossless & Hi-Res Audio. Tính năng phát video đã được ngừng hoạt động.
+          Duckroom hiện tập trung hoàn toàn vào trải nghiệm phát nhạc Lossless & Hi-Res Audio. Tính năng phát video đã
+          được ngừng hoạt động.
         </p>
         <Link
           to="/library"

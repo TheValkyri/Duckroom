@@ -86,7 +86,9 @@ export function TracksManagerSection({ tracks }: TracksManagerSectionProps) {
               onClick={() => setFilterType("all")}
               className={cn(
                 "px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer",
-                filterType === "all" ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:text-foreground",
+                filterType === "all"
+                  ? "bg-primary text-primary-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               Tất cả
@@ -96,7 +98,9 @@ export function TracksManagerSection({ tracks }: TracksManagerSectionProps) {
               onClick={() => setFilterType("album")}
               className={cn(
                 "px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer",
-                filterType === "album" ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:text-foreground",
+                filterType === "album"
+                  ? "bg-primary text-primary-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               Thuộc Album
@@ -106,7 +110,9 @@ export function TracksManagerSection({ tracks }: TracksManagerSectionProps) {
               onClick={() => setFilterType("single")}
               className={cn(
                 "px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer",
-                filterType === "single" ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:text-foreground",
+                filterType === "single"
+                  ? "bg-primary text-primary-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               Đĩa đơn
@@ -116,7 +122,9 @@ export function TracksManagerSection({ tracks }: TracksManagerSectionProps) {
               onClick={() => setFilterType("lyrics")}
               className={cn(
                 "px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1",
-                filterType === "lyrics" ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:text-foreground",
+                filterType === "lyrics"
+                  ? "bg-primary text-primary-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               <Mic2 className="size-3" /> Có lời

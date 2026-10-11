@@ -1,7 +1,9 @@
 ## Summary of Changes
+
 <!-- Provide a concise description of what this PR introduces or modifies -->
 
 ### Type of Change
+
 - [ ] `feat`: New feature or capability
 - [ ] `fix`: Bug fix
 - [ ] `refactor`: Code restructuring without behavior changes
@@ -13,6 +15,7 @@
 ---
 
 ## Release-Gate Quality Checklist
+
 Before requesting review or merging, ensure all mandatory gates are verified:
 
 - [ ] **Typecheck**: `npm run typecheck` passes with zero errors

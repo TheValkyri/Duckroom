@@ -1,4 +1,15 @@
-import { CheckCircle2, Copy, Filter, Loader2, RefreshCw, Search, Shield, ShieldAlert, User, UserCog } from "lucide-react";
+import {
+  CheckCircle2,
+  Copy,
+  Filter,
+  Loader2,
+  RefreshCw,
+  Search,
+  Shield,
+  ShieldAlert,
+  User,
+  UserCog,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../lib/useAuth";
 import { supabase } from "../../lib/supabase-client";
@@ -27,19 +38,22 @@ export function UsersSection({ initialUsers, onRefreshUsers }: UsersSectionProps
     }
   }, [initialUsers]);
 
-  const loadUsers = useCallback(async (silent = false) => {
-    if (onRefreshUsers) {
-      await onRefreshUsers();
-      return;
-    }
-    if (!silent) setError(null);
-    try {
-      const res = await getOwnerUsersServer();
-      setUsers(res.users ?? []);
-    } catch (err) {
-      if (!silent) setError(err instanceof Error ? err.message : "Không thể tải danh sách người dùng.");
-    }
-  }, [onRefreshUsers]);
+  const loadUsers = useCallback(
+    async (silent = false) => {
+      if (onRefreshUsers) {
+        await onRefreshUsers();
+        return;
+      }
+      if (!silent) setError(null);
+      try {
+        const res = await getOwnerUsersServer();
+        setUsers(res.users ?? []);
+      } catch (err) {
+        if (!silent) setError(err instanceof Error ? err.message : "Không thể tải danh sách người dùng.");
+      }
+    },
+    [onRefreshUsers],
+  );
 
   useEffect(() => {
     if (!initialUsers) {
@@ -75,7 +89,11 @@ export function UsersSection({ initialUsers, onRefreshUsers }: UsersSectionProps
 
   const handleToggleRole = async (target: OwnerUserProfile) => {
     const nextRole = target.role === "owner" ? "member" : "owner";
-    if (!confirm(`Bạn có chắc chắn muốn chuyển vai trò của "${target.display_name || target.email}" thành "${nextRole.toUpperCase()}" không?`)) {
+    if (
+      !confirm(
+        `Bạn có chắc chắn muốn chuyển vai trò của "${target.display_name || target.email}" thành "${nextRole.toUpperCase()}" không?`,
+      )
+    ) {
       return;
     }
     setBusyId(target.user_id);
@@ -156,7 +174,9 @@ export function UsersSection({ initialUsers, onRefreshUsers }: UsersSectionProps
             onClick={() => setRoleFilter("all")}
             className={cn(
               "px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer",
-              roleFilter === "all" ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:text-foreground",
+              roleFilter === "all"
+                ? "bg-primary text-primary-foreground font-semibold"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             Tất cả
@@ -166,7 +186,9 @@ export function UsersSection({ initialUsers, onRefreshUsers }: UsersSectionProps
             onClick={() => setRoleFilter("owner")}
             className={cn(
               "px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer",
-              roleFilter === "owner" ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:text-foreground",
+              roleFilter === "owner"
+                ? "bg-primary text-primary-foreground font-semibold"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             Owners
@@ -176,7 +198,9 @@ export function UsersSection({ initialUsers, onRefreshUsers }: UsersSectionProps
             onClick={() => setRoleFilter("member")}
             className={cn(
               "px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer",
-              roleFilter === "member" ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:text-foreground",
+              roleFilter === "member"
+                ? "bg-primary text-primary-foreground font-semibold"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             Members
@@ -231,9 +255,7 @@ export function UsersSection({ initialUsers, onRefreshUsers }: UsersSectionProps
                         </div>
 
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-xs text-muted-foreground">
-                          {u.handle && (
-                            <span className="font-mono text-primary/90 font-medium">@{u.handle}</span>
-                          )}
+                          {u.handle && <span className="font-mono text-primary/90 font-medium">@{u.handle}</span>}
                           <span>•</span>
                           <span className="truncate">{u.email}</span>
                           {u.friend_code && (
@@ -263,9 +285,7 @@ export function UsersSection({ initialUsers, onRefreshUsers }: UsersSectionProps
                         <div className="flex items-center gap-3 mt-1 text-[11px] text-muted-foreground/70 font-mono">
                           <span>Tham gia: {new Date(u.created_at).toLocaleDateString("vi-VN")}</span>
                           {u.last_sign_in_at && (
-                            <span>
-                              · Hoạt động: {new Date(u.last_sign_in_at).toLocaleDateString("vi-VN")}
-                            </span>
+                            <span>· Hoạt động: {new Date(u.last_sign_in_at).toLocaleDateString("vi-VN")}</span>
                           )}
                         </div>
                       </div>
@@ -296,11 +316,7 @@ export function UsersSection({ initialUsers, onRefreshUsers }: UsersSectionProps
                             : "hover:border-primary/40 hover:text-primary",
                         )}
                       >
-                        {busyId === u.user_id
-                          ? "Đang lưu…"
-                          : isOwner
-                            ? "Hạ thành Member"
-                            : "Nâng thành Owner"}
+                        {busyId === u.user_id ? "Đang lưu…" : isOwner ? "Hạ thành Member" : "Nâng thành Owner"}
                       </button>
                     </div>
                   </div>

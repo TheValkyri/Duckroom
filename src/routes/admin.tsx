@@ -255,12 +255,30 @@ function AdminPage() {
 
   const statCards: StatCardItem[] = health?.counts
     ? [
-        { label: "Bài hát (Tracks)", value: totalTracks, sublabel: "Master Lossless", Icon: Music, targetTab: "tracks" },
+        {
+          label: "Bài hát (Tracks)",
+          value: totalTracks,
+          sublabel: "Master Lossless",
+          Icon: Music,
+          targetTab: "tracks",
+        },
         { label: "Albums", value: totalAlbums, sublabel: "Bộ đĩa phát hành", Icon: Disc3, targetTab: "albums" },
         { label: "Đĩa đơn (Singles)", value: totalSingles, sublabel: "Single & EP", Icon: Disc, targetTab: "albums" },
         { label: "Người dùng (Users)", value: totalUsers, sublabel: "Tài khoản thực", Icon: Users, targetTab: "users" },
-        { label: "Playlists cá nhân", value: health.counts.playlists ?? 0, sublabel: "Danh sách phát", Icon: ListMusic, targetTab: "overview" },
-        { label: "File S3 & Master", value: health.counts.objects ?? 0, sublabel: "Audio & Artwork", Icon: HardDrive, targetTab: "system" },
+        {
+          label: "Playlists cá nhân",
+          value: health.counts.playlists ?? 0,
+          sublabel: "Danh sách phát",
+          Icon: ListMusic,
+          targetTab: "overview",
+        },
+        {
+          label: "File S3 & Master",
+          value: health.counts.objects ?? 0,
+          sublabel: "Audio & Artwork",
+          Icon: HardDrive,
+          targetTab: "system",
+        },
       ]
     : [];
 
@@ -343,7 +361,8 @@ function AdminPage() {
           <ShieldAlert className="size-12 text-amber-400" />
           <h2 className="font-display mt-4 text-2xl">Khu vực Owner</h2>
           <p className="text-muted-foreground mt-2 max-w-md text-sm leading-6">
-            Trang này chỉ dành cho Owner. Đăng nhập bằng tài khoản Owner để quản lý album, tracks, người dùng và hệ thống.
+            Trang này chỉ dành cho Owner. Đăng nhập bằng tài khoản Owner để quản lý album, tracks, người dùng và hệ
+            thống.
           </p>
           <Link
             to="/login"
@@ -496,7 +515,8 @@ function AdminPage() {
                         <h2 className="font-semibold text-base">Dữ liệu Canonical Database</h2>
                       </div>
                       <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
-                        Duckroom V2 quản lý metadata chính thức qua Supabase PostgreSQL và lưu trữ master lossless thuần túy trên S3.
+                        Duckroom V2 quản lý metadata chính thức qua Supabase PostgreSQL và lưu trữ master lossless thuần
+                        túy trên S3.
                       </p>
                       <div className="mt-4 p-3.5 rounded-2xl bg-card/60 border border-white/5 text-xs text-muted-foreground space-y-1.5 font-mono">
                         <p>
@@ -560,14 +580,10 @@ function AdminPage() {
               )}
 
               {/* TAB 3: TRACKS */}
-              {activeTab === "tracks" && (
-                <TracksManagerSection tracks={inventory?.tracks ?? []} />
-              )}
+              {activeTab === "tracks" && <TracksManagerSection tracks={inventory?.tracks ?? []} />}
 
               {/* TAB 4: USERS */}
-              {activeTab === "users" && (
-                <UsersSection initialUsers={users} onRefreshUsers={() => refresh(true)} />
-              )}
+              {activeTab === "users" && <UsersSection initialUsers={users} onRefreshUsers={() => refresh(true)} />}
 
               {/* TAB 5: SYSTEM & TOOLS */}
               {activeTab === "system" && (

@@ -24,14 +24,16 @@ export const Route = createFileRoute("/videos/")({
       { name: "description", content: "Duckroom hiện tập trung hoàn toàn vào âm thanh Lossless & Hi-Res Audio." },
       { property: "og:site_name", content: "Duckroom" },
       { property: "og:title", content: "MV — Duckroom" },
-      { property: "og:description", content: "Duckroom hiện tập trung hoàn toàn vào âm thanh Lossless & Hi-Res Audio." },
+      {
+        property: "og:description",
+        content: "Duckroom hiện tập trung hoàn toàn vào âm thanh Lossless & Hi-Res Audio.",
+      },
     ],
   }),
   component: VideosPage,
 });
 
 function VideosPage() {
-
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 sm:py-20 text-center">
       <div className="border-border bg-card/40 mx-auto flex flex-col items-center gap-4 rounded-3xl border p-12 sm:p-16 shadow-lg backdrop-blur-sm">
@@ -42,7 +44,8 @@ function VideosPage() {
           Tính năng MV đã ngừng hoạt động
         </h1>
         <p className="text-muted-foreground max-w-lg text-sm sm:text-base leading-relaxed">
-          Duckroom hiện đã chuyển sang cấu trúc hoàn toàn tập trung vào âm thanh Lossless & Hi-Res Audio chất lượng cao. Các tính năng video đã được gỡ bỏ khỏi hệ thống.
+          Duckroom hiện đã chuyển sang cấu trúc hoàn toàn tập trung vào âm thanh Lossless & Hi-Res Audio chất lượng cao.
+          Các tính năng video đã được gỡ bỏ khỏi hệ thống.
         </p>
         <motion.div whileTap={tapScale} transition={springSnappy} className="mt-4">
           <Link

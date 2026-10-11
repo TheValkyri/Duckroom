@@ -659,11 +659,10 @@ export function LyricsSearchModal({
                     <div className="size-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
                       <UploadCloud className="size-6" />
                     </div>
-                    <p className="text-sm font-semibold text-foreground">
-                      Kéo thả tệp .LRC vào đây
-                    </p>
+                    <p className="text-sm font-semibold text-foreground">Kéo thả tệp .LRC vào đây</p>
                     <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                      Hệ thống đọc trực tiếp trong trình duyệt của bạn (không lưu vào S3 storage) và bóc tách các mốc thời gian [mm:ss.xx].
+                      Hệ thống đọc trực tiếp trong trình duyệt của bạn (không lưu vào S3 storage) và bóc tách các mốc
+                      thời gian [mm:ss.xx].
                     </p>
                     <label className="mt-4 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer shadow-sm">
                       <span>Chọn tệp .LRC từ máy</span>

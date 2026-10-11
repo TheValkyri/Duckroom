@@ -16,11 +16,7 @@ import {
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { formatTime } from "../../data/library";
-import {
-  updateAlbumDisplayPriorityServer,
-  type OwnerAlbumItem,
-  type OwnerTrackItem,
-} from "../../lib/owner-data";
+import { updateAlbumDisplayPriorityServer, type OwnerAlbumItem, type OwnerTrackItem } from "../../lib/owner-data";
 import { cn } from "../../lib/utils";
 import { SectionCard } from "./SectionCard";
 
@@ -42,14 +38,12 @@ export function AlbumsManagerSection({ albums, singles, tracks, onRefresh }: Alb
 
   const filteredAlbums = albums.filter(
     (a) =>
-      a.title.toLowerCase().includes(search.toLowerCase()) ||
-      a.artist.toLowerCase().includes(search.toLowerCase()),
+      a.title.toLowerCase().includes(search.toLowerCase()) || a.artist.toLowerCase().includes(search.toLowerCase()),
   );
 
   const filteredSingles = singles.filter(
     (s) =>
-      s.title.toLowerCase().includes(search.toLowerCase()) ||
-      s.artist.toLowerCase().includes(search.toLowerCase()),
+      s.title.toLowerCase().includes(search.toLowerCase()) || s.artist.toLowerCase().includes(search.toLowerCase()),
   );
 
   const handleStartEditPriority = (album: OwnerAlbumItem) => {
@@ -189,7 +183,11 @@ export function AlbumsManagerSection({ albums, singles, tracks, onRefresh }: Alb
                               className="p-1 rounded bg-primary text-primary-foreground hover:opacity-90 cursor-pointer disabled:opacity-50"
                               title="Lưu thứ tự"
                             >
-                              {isSavingPriority ? <Loader2 className="size-3 animate-spin" /> : <Check className="size-3" />}
+                              {isSavingPriority ? (
+                                <Loader2 className="size-3 animate-spin" />
+                              ) : (
+                                <Check className="size-3" />
+                              )}
                             </button>
                           </div>
                         ) : (

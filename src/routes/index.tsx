@@ -194,8 +194,7 @@ function Index() {
    * (vốn chỉ đúng khi thư viện thật sự trống). "idle" cũng tính (khoảng 1
    * frame trước khi root effect bắt đầu sync) để không flash empty-state.
    * Sync ngầm sau này (đã có data) không hiện skeleton. */
-  const isInitialHydrating =
-    (status === "idle" || status === "syncing") && tracks.length === 0 && albums.length === 0;
+  const isInitialHydrating = (status === "idle" || status === "syncing") && tracks.length === 0 && albums.length === 0;
 
   const hero = albums[0];
   const heroTracks = useMemo(() => (hero ? albumTracks(hero.id) : []), [hero]);
@@ -276,8 +275,8 @@ function Index() {
               Kho nhạc của bạn đã sẵn sàng
             </h1>
             <p className="text-muted-foreground mt-4 text-sm md:text-base leading-relaxed">
-              Duckroom đã được dọn sạch tất cả dữ liệu mẫu. Hãy đưa các bản thu FLAC 24-bit, WAV của bạn
-              vào kho lưu trữ cá nhân ngay bây giờ.
+              Duckroom đã được dọn sạch tất cả dữ liệu mẫu. Hãy đưa các bản thu FLAC 24-bit, WAV của bạn vào kho lưu trữ
+              cá nhân ngay bây giờ.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               {isOwner && (
@@ -481,15 +480,7 @@ function Index() {
   );
 }
 
-function SectionHead({
-  title,
-  to,
-  badge,
-}: {
-  title: string;
-  to: "/albums" | "/library" | "/singles";
-  badge?: string;
-}) {
+function SectionHead({ title, to, badge }: { title: string; to: "/albums" | "/library" | "/singles"; badge?: string }) {
   return (
     // Redesign 2026-09-04: bỏ border-b divider (feedback "hạn chế kẻ") —
     // section head tách khỏi nội dung bằng khoảng trống tự nhiên.
