@@ -5,6 +5,7 @@ export default defineNitroConfig({
   vercel: {
     functions: {
       maxDuration: 60,
+      regions: ["sin1"],
     },
   },
   publicAssets: [
