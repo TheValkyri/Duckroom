@@ -48,6 +48,7 @@ import {
 import { fetchTrackPlaybackUrl } from "./s3";
 import { useAuth } from "./useAuth";
 import { useLibrary } from "./useLibrary";
+import { syncBrowserTabMedia } from "./tab-media-sync";
 
 export type { RepeatMode } from "./player-queue";
 export type { ReplayGainMode } from "./player-queue";
@@ -1403,29 +1404,53 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const projectedTrackId = isFollower ? (remoteView?.trackId ?? null) : (current?.id ?? null);
   const projectedIsPlaying = isFollower ? !!remoteView?.isPlaying : engineState.isPlaying;
   useEffect(() => {
-    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
     const track =
-      projectedTrackId == null ? undefined : (engineState.queue.find((t) => t.id === projectedTrackId) ?? undefined);
-    if (track) {
-      const fallbackArtwork = "https://duckroom.vercel.app/og-image.jpg";
-      const artUrl = track.cover || fallbackArtwork;
-      try {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: track.title,
-          artist: track.artist,
-          album: track.albumId && track.albumId !== "singles" ? track.albumId : "Duckroom Lossless",
-          artwork: [
-            { src: artUrl, sizes: "96x96", type: "image/jpeg" },
-            { src: artUrl, sizes: "128x128", type: "image/jpeg" },
-            { src: artUrl, sizes: "256x256", type: "image/jpeg" },
-            { src: artUrl, sizes: "512x512", type: "image/jpeg" },
-          ],
-        });
-      } catch {
-        // MediaMetadata unavailable — non-critical.
+      projectedTrackId == null
+        ? undefined
+        : (engineState.queue.find((t) => t.id === projectedTrackId) ??
+          allTracks.find((t) => t.id === projectedTrackId) ??
+          undefined);
+
+    // Sync tab title (▶/⏸ Song • Artist), dynamic artwork favicon, and theme-color
+    syncBrowserTabMedia(
+      track
+        ? {
+            id: track.id,
+            title: track.title,
+            artist: track.artist,
+            cover: track.cover,
+            albumId: track.albumId,
+          }
+        : null,
+      projectedIsPlaying,
+    );
+
+    if (typeof navigator !== "undefined" && "mediaSession" in navigator) {
+      if (track) {
+        const fallbackArtwork = "https://duckroom.vercel.app/og-image.jpg";
+        const artUrl = track.cover || fallbackArtwork;
+        try {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: track.title,
+            artist: track.artist,
+            album: track.albumId && track.albumId !== "singles" ? track.albumId : "Duckroom Lossless",
+            artwork: [
+              { src: artUrl, sizes: "96x96", type: "image/jpeg" },
+              { src: artUrl, sizes: "128x128", type: "image/jpeg" },
+              { src: artUrl, sizes: "256x256", type: "image/jpeg" },
+              { src: artUrl, sizes: "512x512", type: "image/jpeg" },
+            ],
+          });
+        } catch {
+          // MediaMetadata unavailable — non-critical.
+        }
       }
+      navigator.mediaSession.playbackState = projectedIsPlaying ? "playing" : "paused";
     }
-    navigator.mediaSession.playbackState = projectedIsPlaying ? "playing" : "paused";
+
+    return () => {
+      syncBrowserTabMedia(null, false);
+    };
   }, [projectedTrackId, projectedIsPlaying, engineState.queue]);
 
   // ---- Hotkeys (unchanged contract) ----------------------------------------
