@@ -1,4 +1,4 @@
-import { Check, Moon, Palette, Sun } from "lucide-react";
+import { Check, Moon, Palette, Sun, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useMemo, useRef } from "react";
 import {
@@ -243,7 +243,7 @@ export function ThemePicker({
               aria-label="Đóng bảng tùy chỉnh giao diện"
               className="text-muted-foreground hover:text-foreground hover:bg-white/10 grid size-9 place-items-center rounded-full transition-colors cursor-pointer"
             >
-              ✕
+              <X className="size-4" />
             </button>
           </div>
           {panel}
@@ -286,7 +286,7 @@ export function ThemePicker({
                 aria-label="Đóng bảng tùy chỉnh giao diện"
                 className="text-muted-foreground hover:text-foreground hover:bg-accent/60 grid size-9 place-items-center rounded-full transition-colors cursor-pointer"
               >
-                ✕
+                <X className="size-4" />
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto">{panel}</div>

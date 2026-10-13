@@ -91,20 +91,20 @@ function TrackRowItem({
           : "border-white/5 bg-card/40 hover:border-white/15 hover:bg-card/70",
       )}
     >
-      {/* Rank */}
+      {/* Rank Badge */}
       <span
         className={cn(
-          "w-6 text-center text-xs font-bold tabular-nums shrink-0",
+          "inline-flex size-6 items-center justify-center rounded-lg text-xs font-bold tabular-nums shrink-0 border",
           rank === 1
-            ? "text-amber-400"
+            ? "border-amber-400/40 text-amber-300 bg-amber-400/10 shadow-sm"
             : rank === 2
-              ? "text-slate-300"
+              ? "border-slate-300/40 text-slate-200 bg-slate-300/10 shadow-sm"
               : rank === 3
-                ? "text-amber-600"
-                : "text-muted-foreground",
+                ? "border-amber-700/40 text-amber-600 bg-amber-700/10 shadow-sm"
+                : "border-transparent text-muted-foreground bg-white/5",
         )}
       >
-        {rank <= 3 ? (rank === 1 ? "🥇" : rank === 2 ? "🥈" : "🥉") : `#${rank}`}
+        #{rank}
       </span>
 
       {/* Artwork with play button overlay */}
@@ -255,23 +255,20 @@ function StatsPage() {
                 <div key={a.artist} className="flex items-center gap-3.5 sm:gap-4">
                   {/* Rank Badge */}
                   <div className="shrink-0 w-8 text-center">
-                    {rank === 1 ? (
-                      <span className="inline-flex size-8 items-center justify-center rounded-xl bg-amber-500/20 border border-amber-500/30 text-base shadow-sm">
-                        🥇
-                      </span>
-                    ) : rank === 2 ? (
-                      <span className="inline-flex size-8 items-center justify-center rounded-xl bg-slate-400/20 border border-slate-400/30 text-base shadow-sm">
-                        🥈
-                      </span>
-                    ) : rank === 3 ? (
-                      <span className="inline-flex size-8 items-center justify-center rounded-xl bg-amber-700/20 border border-amber-700/30 text-base shadow-sm">
-                        🥉
-                      </span>
-                    ) : (
-                      <span className="inline-flex size-8 items-center justify-center rounded-xl bg-white/5 border border-white/5 text-xs font-bold text-muted-foreground">
-                        #{rank}
-                      </span>
-                    )}
+                    <span
+                      className={cn(
+                        "inline-flex size-8 items-center justify-center rounded-xl text-xs font-bold tabular-nums border shadow-sm",
+                        rank === 1
+                          ? "border-amber-400/40 text-amber-300 bg-amber-400/10"
+                          : rank === 2
+                            ? "border-slate-300/40 text-slate-200 bg-slate-300/10"
+                            : rank === 3
+                              ? "border-amber-700/40 text-amber-600 bg-amber-700/10"
+                              : "border-white/5 bg-white/5 text-muted-foreground",
+                      )}
+                    >
+                      #{rank}
+                    </span>
                   </div>
 
                   {/* Progress Bar & Name */}

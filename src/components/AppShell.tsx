@@ -2,6 +2,7 @@ import { Link, useLocation } from "@tanstack/react-router";
 import {
   BarChart3,
   CheckCircle2,
+  Crown,
   Disc,
   Disc3,
   Film,
@@ -94,7 +95,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   useScrollLock(moreOpen);
   const [themeOpen, setThemeOpen] = useState(false);
   const [themeOrigin, setThemeOrigin] = useState<{ x: number; y: number } | null>(null);
-  // F4: Command Palette — Ctrl+K (desktop) / nút 🔍 (mobile header).
+  // F4: Command Palette — Ctrl+K (desktop) / nút tìm kiếm (mobile header).
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [friendsOpen, setFriendsOpen] = useState(false);
   const [discordSidebarOpen, setDiscordSidebarOpen] = useState(true);
@@ -335,7 +336,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               className="px-3 py-3 rounded-xl bg-card/40 border border-white/5 text-[11px] leading-relaxed text-muted-foreground"
             >
               <p className="font-semibold text-foreground mb-0.5 flex items-center gap-1.5">
-                <span>🦆 Duckroom Master</span>
+                <Crown className="size-3.5 text-primary shrink-0" />
+                <span>Duckroom Master</span>
               </p>
               Phát bản thu gốc Hi-Res 24-bit / 96kHz không nén.
             </motion.div>
@@ -577,7 +579,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <AnimatePresence>
         {themeOpen && <ThemePicker open={themeOpen} onClose={() => setThemeOpen(false)} triggerOrigin={themeOrigin} />}
       </AnimatePresence>
-      {/* F4: Command Palette — Ctrl+K desktop, nút 🔍 mobile header. */}
+      {/* F4: Command Palette — Ctrl+K desktop, nút tìm kiếm mobile header. */}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       {/* Mobile Friends Sheet (§4, §23) */}
       <FriendsSheet open={friendsOpen} onClose={() => setFriendsOpen(false)} />

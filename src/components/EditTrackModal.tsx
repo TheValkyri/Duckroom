@@ -1,4 +1,17 @@
-import { Image, Loader2, Scissors, Sparkles, Wand2, X, Zap, FastForward, Rewind, FileText } from "lucide-react";
+import {
+  AlertCircle,
+  Disc,
+  FastForward,
+  FileText,
+  Image,
+  Loader2,
+  Rewind,
+  Scissors,
+  Sparkles,
+  Wand2,
+  X,
+  Zap,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { ArtworkCropModal } from "./ArtworkCropModal";
@@ -61,7 +74,7 @@ export function EditTrackModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isFetchingLyrics, setIsFetchingLyrics] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [noticeMsg, setNoticeMsg] = useState("");
+  const [notice, setNotice] = useState<{ text: string; type: "success" | "warning" | "shift" } | null>(null);
 
   const availableAlbums = useMemo(() => albums.filter((a) => a.id !== "singles" && a.id !== "single-collection"), []);
 
@@ -321,9 +334,10 @@ export function EditTrackModal({
                   <button
                     type="button"
                     onClick={() => setAlbumName("")}
-                    className="text-[11px] text-primary hover:underline cursor-pointer"
+                    className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline cursor-pointer"
                   >
-                    🎵 Đặt làm Đĩa đơn
+                    <Disc className="size-3" />
+                    <span>Đặt làm Đĩa đơn</span>
                   </button>
                 </div>
                 <input
@@ -403,15 +417,19 @@ export function EditTrackModal({
                         const text = await file.text();
                         const lines = parseLrc(text);
                         if (lines.length === 0) {
-                          setNoticeMsg("⚠️ Tệp này không chứa định dạng thời gian LRC hợp lệ [mm:ss.xx].");
+                          setNotice({
+                            text: "Tệp này không chứa định dạng thời gian LRC hợp lệ [mm:ss.xx].",
+                            type: "warning",
+                          });
                           return;
                         }
                         setLyricsText(text);
                         setLyricsSource(`Uploaded .LRC: ${file.name}`);
-                        setNoticeMsg(
-                          `✨ Đã nạp thành công ${lines.length} dòng lời đồng bộ từ "${file.name}"! Nhớ bấm Lưu để cập nhật.`,
-                        );
-                        setTimeout(() => setNoticeMsg(""), 5000);
+                        setNotice({
+                          text: `Đã nạp thành công ${lines.length} dòng lời đồng bộ từ "${file.name}"! Nhớ bấm Lưu để cập nhật.`,
+                          type: "success",
+                        });
+                        setTimeout(() => setNotice(null), 5000);
                         e.target.value = "";
                       }}
                     />
@@ -431,8 +449,11 @@ export function EditTrackModal({
                       type="button"
                       onClick={() => {
                         setLyricsText(beautifyLrcString(lyricsText));
-                        setNoticeMsg("✨ Đã chuẩn hoá định dạng mốc thời gian LRC!");
-                        setTimeout(() => setNoticeMsg(""), 3500);
+                        setNotice({
+                          text: "Đã chuẩn hoá định dạng mốc thời gian LRC!",
+                          type: "success",
+                        });
+                        setTimeout(() => setNotice(null), 3500);
                       }}
                       className="text-muted-foreground hover:text-foreground text-[11px] hover:underline cursor-pointer flex items-center gap-1"
                       title="Sắp xếp và chuẩn hóa định dạng các mốc thời gian"
@@ -464,8 +485,11 @@ export function EditTrackModal({
                         onClick={() => {
                           const shifted = shiftLrcTime(lyricsText, btn.val);
                           setLyricsText(shifted);
-                          setNoticeMsg(`⏩ Đã dịch chuyển toàn bộ lời ${btn.label} so với bản nhạc!`);
-                          setTimeout(() => setNoticeMsg(""), 3000);
+                          setNotice({
+                            text: `Đã dịch chuyển toàn bộ lời ${btn.label} so với bản nhạc!`,
+                            type: "shift",
+                          });
+                          setTimeout(() => setNotice(null), 3000);
                         }}
                         className="bg-card hover:bg-primary/20 hover:text-primary border border-border px-1.5 py-0.5 rounded text-[10px] font-mono transition-colors cursor-pointer"
                       >
@@ -476,9 +500,23 @@ export function EditTrackModal({
                 </div>
               )}
 
-              {noticeMsg && (
-                <div className="mb-2 text-xs text-primary font-medium bg-primary/10 border border-primary/20 rounded-md px-2.5 py-1 animate-fadeIn">
-                  {noticeMsg}
+              {notice && (
+                <div
+                  className={cn(
+                    "mb-2 flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium animate-fadeIn",
+                    notice.type === "warning"
+                      ? "border border-amber-500/20 bg-amber-500/10 text-amber-500"
+                      : "border border-primary/20 bg-primary/10 text-primary",
+                  )}
+                >
+                  {notice.type === "warning" ? (
+                    <AlertCircle className="size-3.5 shrink-0 text-amber-500" />
+                  ) : notice.type === "shift" ? (
+                    <FastForward className="size-3.5 shrink-0 text-primary" />
+                  ) : (
+                    <Sparkles className="size-3.5 shrink-0 text-primary" />
+                  )}
+                  <span>{notice.text}</span>
                 </div>
               )}
 
@@ -494,15 +532,19 @@ export function EditTrackModal({
                     const text = await file.text();
                     const lines = parseLrc(text);
                     if (lines.length === 0) {
-                      setNoticeMsg("⚠️ Tệp này không chứa định dạng thời gian LRC hợp lệ [mm:ss.xx].");
+                      setNotice({
+                        text: "Tệp này không chứa định dạng thời gian LRC hợp lệ [mm:ss.xx].",
+                        type: "warning",
+                      });
                       return;
                     }
                     setLyricsText(text);
                     setLyricsSource(`Uploaded .LRC: ${file.name}`);
-                    setNoticeMsg(
-                      `✨ Đã nạp thành công ${lines.length} dòng lời đồng bộ từ "${file.name}"! Nhớ bấm Lưu để cập nhật.`,
-                    );
-                    setTimeout(() => setNoticeMsg(""), 5000);
+                    setNotice({
+                      text: `Đã nạp thành công ${lines.length} dòng lời đồng bộ từ "${file.name}"! Nhớ bấm Lưu để cập nhật.`,
+                      type: "success",
+                    });
+                    setTimeout(() => setNotice(null), 5000);
                   }
                 }}
                 placeholder="[00:15.00] Nhập, dán hoặc kéo thả tệp .LRC vào đây..."

@@ -1411,7 +1411,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           allTracks.find((t) => t.id === projectedTrackId) ??
           undefined);
 
-    // Sync tab title (▶/⏸ Song • Artist), dynamic artwork favicon, and theme-color
+    // Sync tab title (Play/Pause Song • Artist), dynamic artwork favicon, and theme-color
     syncBrowserTabMedia(
       track
         ? {

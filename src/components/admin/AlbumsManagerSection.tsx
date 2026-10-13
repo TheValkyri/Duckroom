@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowUpDown,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Clock,
@@ -61,7 +62,7 @@ export function AlbumsManagerSection({ albums, singles, tracks, onRefresh }: Alb
           displayPriority: Number(priorityValue),
         },
       });
-      setActionMsg("✅ Đã cập nhật thứ tự hiển thị album!");
+      setActionMsg("Đã cập nhật thứ tự hiển thị album!");
       setEditingPriorityId(null);
       await onRefresh();
     } catch (err: any) {
@@ -116,7 +117,12 @@ export function AlbumsManagerSection({ albums, singles, tracks, onRefresh }: Alb
             className="w-full pl-9 pr-4 py-2 text-xs bg-background/60 border border-border rounded-xl outline-none focus:border-primary/50 transition-colors"
           />
         </div>
-        {actionMsg && <span className="text-xs text-emerald-400 font-medium">{actionMsg}</span>}
+        {actionMsg && (
+          <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
+            <CheckCircle2 className="size-3.5 shrink-0" />
+            <span>{actionMsg}</span>
+          </span>
+        )}
       </div>
 
       {activeTab === "albums" ? (

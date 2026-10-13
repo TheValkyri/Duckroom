@@ -88,7 +88,7 @@ describe("tab-media-sync test suite", () => {
     };
 
     syncBrowserTabMedia(track, true);
-    expect(titleVal).toBe("▶ HVL • MCK — Duckroom");
+    expect(titleVal).toBe("\u25B6\uFE0E HVL • MCK — Duckroom");
   });
 
   it("updates document.title with pause prefix when track is paused", () => {
@@ -100,7 +100,7 @@ describe("tab-media-sync test suite", () => {
     };
 
     syncBrowserTabMedia(track, false);
-    expect(titleVal).toBe("⏸ Bạn Thỏ Tivi Nhỏ • Ngọt — Duckroom");
+    expect(titleVal).toBe("\u23F8\uFE0E Bạn Thỏ Tivi Nhỏ • Ngọt — Duckroom");
   });
 
   it("reverts document.title and favicon when playback stops", () => {
@@ -139,7 +139,7 @@ describe("tab-media-sync test suite", () => {
     };
 
     syncBrowserTabMedia(track, true);
-    expect(titleVal).toBe("▶ Không ảnh bìa • Nghệ sĩ — Duckroom");
+    expect(titleVal).toBe("\u25B6\uFE0E Không ảnh bìa • Nghệ sĩ — Duckroom");
     expect(fakeDocAppendedFavicon(iconLinks, "/favicon.svg")).toBe(true);
   });
 

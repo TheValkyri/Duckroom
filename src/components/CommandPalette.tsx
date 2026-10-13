@@ -25,7 +25,7 @@ import { cn } from "../lib/utils";
  * COMMAND PALETTE (F4 2026-09-04).
  *
  * Desktop: Ctrl+K / Cmd+K mở. Mobile: KHÔNG có phím — AppShell header có
- * nút 🔍 riêng (44px) mở cùng modal này (feedback: "trên điện thoại làm
+ * nút tìm kiếm riêng (44px) mở cùng modal này (feedback: "trên điện thoại làm
  * gì Ctrl K được").
  *
  * Thiết kế theo quy ước motion của app: vào bằng spring smooth (không

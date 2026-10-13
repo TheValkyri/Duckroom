@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Check,
+  CheckCircle2,
   Disc,
   ExternalLink,
   FileText,
@@ -12,6 +13,7 @@ import {
   Rewind,
   Search,
   Sparkles,
+  Star,
   UploadCloud,
   Wand2,
   X,
@@ -412,7 +414,14 @@ export function LyricsSearchModal({
                                       : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
                                   )}
                                 >
-                                  {isCommunity ? "⭐ Verified LRC" : "LRC"}
+                                  {isCommunity ? (
+                                    <span className="inline-flex items-center gap-1">
+                                      <Star className="size-2.5 fill-current shrink-0" />
+                                      <span>Verified LRC</span>
+                                    </span>
+                                  ) : (
+                                    "LRC"
+                                  )}
                                 </span>
                               ) : (
                                 <span className="px-2 py-0.5 rounded text-[9px] font-medium bg-muted text-muted-foreground border border-border shrink-0 uppercase tracking-wide">
@@ -450,10 +459,18 @@ export function LyricsSearchModal({
                               {selectedResult.trackName}
                               <span className="font-normal text-muted-foreground"> — {selectedResult.artistName}</span>
                             </h4>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
-                              {selectedResult.isSynced
-                                ? "✨ Lời bài hát đã có sẵn mốc thời gian LRC đồng bộ chuẩn"
-                                : "⚡ Lời thuần văn bản (sẽ tự động canh nhịp khi áp dụng)"}
+                            <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                              {selectedResult.isSynced ? (
+                                <>
+                                  <CheckCircle2 className="size-3 text-emerald-400 shrink-0" />
+                                  <span>Lời bài hát đã có sẵn mốc thời gian LRC đồng bộ chuẩn</span>
+                                </>
+                              ) : (
+                                <>
+                                  <FileText className="size-3 text-muted-foreground shrink-0" />
+                                  <span>Lời thuần văn bản (sẽ tự động canh nhịp khi áp dụng)</span>
+                                </>
+                              )}
                               {selectedResult.source && (
                                 <span className="ml-2 opacity-60">• {selectedResult.source}</span>
                               )}
@@ -552,7 +569,7 @@ export function LyricsSearchModal({
                     >
                       <Zap className="size-3.5" />
                       <span>
-                        ⚡ Tự động canh nhịp thời lượng ({Math.floor(audioDuration / 60)}:
+                        Tự động canh nhịp thời lượng ({Math.floor(audioDuration / 60)}:
                         {(audioDuration % 60).toString().padStart(2, "0")})
                       </span>
                     </button>
@@ -583,9 +600,7 @@ export function LyricsSearchModal({
                         <span>Kết quả File LRC Đồng Bộ</span>
                       </h3>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {pastedPacedLrc
-                          ? "✨ Đã canh nhịp mượt mà theo từng câu hát"
-                          : "Chờ bạn dán lời và bấm canh nhịp"}
+                        {pastedPacedLrc ? "Đã canh nhịp mượt mà theo từng câu hát" : "Chờ bạn dán lời và bấm canh nhịp"}
                       </p>
                     </div>
                     <button
@@ -718,7 +733,7 @@ export function LyricsSearchModal({
                       </h3>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         {uploadedLrcText
-                          ? `✨ Đã nhận diện ${parseLrc(uploadedLrcText).length} mốc thời gian`
+                          ? `Đã nhận diện ${parseLrc(uploadedLrcText).length} mốc thời gian`
                           : "Chờ bạn chọn hoặc kéo thả tệp .LRC"}
                       </p>
                     </div>

@@ -562,7 +562,7 @@ async function processLocalPreAnalysis(itemId: string) {
       artworkUploadUrl: (sessionRes as any).artworkUploadUrl || null,
       stage: "waiting_review",
       progressPercent: 100,
-      progressText: isDuplicate ? "⚠️ Đã phát hiện bản sao SHA-256 trong thư viện" : "Sẵn sàng duyệt thông tin",
+      progressText: isDuplicate ? "Đã phát hiện bản sao SHA-256 trong thư viện" : "Sẵn sàng duyệt thông tin",
       duplicate: {
         status: sessionRes.duplicateStatus,
         matchedEntity: sessionRes.matchedEntity ?? undefined,
@@ -994,10 +994,10 @@ async function commitVerifiedItem(itemId: string, item: IngestionItem): Promise<
     stage: "complete",
     progressPercent: 100,
     progressText: (commitRes as any)?.resolvedToExisting
-      ? "✨ Đã liên kết với bản ghi có sẵn trong thư viện!"
+      ? "Đã liên kết với bản ghi có sẵn trong thư viện!"
       : (commitRes as any)?.cancelled
         ? "Đã hủy theo quyết định trùng lặp."
-        : "✨ Đã nhập kho lưu trữ chính thức thành công!",
+        : "Đã nhập kho lưu trữ chính thức thành công!",
     committedEntity: commitRes.entity,
   });
 

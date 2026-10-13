@@ -1,4 +1,4 @@
-import { Check, Move, RotateCcw, Scissors, Sparkles, X, ZoomIn } from "lucide-react";
+import { Check, Move, RectangleHorizontal, RotateCcw, Scissors, Sparkles, Square, X, ZoomIn } from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
@@ -176,7 +176,10 @@ export function ArtworkCropModal({
                       className="absolute inset-0 rounded-lg bg-primary/20 -z-10"
                     />
                   )}
-                  🟩 Vuông (1:1 - Chuẩn Bìa Album)
+                  <span className="inline-flex items-center">
+                    <Square className="size-3.5 mr-1.5 inline-block" />
+                    <span>Vuông (1:1 - Chuẩn Bìa Album)</span>
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -194,7 +197,10 @@ export function ArtworkCropModal({
                       className="absolute inset-0 rounded-lg bg-primary/20 -z-10"
                     />
                   )}
-                  ▭ Ngang (16:9 - Chuẩn MV Wallpaper)
+                  <span className="inline-flex items-center">
+                    <RectangleHorizontal className="size-3.5 mr-1.5 inline-block" />
+                    <span>Ngang (16:9 - Chuẩn MV Wallpaper)</span>
+                  </span>
                 </button>
               </div>
             </div>

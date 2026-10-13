@@ -171,12 +171,21 @@ function setThemeColor(color: string | null) {
   }
 }
 
+const PLAY_PREFIX = "\u25B6\uFE0E ";
+const PAUSE_PREFIX = "\u23F8\uFE0E ";
+
+function isTrackTitle(title: string): boolean {
+  return (
+    title.startsWith(PLAY_PREFIX) || title.startsWith(PAUSE_PREFIX) || title.startsWith("▶ ") || title.startsWith("⏸ ")
+  );
+}
+
 /**
  * Applies the formatted title to document.title.
  */
 function applyTrackTitle(track: SyncTrackInfo, isPlaying: boolean) {
   if (typeof document === "undefined") return;
-  const prefix = isPlaying ? "▶ " : "⏸ ";
+  const prefix = isPlaying ? PLAY_PREFIX : PAUSE_PREFIX;
   document.title = `${prefix}${track.title} • ${track.artist} — Duckroom`;
 }
 
@@ -246,7 +255,7 @@ function initTitleWatcher() {
     const observer = new MutationObserver(() => {
       if (!currentActiveTrack) {
         originalRouteTitle = document.title;
-      } else if (!document.title.startsWith("▶ ") && !document.title.startsWith("⏸ ")) {
+      } else if (!isTrackTitle(document.title)) {
         originalRouteTitle = document.title;
         applyTrackTitle(currentActiveTrack, currentIsPlaying);
       }
@@ -264,7 +273,7 @@ export function syncBrowserTabMedia(track: SyncTrackInfo | null, isPlaying: bool
   initTitleWatcher();
 
   if (track) {
-    if (!currentActiveTrack && document.title && !document.title.startsWith("▶ ") && !document.title.startsWith("⏸ ")) {
+    if (!currentActiveTrack && document.title && !isTrackTitle(document.title)) {
       originalRouteTitle = document.title;
     }
     currentActiveTrack = track;

@@ -6,6 +6,7 @@ import {
   Eye,
   FastForward,
   FileText,
+  Mic,
   Minus,
   Pause,
   Play,
@@ -456,8 +457,8 @@ export function LrcLiveSyncModal({ isOpen, onClose, audioFile, initialLyrics, on
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border/80 bg-muted/40">
               <div className="flex items-center gap-3">
-                <div className="size-9 rounded-xl bg-primary/20 text-primary flex items-center justify-center font-bold shadow-sm">
-                  🎙️
+                <div className="size-9 rounded-xl bg-primary/20 text-primary flex items-center justify-center shadow-sm">
+                  <Mic className="size-4" />
                 </div>
                 <div>
                   <h2 className="font-semibold text-sm sm:text-base flex items-center gap-2">

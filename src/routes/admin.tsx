@@ -3,6 +3,7 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle2,
+  Clock,
   Database,
   Disc,
   Disc3,
@@ -164,7 +165,7 @@ function AdminPage() {
       setOrphanScanResult(res);
       if (res?.s3Unreachable) {
         setActionSuccess(
-          `✅ Đã kiểm tra cơ sở dữ liệu: ${res.activeReferencedObjects} file đang được liên kết chuẩn xác 100%.`,
+          `Đã kiểm tra cơ sở dữ liệu: ${res.activeReferencedObjects} file đang được liên kết chuẩn xác 100%.`,
         );
       } else {
         setActionSuccess(`Đã quét xong: Tìm thấy ${res?.orphanKeys?.length ?? 0} file mồ côi trên S3.`);
@@ -196,7 +197,7 @@ function AdminPage() {
     setIsDeletingSingle(true);
     try {
       await cleanupOrphanS3ObjectsServer({ data: { keys: [key] } });
-      setActionSuccess(`✅ Đã xóa file rác "${key}" khỏi S3!`);
+      setActionSuccess(`Đã xóa file rác "${key}" khỏi S3!`);
       if (orphanScanResult) {
         setOrphanScanResult({
           ...orphanScanResult,
@@ -222,7 +223,7 @@ function AdminPage() {
     setError(null);
     try {
       const res = await cleanupOrphanS3ObjectsServer({ data: { keys } });
-      setActionSuccess(`✅ Đã dọn dẹp thành công ${res.deletedCount} file rác khỏi S3!`);
+      setActionSuccess(`Đã dọn dẹp thành công ${res.deletedCount} file rác khỏi S3!`);
       setOrphanScanResult(null);
       void refresh(true);
     } catch (err) {
@@ -238,7 +239,7 @@ function AdminPage() {
     try {
       const res = await createBackupSnapshotServer();
       setActionSuccess(
-        `✅ Đã tạo bản sao lưu Snapshot S3 thành công (${res?.tracks ?? 0} bài hát, ${res?.albums ?? 0} album)!`,
+        `Đã tạo bản sao lưu Snapshot S3 thành công (${res?.tracks ?? 0} bài hát, ${res?.albums ?? 0} album)!`,
       );
       void refresh(true);
     } catch (err) {
@@ -518,16 +519,25 @@ function AdminPage() {
                         Duckroom V2 quản lý metadata chính thức qua Supabase PostgreSQL và lưu trữ master lossless thuần
                         túy trên S3.
                       </p>
-                      <div className="mt-4 p-3.5 rounded-2xl bg-card/60 border border-white/5 text-xs text-muted-foreground space-y-1.5 font-mono">
-                        <p>
-                          🟢 <strong>PostgreSQL:</strong> Kết nối trực tiếp RLS Active
+                      <div className="mt-4 p-3.5 rounded-2xl bg-card/60 border border-white/5 text-xs text-muted-foreground space-y-2 font-mono">
+                        <p className="flex items-center gap-2">
+                          <span className="size-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                          <span>
+                            <strong>PostgreSQL:</strong> Kết nối trực tiếp RLS Active
+                          </span>
                         </p>
-                        <p>
-                          👥 <strong>Realtime Auth:</strong> Tự động đồng bộ tài khoản Google OAuth
+                        <p className="flex items-center gap-2">
+                          <Users className="size-3.5 text-muted-foreground shrink-0" />
+                          <span>
+                            <strong>Realtime Auth:</strong> Tự động đồng bộ tài khoản Google OAuth
+                          </span>
                         </p>
-                        <p>
-                          🕒 <strong>Lần quét gần nhất:</strong>{" "}
-                          {health.generatedAt ? new Date(health.generatedAt).toLocaleString("vi-VN") : "Vừa xong"}
+                        <p className="flex items-center gap-2">
+                          <Clock className="size-3.5 text-muted-foreground shrink-0" />
+                          <span>
+                            <strong>Lần quét gần nhất:</strong>{" "}
+                            {health.generatedAt ? new Date(health.generatedAt).toLocaleString("vi-VN") : "Vừa xong"}
+                          </span>
                         </p>
                       </div>
                     </div>

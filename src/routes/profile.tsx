@@ -13,6 +13,7 @@ import {
   Pencil,
   Shield,
   User,
+  UserCheck,
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -493,8 +494,9 @@ function ProfilePage() {
                 Owner Console
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-primary border border-primary/20">
-                🦆 Member
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-primary border border-primary/20">
+                <UserCheck className="size-3.5" />
+                <span>Member</span>
               </span>
             )}
           </div>

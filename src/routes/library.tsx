@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Music2, RefreshCw, Search, Trash2, UploadCloud, X } from "lucide-react";
+import { Disc3, Music2, RefreshCw, Search, Trash2, UploadCloud, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TrackRow } from "../components/TrackRow";
@@ -148,7 +148,7 @@ function LibraryPage() {
   const filterTabs = useMemo(
     () => [
       { id: "all", title: "Tất cả" },
-      ...(hasSingles ? [{ id: "singles", title: "🎵 Đĩa đơn" }] : []),
+      ...(hasSingles ? [{ id: "singles", title: "Đĩa đơn" }] : []),
       ...filteredAlbums,
     ],
     [hasSingles, filteredAlbums],
@@ -242,7 +242,7 @@ function LibraryPage() {
               className="w-full bg-card/70 border border-border focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl pl-9.5 pr-10 py-2.5 text-sm outline-none transition-all"
             />
             {/* QoL A7: Lịch sử tìm kiếm — hiện khi input rỗng + focus.
-                Chọn mục = điền + search + đóng; nút ✕ xóa từng mục. */}
+                Chọn mục = điền + search + đóng; nút xóa từng mục. */}
             {showHistory && history.length > 0 && !q && (
               <div
                 role="listbox"
@@ -319,7 +319,10 @@ function LibraryPage() {
                       className="absolute inset-0 rounded-full bg-primary"
                     />
                   )}
-                  <span className="relative z-10">{a.title}</span>
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    {a.id === "singles" && <Disc3 className="size-3.5" />}
+                    <span>{a.title}</span>
+                  </span>
                 </button>
               );
             })}

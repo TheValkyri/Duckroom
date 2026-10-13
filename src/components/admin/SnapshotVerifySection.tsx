@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, RefreshCw, Save, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, RefreshCw, Save, ShieldAlert } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { springSnappy, tapScale } from "../../lib/motion";
@@ -148,8 +148,11 @@ export function SnapshotVerifySection() {
           </div>
 
           {reconcileResult.purgedGhostCount && reconcileResult.purgedGhostCount > 0 ? (
-            <p className="text-emerald-400 text-[11px]">
-              ✓ Đã dọn dẹp thành công {reconcileResult.purgedGhostCount} ghost tracks và cập nhật library_manifest.json!
+            <p className="text-emerald-400 text-[11px] flex items-center gap-1.5">
+              <Check className="size-3.5 shrink-0" />
+              <span>
+                Đã dọn dẹp thành công {reconcileResult.purgedGhostCount} ghost tracks và cập nhật library_manifest.json!
+              </span>
             </p>
           ) : null}
         </div>
@@ -173,7 +176,13 @@ export function SnapshotVerifySection() {
               <div key={label} className="border-border bg-background/50 rounded-xl border p-3 text-center">
                 <p className="text-muted-foreground text-[10px] uppercase tracking-wider">{label}</p>
                 <p className="mt-1 font-semibold tabular-nums">
-                  {drift === 0 ? "✓ đồng bộ" : `${drift > 0 ? "+" : ""}${drift}`}
+                  {drift === 0 ? (
+                    <span className="inline-flex items-center gap-1 text-emerald-400">
+                      <Check className="size-3.5" /> đồng bộ
+                    </span>
+                  ) : (
+                    `${drift > 0 ? "+" : ""}${drift}`
+                  )}
                 </p>
               </div>
             ))}
