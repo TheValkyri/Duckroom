@@ -292,6 +292,7 @@ export function NowPlaying() {
                 <div
                   data-drag-dismiss
                   onPointerDown={startDragDismiss}
+                  style={{ perspective: 1000 }}
                   className={cn(
                     "relative flex items-center justify-center w-full",
                     isPhone ? "my-1 min-h-[min(38vh,300px)]" : "my-2 min-h-[min(36vh,290px)]",
@@ -302,28 +303,29 @@ export function NowPlaying() {
                       key={current.id}
                       initial={{
                         opacity: 0,
-                        x: direction * 48,
-                        scale: 0.94,
+                        x: direction * 52,
+                        rotateY: direction * 8,
+                        scale: 0.92,
                       }}
                       animate={{
                         opacity: 1,
                         x: 0,
+                        rotateY: 0,
                         scale: 1,
                       }}
                       exit={{
                         opacity: 0,
-                        x: -direction * 48,
-                        scale: 0.94,
+                        x: -direction * 52,
+                        rotateY: -direction * 8,
+                        scale: 0.92,
                       }}
                       transition={{
-                        // Fix 2026-08-25: bỏ rotate + rút ngắn quãng trượt, spring
-                        // nhanh hơn — animation nhiều ≠ mượt; chuyển bài phải
-                        // "đáp" gọn thay vì lơ lửng nảy vài trăm ms.
                         type: "spring",
-                        stiffness: 340,
-                        damping: 32,
-                        mass: 0.8,
+                        stiffness: 280,
+                        damping: 28,
+                        mass: 0.85,
                       }}
+                      style={{ perspective: 1000, transformStyle: "preserve-3d" }}
                       className="relative flex items-center justify-center w-full"
                     >
                       {/* Spinning Vinyl Record Disc - Slides out from behind the sleeve */}

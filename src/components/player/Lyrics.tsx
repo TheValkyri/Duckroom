@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { usePlayer, usePlayerTime, usePlayerTimeSnapshot } from "../../lib/player";
 import { applyLyricsOffset } from "../../lib/lyrics-formatter";
 import { cn } from "../../lib/utils";
@@ -93,10 +93,13 @@ function animateScrollTo(el: HTMLElement, target: number, maxDuration = 640) {
  * easeDuck app-wide + duration 340ms khớp nhịp scroll mới.
  * ------------------------------------------------------------------------ */
 const LINE_BASE =
-  "text-left font-sans font-bold tracking-tight leading-snug md:leading-normal [transition:color_340ms_cubic-bezier(0.16,1,0.3,1),opacity_340ms_cubic-bezier(0.16,1,0.3,1),transform_340ms_cubic-bezier(0.16,1,0.3,1)] transform-gpu cursor-pointer group block w-full outline-none antialiased [text-wrap:balance] [text-wrap:pretty] break-words [word-break:keep-all]";
-const LINE_ACTIVE = "text-white opacity-100 scale-[1.02] origin-left";
-const LINE_PASSED = "text-white/45 opacity-45 hover:text-white/85 hover:opacity-85 hover:scale-[1.01] origin-left";
-const LINE_FUTURE = "text-white/20 opacity-25 hover:text-white/80 hover:opacity-80 hover:scale-[1.01] origin-left";
+  "text-left font-sans tracking-tight leading-snug md:leading-normal [transition:filter_400ms_cubic-bezier(0.16,1,0.3,1),opacity_400ms_cubic-bezier(0.16,1,0.3,1),transform_400ms_cubic-bezier(0.16,1,0.3,1),color_300ms_ease] transform-gpu cursor-pointer group block w-full outline-none antialiased [text-wrap:balance] break-words";
+const LINE_ACTIVE =
+  "text-white opacity-100 scale-[1.03] origin-left font-bold blur-none drop-shadow-[0_2px_14px_rgba(255,255,255,0.18)]";
+const LINE_PASSED =
+  "text-white/45 opacity-40 blur-[0.8px] scale-[1.0] origin-left hover:text-white/90 hover:opacity-90 hover:blur-none hover:scale-[1.01] active:blur-none active:opacity-90";
+const LINE_FUTURE =
+  "text-white/25 opacity-25 blur-[1.4px] scale-[0.98] origin-left hover:text-white/85 hover:opacity-85 hover:blur-none hover:scale-[1.01] active:blur-none active:opacity-90";
 
 function lineClass(i: number, activeIndex: number): string {
   if (i === activeIndex) return LINE_ACTIVE;
@@ -151,18 +154,11 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   useEffect(() => {
     isUserScrollingRef.current = false;
     isInitialMountRef.current = true;
-    const prev = activeIndexRef.current;
     activeIndexRef.current = -1;
     cancelScrollRef.current();
+    itemRefs.current = [];
     if (containerRef.current) {
       containerRef.current.scrollTop = 0;
-    }
-    // Đổi bài: mọi dòng về FUTURE (trừ dòng active lúc t=0 nếu có — ticker
-    // sẽ tự bắt ở tick đầu, nên ở đây chỉ reset visual state).
-    const items = itemRefs.current;
-    for (let i = 0; i < items.length; i++) {
-      const el = items[i];
-      if (el && el.dataset["base"]) el.className = `${el.dataset["base"]} ${i < prev ? LINE_PASSED : LINE_FUTURE}`;
     }
   }, [current?.id]);
 
@@ -184,7 +180,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
     const el = itemRefs.current[idx];
     if (el) {
       const elTop = el.offsetTop - container.offsetTop;
-      const targetScroll = Math.max(0, elTop - container.clientHeight / 2.8);
+      const targetScroll = Math.max(0, elTop - container.clientHeight * 0.35);
       if (isInitialMountRef.current) {
         container.scrollTop = targetScroll;
         isInitialMountRef.current = false;
@@ -222,52 +218,54 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
         maskImage: "linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)",
       }}
     >
-      <motion.div
-        key={current?.id || "lyrics-pane"}
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        // MOTION v2: easeDuck expo thay easeOut generic — cùng họ đường cong
-        // với scroll + line transitions mới (đồng bộ "nhịp" toàn pane).
-        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-        className="h-full w-full"
-      >
-        <div
-          ref={containerRef}
-          onWheel={handleUserScroll}
-          onTouchMove={handleUserScroll}
-          className="flex h-full flex-col gap-5 sm:gap-6 md:gap-7 overflow-y-auto pt-10 sm:pt-16 pb-32 px-4 md:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={current?.id || "lyrics-pane"}
+          initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          exit={{ opacity: 0, y: -14, filter: "blur(6px)" }}
+          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+          className="h-full w-full"
         >
-          {lines.map((line, i) => (
-            <button
-              key={`${line.time}-${i}`}
-              ref={(el) => {
-                itemRefs.current[i] = el;
-                if (el)
-                  el.dataset["base"] = cn(
-                    LINE_BASE,
-                    compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
-                  );
-              }}
-              onClick={() => {
-                isUserScrollingRef.current = false;
-                seek(line.time);
-              }}
-              className={cn(
-                LINE_BASE,
-                // -2 = danh sách render lần sau (state settled) — giữ ref
-                // value (đã đúng); giá trị 0..n từ initialActive chỉ dùng ở
-                // frame đầu để tránh "flash FUTURE".
-                lineClass(i, initialActive === -2 ? activeIndexRef.current : initialActive),
-                compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
-              )}
-            >
-              {/* Span con: KHÔNG transition-all (feedback "nhồi hiệu ứng");
-                  inherit transition từ cha là đủ — text chỉ đổi màu. */}
-              <span className="inline-block">{line.text}</span>
-            </button>
-          ))}
-        </div>
-      </motion.div>
+          <div
+            ref={containerRef}
+            onWheel={handleUserScroll}
+            onTouchMove={handleUserScroll}
+            className="flex h-full flex-col gap-5 sm:gap-6 md:gap-7 overflow-y-auto pt-10 sm:pt-16 pb-32 px-4 md:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {lines.map((line, i) => (
+              <button
+                key={`${line.time}-${i}`}
+                ref={(el) => {
+                  if (el) {
+                    itemRefs.current[i] = el;
+                    el.dataset["base"] = cn(
+                      LINE_BASE,
+                      compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
+                    );
+                  }
+                }}
+                onClick={() => {
+                  isUserScrollingRef.current = false;
+                  seek(line.time);
+                }}
+                className={cn(
+                  LINE_BASE,
+                  // -2 = danh sách render lần sau (state settled) — giữ ref
+                  // value (đã đúng); giá trị 0..n từ initialActive chỉ dùng ở
+                  // frame đầu để tránh "flash FUTURE".
+                  lineClass(i, initialActive === -2 ? activeIndexRef.current : initialActive),
+                  compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
+                )}
+              >
+                {/* Span con: KHÔNG transition-all (feedback "nhồi hiệu ứng");
+                    inherit transition từ cha là đủ — text chỉ đổi màu. */}
+                <span className="inline-block">{line.text}</span>
+              </button>
+            ))}
+          </div>
+        </motion.div>
+      </AnimatePresence>
       {/* Ticker: subscriber DUY NHẤT của time trong pane. On active-line
           change → cập nhật classList 2 node + auto-center. Không setState
           ở cấp pane → danh sách không bao giờ re-render theo tick. */}
@@ -314,6 +312,14 @@ function applyActiveClasses(items: (HTMLButtonElement | null)[], prev: number, n
     if (!el || !el.dataset["base"]) return;
     el.className = `${el.dataset["base"]} ${cls}`;
   };
+  if (Math.abs(next - prev) > 1) {
+    for (let i = 0; i < items.length; i++) {
+      if (i === next) setCls(i, LINE_ACTIVE);
+      else if (i < next) setCls(i, LINE_PASSED);
+      else setCls(i, LINE_FUTURE);
+    }
+    return;
+  }
   if (prev >= 0) setCls(prev, prev < next ? LINE_PASSED : LINE_FUTURE);
   if (next >= 0) setCls(next, LINE_ACTIVE);
 }

@@ -44,10 +44,18 @@ export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
         whileHover={{ scale: 1.06 }}
         transition={{ type: "spring", stiffness: 520, damping: 24 }}
         className={cn(
-          "grid place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_30px_-8px_oklch(0.76_0.14_66/0.7)] cursor-pointer overflow-hidden",
+          "grid place-items-center rounded-full bg-primary text-primary-foreground cursor-pointer relative transition-all duration-300",
+          "shadow-[0_0_36px_rgba(249,115,22,0.55),0_8px_24px_rgba(0,0,0,0.5)]",
+          isPlaying && "ring-4 ring-primary/20",
           big ? "size-[4.5rem] sm:size-16" : "size-11",
         )}
       >
+        {isPlaying && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -inset-1 rounded-full bg-primary/25 blur-sm animate-pulse"
+          />
+        )}
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span
             key={isPlaying ? "pause" : "play"}
@@ -55,7 +63,7 @@ export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.75, opacity: 0 }}
             transition={{ type: "spring", stiffness: 750, damping: 32 }}
-            className="grid place-items-center"
+            className="grid place-items-center relative z-10"
           >
             {isPlaying ? (
               <Pause className={big ? "size-8 sm:size-7" : "size-5"} fill="currentColor" />
@@ -137,10 +145,10 @@ export function SeekBar({ compact = false }: { compact?: boolean }) {
       }}
     >
       {/* Background Track */}
-      <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted/80">
+      <div className="relative h-1.5 w-full rounded-full bg-muted/80">
         <div
           className={cn(
-            "h-full rounded-full bg-primary",
+            "h-full rounded-full bg-primary shadow-[0_0_12px_rgba(249,115,22,0.5)]",
             isDragging ? "transition-none" : "transition-[width] duration-75 ease-out",
           )}
           style={{ width: `${pct}%` }}
@@ -150,7 +158,7 @@ export function SeekBar({ compact = false }: { compact?: boolean }) {
       {/* Hover/Drag Thumb Dot */}
       <div
         className={cn(
-          "pointer-events-none absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow-md",
+          "pointer-events-none absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white ring-2 ring-primary shadow-[0_0_14px_rgba(249,115,22,0.9),0_1px_4px_rgba(0,0,0,0.4)]",
           isDragging
             ? "scale-125 opacity-100 transition-none"
             : "opacity-0 group-hover:scale-125 group-hover:opacity-100 transition-all duration-150",
