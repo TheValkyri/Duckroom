@@ -8,31 +8,36 @@ describe("Cinematic Depth-of-Field Lyrics Contract", () => {
   const lyricsSrc = read("src/components/player/Lyrics.tsx");
 
   it("LINE_BASE uses GPU-accelerated transition with cubic-bezier across filter, opacity, transform, and color", () => {
-    expect(lyricsSrc).toMatch(/transition:filter_400ms_cubic-bezier\(0\.16,\s*1,\s*0\.3,\s*1\)/);
-    expect(lyricsSrc).toMatch(/opacity_400ms_cubic-bezier\(0\.16,\s*1,\s*0\.3,\s*1\)/);
-    expect(lyricsSrc).toMatch(/transform_400ms_cubic-bezier\(0\.16,\s*1,\s*0\.3,\s*1\)/);
-    expect(lyricsSrc).toMatch(/color_300ms_ease/);
+    expect(lyricsSrc).toMatch(/transition:filter_380ms_cubic-bezier\(0\.16,\s*1,\s*0\.3,\s*1\)/);
+    expect(lyricsSrc).toMatch(/opacity_380ms_cubic-bezier\(0\.16,\s*1,\s*0\.3,\s*1\)/);
+    expect(lyricsSrc).toMatch(/transform_380ms_cubic-bezier\(0\.16,\s*1,\s*0\.3,\s*1\)/);
+    expect(lyricsSrc).toMatch(/color_280ms_ease/);
     expect(lyricsSrc).toContain("transform-gpu");
+    expect(lyricsSrc).toContain("[will-change:transform]");
+    expect(lyricsSrc).toContain("font-bold");
   });
 
-  it("LINE_ACTIVE has zero blur, bold weight, scale 1.03, and subtle glow drop-shadow", () => {
+  it("LINE_ACTIVE has zero blur, bold weight, scale 1.03, kinetic translate-y-0, and glow drop-shadow", () => {
     expect(lyricsSrc).toContain("LINE_ACTIVE");
     expect(lyricsSrc).toContain("blur-none");
     expect(lyricsSrc).toContain("scale-[1.03]");
+    expect(lyricsSrc).toContain("translate-y-0");
     expect(lyricsSrc).toContain("font-bold");
-    expect(lyricsSrc).toContain("drop-shadow-[0_2px_14px_rgba(255,255,255,0.18)]");
+    expect(lyricsSrc).toContain("drop-shadow-[0_2px_14px_rgba(255,255,255,0.22)]");
   });
 
-  it("LINE_PASSED and LINE_FUTURE have optical depth-of-field blur and immediate unblur on hover/tap", () => {
+  it("LINE_PASSED and LINE_FUTURE have optical depth-of-field blur, kinetic upward physics, and immediate unblur on hover/tap", () => {
     expect(lyricsSrc).toContain("LINE_PASSED");
-    expect(lyricsSrc).toContain("blur-[0.8px]");
-    expect(lyricsSrc).toContain("opacity-40");
+    expect(lyricsSrc).toContain("blur-[0.7px]");
+    expect(lyricsSrc).toContain("opacity-45");
+    expect(lyricsSrc).toContain("-translate-y-0.5");
     expect(lyricsSrc).toContain("hover:blur-none");
     expect(lyricsSrc).toContain("active:blur-none");
 
     expect(lyricsSrc).toContain("LINE_FUTURE");
-    expect(lyricsSrc).toContain("blur-[1.4px]");
-    expect(lyricsSrc).toContain("opacity-25");
+    expect(lyricsSrc).toContain("blur-[1.2px]");
+    expect(lyricsSrc).toContain("opacity-30");
+    expect(lyricsSrc).toContain("translate-y-2");
   });
 
   it("centers active lyrics line at 35% optical sweet spot without hardcoded pixel jumps", () => {

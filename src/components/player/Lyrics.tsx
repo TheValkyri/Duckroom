@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePlayer, usePlayerTime, usePlayerTimeSnapshot } from "../../lib/player";
 import { applyLyricsOffset } from "../../lib/lyrics-formatter";
@@ -93,15 +93,23 @@ function animateScrollTo(el: HTMLElement, target: number, maxDuration = 640) {
  * easeDuck app-wide + duration 340ms khớp nhịp scroll mới.
  * ------------------------------------------------------------------------ */
 const LINE_BASE =
-  "text-left font-sans tracking-tight leading-snug md:leading-normal [transition:filter_400ms_cubic-bezier(0.16,1,0.3,1),opacity_400ms_cubic-bezier(0.16,1,0.3,1),transform_400ms_cubic-bezier(0.16,1,0.3,1),color_300ms_ease] transform-gpu cursor-pointer group block w-full outline-none antialiased [text-wrap:balance] break-words";
+  "text-left font-sans font-bold tracking-tight leading-snug md:leading-normal [transition:filter_380ms_cubic-bezier(0.16,1,0.3,1),opacity_380ms_cubic-bezier(0.16,1,0.3,1),transform_380ms_cubic-bezier(0.16,1,0.3,1),color_280ms_ease] transform-gpu [will-change:transform] cursor-pointer group block w-full outline-none antialiased [text-wrap:balance] break-words";
 const LINE_ACTIVE =
-  "text-white opacity-100 scale-[1.03] origin-left font-bold blur-none drop-shadow-[0_2px_14px_rgba(255,255,255,0.18)]";
+  "text-white opacity-100 translate-y-0 scale-[1.03] origin-left font-bold blur-none drop-shadow-[0_2px_14px_rgba(255,255,255,0.22)]";
 const LINE_PASSED =
-  "text-white/45 opacity-40 blur-[0.8px] scale-[1.0] origin-left hover:text-white/90 hover:opacity-90 hover:blur-none hover:scale-[1.01] active:blur-none active:opacity-90";
+  "text-white/50 opacity-45 -translate-y-0.5 blur-[0.7px] scale-[1.0] origin-left hover:text-white/90 hover:opacity-90 hover:blur-none hover:scale-[1.01] active:blur-none active:opacity-90";
 const LINE_FUTURE =
-  "text-white/25 opacity-25 blur-[1.4px] scale-[0.98] origin-left hover:text-white/85 hover:opacity-85 hover:blur-none hover:scale-[1.01] active:blur-none active:opacity-90";
+  "text-white/35 opacity-30 translate-y-2 blur-[1.2px] scale-[0.98] origin-left hover:text-white/85 hover:opacity-85 hover:blur-none hover:scale-[1.01] active:blur-none active:opacity-90";
+const LINE_PRELUDE =
+  "text-white/70 opacity-70 translate-y-0.5 blur-none scale-[1.01] origin-left hover:text-white/90 hover:opacity-90 hover:scale-[1.02] active:blur-none active:opacity-90";
+const LINE_PLAIN =
+  "font-bold text-white/85 opacity-85 blur-none translate-y-0 scale-100 origin-left hover:text-white hover:opacity-100";
 
-function lineClass(i: number, activeIndex: number): string {
+function lineClass(i: number, activeIndex: number, isPlain = false): string {
+  if (isPlain) return LINE_PLAIN;
+  if (activeIndex === -1) {
+    return i === 0 ? LINE_PRELUDE : LINE_FUTURE;
+  }
   if (i === activeIndex) return LINE_ACTIVE;
   if (i < activeIndex) return LINE_PASSED;
   return LINE_FUTURE;
@@ -124,6 +132,15 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   // localStorage (nếu có) vẫn được áp dụng khi hiển thị.
   const [offsetMs, setOffsetMs] = useState(0);
   const trackId = current?.id;
+  const lastTrackIdRef = useRef(trackId);
+  if (lastTrackIdRef.current !== trackId) {
+    lastTrackIdRef.current = trackId;
+    isUserScrollingRef.current = false;
+    isInitialMountRef.current = true;
+    activeIndexRef.current = -1;
+    itemRefs.current = [];
+  }
+
   useEffect(() => {
     setOffsetMs(readStoredOffset(trackId));
   }, [trackId]);
@@ -137,46 +154,21 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
     [originalLines, offsetMs],
   );
 
-  // Active index KHÔNG nằm trong state của pane — ticker quản qua ref và
-  // class trực tiếp. Giá trị khởi tạo -1 (chưa có dòng nào active);
-  // render đầu bù bằng initialActive (xem dưới) để không flash FUTURE.
+  const isPlainLyrics = useMemo(() => lines.length > 0 && lines.every((l) => !l.time || l.time === 0), [lines]);
 
-  const handleUserScroll = () => {
-    isUserScrollingRef.current = true;
-    cancelScrollRef.current(); // người dùng chủ động cuộn -> hủy animation tự động đang chạy dở
-    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-    scrollTimeoutRef.current = setTimeout(() => {
-      isUserScrollingRef.current = false;
-    }, 4500);
-  };
-
-  // Reset scroll to top when track changes + khôi phục active đầu tiên
-  useEffect(() => {
-    isUserScrollingRef.current = false;
-    isInitialMountRef.current = true;
-    activeIndexRef.current = -1;
-    cancelScrollRef.current();
-    itemRefs.current = [];
-    if (containerRef.current) {
-      containerRef.current.scrollTop = 0;
-    }
-  }, [current?.id]);
-
-  /* WP2 2026-09-04 (feedback "lyric chớp chớp khi mở sheet giữa bài"):
-   * render đầu của DANH SÁCH sau khi track đổi (hoặc sau khi sheet mở lại)
-   * từng vẽ MỌI dòng ở FUTURE rồi chờ ticker tick kế tiếp mới tô ACTIVE
-   * → 1 frame "nhá" sai. Đọc time MỘT LẦN (snapshot, không subscribe —
-   * pane vẫn không re-render theo tick) và tính active-index ngay trong
-   * render để frame đầu tiên đã đúng trạng thái; ticker sau đó vẫn là
-   * nguồn chân giá trị theo tick — không đổi kiến trúc subscriber-riêng
-   * của pane. */
-  const timeNow = usePlayerTimeSnapshot();
-  const initialActive = activeIndexRef.current < 0 ? activeFromTime(lines, timeNow) : -2;
-
-  const scrollActiveIntoView = (idx: number) => {
+  const scrollActiveIntoView = useCallback((idx: number) => {
     const container = containerRef.current;
     if (!container) return;
     cancelScrollRef.current();
+    if (idx <= 0) {
+      if (isInitialMountRef.current) {
+        container.scrollTop = 0;
+        isInitialMountRef.current = false;
+      } else {
+        cancelScrollRef.current = animateScrollTo(container, 0);
+      }
+      return;
+    }
     const el = itemRefs.current[idx];
     if (el) {
       const elTop = el.offsetTop - container.offsetTop;
@@ -188,9 +180,52 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
         cancelScrollRef.current = animateScrollTo(container, targetScroll);
       }
     }
+  }, []);
+
+  const handleUserScroll = () => {
+    isUserScrollingRef.current = true;
+    cancelScrollRef.current(); // người dùng chủ động cuộn -> hủy animation tự động đang chạy dở
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = setTimeout(() => {
+      isUserScrollingRef.current = false;
+      if (!isPlainLyrics && lines.length > 0) {
+        const active = activeIndexRef.current;
+        scrollActiveIntoView(active);
+      }
+    }, 2500);
   };
 
-  useEffect(() => () => cancelScrollRef.current(), []);
+  // Reset scroll to top when track changes + khôi phục active đầu tiên
+  useEffect(() => {
+    isUserScrollingRef.current = false;
+    isInitialMountRef.current = true;
+    activeIndexRef.current = -1;
+    cancelScrollRef.current();
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    itemRefs.current = [];
+    if (containerRef.current) {
+      containerRef.current.scrollTop = 0;
+    }
+  }, [trackId]);
+
+  useEffect(
+    () => () => {
+      cancelScrollRef.current();
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    },
+    [],
+  );
+
+  /* WP2 2026-09-04 (feedback "lyric chớp chớp khi mở sheet giữa bài"):
+   * render đầu của DANH SÁCH sau khi track đổi (hoặc sau khi sheet mở lại)
+   * từng vẽ MỌI dòng ở FUTURE rồi chờ ticker tick kế tiếp mới tô ACTIVE
+   * → 1 frame "nhá" sai. Đọc time MỘT LẦN (snapshot, không subscribe —
+   * pane vẫn không re-render theo tick) và tính active-index ngay trong
+   * render để frame đầu tiên đã đúng trạng thái; ticker sau đó vẫn là
+   * nguồn chân giá trị theo tick — không đổi kiến trúc subscriber-riêng
+   * của pane. */
+  const timeNow = usePlayerTimeSnapshot();
+  const initialActive = activeIndexRef.current < 0 ? activeFromTime(lines, timeNow) : -2;
 
   if (!lines.length) {
     return (
@@ -230,6 +265,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
           <div
             ref={containerRef}
             onWheel={handleUserScroll}
+            onTouchStart={handleUserScroll}
             onTouchMove={handleUserScroll}
             className="flex h-full flex-col gap-5 sm:gap-6 md:gap-7 overflow-y-auto pt-10 sm:pt-16 pb-32 px-4 md:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
           >
@@ -246,6 +282,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
                   }
                 }}
                 onClick={() => {
+                  if (isPlainLyrics) return;
                   isUserScrollingRef.current = false;
                   seek(line.time);
                 }}
@@ -254,7 +291,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
                   // -2 = danh sách render lần sau (state settled) — giữ ref
                   // value (đã đúng); giá trị 0..n từ initialActive chỉ dùng ở
                   // frame đầu để tránh "flash FUTURE".
-                  lineClass(i, initialActive === -2 ? activeIndexRef.current : initialActive),
+                  lineClass(i, initialActive === -2 ? activeIndexRef.current : initialActive, isPlainLyrics),
                   compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
                 )}
               >
@@ -264,6 +301,15 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
               </button>
             ))}
           </div>
+          <LyricsMountSync
+            lines={lines}
+            itemRefs={itemRefs}
+            activeIndexRef={activeIndexRef}
+            isUserScrollingRef={isUserScrollingRef}
+            containerRef={containerRef}
+            isPlainLyrics={isPlainLyrics}
+            scrollActiveIntoView={scrollActiveIntoView}
+          />
         </motion.div>
       </AnimatePresence>
       {/* Ticker: subscriber DUY NHẤT của time trong pane. On active-line
@@ -274,6 +320,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
         itemRefs={itemRefs}
         activeIndexRef={activeIndexRef}
         isUserScrollingRef={isUserScrollingRef}
+        isPlainLyrics={isPlainLyrics}
         onActiveChange={(idx) => {
           if (isUserScrollingRef.current) return;
           if (idx <= 0) {
@@ -294,11 +341,54 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   );
 }
 
+function LyricsMountSync({
+  lines,
+  itemRefs,
+  activeIndexRef,
+  isUserScrollingRef,
+  containerRef,
+  isPlainLyrics,
+  scrollActiveIntoView,
+}: {
+  lines: LyricLineView[];
+  itemRefs: React.RefObject<(HTMLButtonElement | null)[]>;
+  activeIndexRef: React.RefObject<number>;
+  isUserScrollingRef: React.RefObject<boolean>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  isPlainLyrics: boolean;
+  scrollActiveIntoView: (idx: number) => void;
+}) {
+  const mountTime = usePlayerTimeSnapshot();
+  useEffect(() => {
+    if (isPlainLyrics) {
+      applyActiveClasses(itemRefs.current ?? [], -1, -1, true);
+      return;
+    }
+    const currentIdx = activeFromTime(lines, mountTime);
+    applyActiveClasses(itemRefs.current ?? [], -1, currentIdx, false);
+    activeIndexRef.current = currentIdx;
+    if (!isUserScrollingRef.current) {
+      scrollActiveIntoView(currentIdx);
+    }
+  }, [
+    lines,
+    mountTime,
+    isPlainLyrics,
+    itemRefs,
+    activeIndexRef,
+    isUserScrollingRef,
+    containerRef,
+    scrollActiveIntoView,
+  ]);
+
+  return null;
+}
+
 function activeFromTime(lines: LyricLineView[], time: number): number {
   let idx = -1;
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
-    if (l && time >= l.time) idx = i;
+    if (l && typeof l.time === "number" && time >= l.time) idx = i;
   }
   return idx;
 }
@@ -306,13 +396,31 @@ function activeFromTime(lines: LyricLineView[], time: number): number {
 /** Đổi class trực tiếp giữa node active cũ ↔ mới (không React re-render).
  *  Mỗi node giữ phần class "base + cỡ chữ" trong data-base khi render;
  *  ticker chỉ nối thêm state class — không bao giờ mất cỡ chữ compact. */
-function applyActiveClasses(items: (HTMLButtonElement | null)[], prev: number, next: number) {
+function applyActiveClasses(items: (HTMLButtonElement | null)[], prev: number, next: number, isPlain = false) {
+  if (isPlain) {
+    for (let i = 0; i < items.length; i++) {
+      const el = items[i];
+      if (!el || !el.dataset["base"]) continue;
+      el.className = `${el.dataset["base"]} ${LINE_PLAIN}`;
+    }
+    return;
+  }
+
   const setCls = (i: number, cls: string) => {
     const el = items[i];
     if (!el || !el.dataset["base"]) return;
     el.className = `${el.dataset["base"]} ${cls}`;
   };
-  if (Math.abs(next - prev) > 1) {
+
+  if (next === -1) {
+    for (let i = 0; i < items.length; i++) {
+      if (i === 0) setCls(i, LINE_PRELUDE);
+      else setCls(i, LINE_FUTURE);
+    }
+    return;
+  }
+
+  if (prev < 0 || next < 0 || Math.abs(next - prev) > 1) {
     for (let i = 0; i < items.length; i++) {
       if (i === next) setCls(i, LINE_ACTIVE);
       else if (i < next) setCls(i, LINE_PASSED);
@@ -320,6 +428,7 @@ function applyActiveClasses(items: (HTMLButtonElement | null)[], prev: number, n
     }
     return;
   }
+
   if (prev >= 0) setCls(prev, prev < next ? LINE_PASSED : LINE_FUTURE);
   if (next >= 0) setCls(next, LINE_ACTIVE);
 }
@@ -338,22 +447,25 @@ function LyricsTicker({
   itemRefs,
   activeIndexRef,
   isUserScrollingRef,
+  isPlainLyrics,
   onActiveChange,
 }: {
   lines: LyricLineView[];
   itemRefs: React.RefObject<(HTMLButtonElement | null)[]>;
   activeIndexRef: React.RefObject<number>;
   isUserScrollingRef: React.RefObject<boolean>;
+  isPlainLyrics: boolean;
   onActiveChange: (idx: number) => void;
 }) {
   const time = usePlayerTime();
   useEffect(() => {
+    if (isPlainLyrics) return;
     const next = activeFromTime(lines, time);
     const prev = activeIndexRef.current ?? -1;
     if (next === prev) return;
-    applyActiveClasses(itemRefs.current ?? [], prev, next);
+    applyActiveClasses(itemRefs.current ?? [], prev, next, false);
     activeIndexRef.current = next;
     onActiveChange(next);
-  }, [time, lines, itemRefs, activeIndexRef, isUserScrollingRef, onActiveChange]);
+  }, [time, lines, itemRefs, activeIndexRef, isUserScrollingRef, isPlainLyrics, onActiveChange]);
   return null;
 }

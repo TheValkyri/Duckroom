@@ -94,3 +94,37 @@ describe("lyrics initial-render active contract (WP2)", () => {
     expect(src).toContain("export function usePlayerTimeSnapshot");
   });
 });
+
+describe("lyrics intro prelude & plain resilience contract", () => {
+  const src = read("src/components/player/Lyrics.tsx");
+
+  it("primes first line during song intro/prelude so it is never greyed out in blur fog", () => {
+    expect(src).toContain("LINE_PRELUDE");
+    expect(src).toContain("blur-none");
+    expect(src).toContain("opacity-70");
+    expect(src).toMatch(/activeIndex\s*===\s*-1[\s\S]*?i\s*===\s*0\s*\?\s*LINE_PRELUDE\s*:\s*LINE_FUTURE/);
+  });
+
+  it("activates plain lyrics reading mode when timestamps are missing or zero", () => {
+    expect(src).toContain("isPlainLyrics");
+    expect(src).toMatch(/lines\.every\(\(l\)\s*=>\s*!l\.time\s*\|\|\s*l\.time\s*===\s*0\)/);
+    expect(src).toContain("LINE_PLAIN");
+    expect(src).toContain("text-white/85");
+    expect(src).toContain("opacity-85");
+    expect(src).toContain("font-bold");
+    expect(src).toContain("translate-y-0");
+  });
+
+  it("automatically re-aligns scroll to active line after 2.5s user scroll idle", () => {
+    expect(src).toMatch(/setTimeout\([\s\S]*?2500\)/);
+    expect(src).toMatch(/scrollActiveIntoView\(active\)/);
+    expect(src).toContain("onTouchStart={handleUserScroll}");
+  });
+
+  it("synchronizes mounted itemRefs and scrolls active line into view without AnimatePresence race condition", () => {
+    expect(src).toContain("LyricsMountSync");
+    expect(src).toMatch(/applyActiveClasses\(itemRefs\.current[\s\S]*?scrollActiveIntoView/);
+    expect(src).toContain("lastTrackIdRef");
+    expect(src).toMatch(/if\s*\(!el\s*\|\|\s*!el\.dataset\["base"\]\)\s*continue;/);
+  });
+});
