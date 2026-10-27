@@ -619,19 +619,27 @@ const WordByWordActiveLine = memo(function WordByWordActiveLine({
           <span
             key={`${idx}-${w.text}`}
             className={cn(
-              "relative inline-block transition-transform duration-150 transform-gpu will-change-transform",
-              isSinging && "scale-[1.04] origin-bottom text-white",
+              "relative inline-block transition-transform duration-150",
+              isSinging && "scale-[1.04] origin-bottom",
             )}
-            style={{
-              background: `linear-gradient(90deg, #ffffff 0%, #ffffff ${pct}%, rgba(255, 255, 255, 0.42) ${pct}%, rgba(255, 255, 255, 0.42) 100%)`,
-              WebkitBackgroundClip: "text",
-              backgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              color: "transparent",
-              filter: isSinging ? "drop-shadow(0 0 14px rgba(255,255,255,0.75))" : "none",
-            }}
           >
-            {w.text}
+            {/* Base text: 100% visible font glyphs, immune to CSS text background clipping glitches */}
+            <span className={cn("inline-block", isPast ? "text-white" : "text-white/40")}>{w.text}</span>
+
+            {/* Active syllable fluid fill overlay */}
+            {isSinging && (
+              <span
+                className="absolute inset-0 whitespace-nowrap text-white select-none pointer-events-none"
+                style={{
+                  clipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
+                  WebkitClipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
+                  textShadow: "0 0 14px rgba(255, 255, 255, 0.8)",
+                }}
+                aria-hidden="true"
+              >
+                {w.text}
+              </span>
+            )}
           </span>
         );
       })}

@@ -41,19 +41,27 @@ const PhoneActiveWordFlow = memo(function PhoneActiveWordFlow({
           <span
             key={`${idx}-${w.text}`}
             className={cn(
-              "relative inline-block transition-transform duration-150 transform-gpu will-change-transform",
-              isSinging && "scale-[1.06] text-white",
+              "relative inline-block transition-transform duration-150 font-semibold",
+              isSinging && "scale-[1.06] origin-center",
             )}
-            style={{
-              background: `linear-gradient(90deg, #ffffff 0%, #ffffff ${pct}%, rgba(255, 255, 255, 0.45) ${pct}%, rgba(255, 255, 255, 0.45) 100%)`,
-              WebkitBackgroundClip: "text",
-              backgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              color: "transparent",
-              filter: isSinging ? "drop-shadow(0 0 8px rgba(255,255,255,0.7))" : "none",
-            }}
           >
-            {w.text}
+            {/* Base text: real font glyphs, visible in all environments */}
+            <span className={cn("inline-block", isPast ? "text-white font-semibold" : "text-white/45")}>{w.text}</span>
+
+            {/* Active syllable fluid fill overlay */}
+            {isSinging && (
+              <span
+                className="absolute inset-0 whitespace-nowrap text-white font-semibold select-none pointer-events-none"
+                style={{
+                  clipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
+                  WebkitClipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
+                  textShadow: "0 0 10px rgba(255, 255, 255, 0.75)",
+                }}
+                aria-hidden="true"
+              >
+                {w.text}
+              </span>
+            )}
           </span>
         );
       })}

@@ -55,19 +55,29 @@ const KaraokeLine = memo(function KaraokeLine({
           <span
             key={`${idx}-${w.text}`}
             className={cn(
-              "relative inline-block transition-transform duration-150 transform-gpu will-change-transform",
-              isSinging && "scale-[1.06] text-primary",
+              "relative inline-block transition-transform duration-150 font-semibold",
+              isSinging && "scale-[1.06] origin-center",
             )}
-            style={{
-              background: `linear-gradient(90deg, var(--primary, #d97706) 0%, var(--primary, #d97706) ${pct}%, color-mix(in srgb, currentColor 40%, transparent) ${pct}%, color-mix(in srgb, currentColor 40%, transparent) 100%)`,
-              WebkitBackgroundClip: "text",
-              backgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              color: "transparent",
-              filter: isSinging ? "drop-shadow(0 0 10px var(--primary, #d97706))" : "none",
-            }}
           >
-            {w.text}
+            {/* Base text: 100% visible across all PiP themes and windows */}
+            <span className={cn("inline-block", isPast ? "text-primary font-semibold" : "text-foreground/45")}>
+              {w.text}
+            </span>
+
+            {/* Active syllable fluid fill overlay */}
+            {isSinging && (
+              <span
+                className="absolute inset-0 whitespace-nowrap text-primary font-semibold select-none pointer-events-none"
+                style={{
+                  clipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
+                  WebkitClipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
+                  textShadow: "0 0 10px var(--primary, #d97706)",
+                }}
+                aria-hidden="true"
+              >
+                {w.text}
+              </span>
+            )}
           </span>
         );
       })}
