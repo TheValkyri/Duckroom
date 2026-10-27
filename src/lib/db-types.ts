@@ -32,6 +32,7 @@ export type UploadSessionStatus =
 export interface LyricLine {
   time: number;
   text: string;
+  words?: { text: string; startTime: number; endTime: number }[];
 }
 
 export interface TrackRow {

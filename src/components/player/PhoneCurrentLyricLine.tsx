@@ -1,6 +1,65 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePlayer, usePlayerTime } from "../../lib/player";
+import { computeWordTimings } from "../../lib/lyrics-formatter";
+import type { LyricLine } from "../../data/library";
+import { cn } from "../../lib/utils";
+
+/**
+ * Word-by-word Syllable Karaoke Flow for Phone Current Lyric
+ */
+const PhoneActiveWordFlow = memo(function PhoneActiveWordFlow({
+  line,
+  nextLineTime,
+}: {
+  line: LyricLine;
+  nextLineTime?: number | undefined;
+}) {
+  const time = usePlayerTime();
+  const words = useMemo(() => computeWordTimings(line, nextLineTime), [line, nextLineTime]);
+
+  if (!words.length) {
+    return <span className="text-foreground/90 font-medium">{line.text}</span>;
+  }
+
+  return (
+    <span className="inline-flex flex-wrap justify-center gap-x-1.5 gap-y-0.5">
+      {words.map((w, idx) => {
+        const isPast = time >= w.endTime;
+        const isFuture = time < w.startTime;
+        const isSinging = !isPast && !isFuture;
+
+        const progress = isPast
+          ? 1
+          : isFuture
+            ? 0
+            : Math.min(1, Math.max(0, (time - w.startTime) / Math.max(0.01, w.endTime - w.startTime)));
+
+        const pct = (progress * 100).toFixed(1);
+
+        return (
+          <span
+            key={`${idx}-${w.text}`}
+            className={cn(
+              "relative inline-block transition-transform duration-150 transform-gpu will-change-transform",
+              isSinging && "scale-[1.06] text-white",
+            )}
+            style={{
+              background: `linear-gradient(90deg, #ffffff 0%, #ffffff ${pct}%, rgba(255, 255, 255, 0.45) ${pct}%, rgba(255, 255, 255, 0.45) 100%)`,
+              WebkitBackgroundClip: "text",
+              backgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              color: "transparent",
+              filter: isSinging ? "drop-shadow(0 0 8px rgba(255,255,255,0.7))" : "none",
+            }}
+          >
+            {w.text}
+          </span>
+        );
+      })}
+    </span>
+  );
+});
 
 /**
  * PhoneCurrentLyricLine — dòng lời đang phát hiển thị ngay dưới title
@@ -8,13 +67,11 @@ import { usePlayer, usePlayerTime } from "../../lib/player";
  * LyricDisplay được React.memo để AnimatePresence và motion.p chỉ
  * chạy khi dòng lời thật sự đổi, 0 cost motion trên các timeupdate tick.
  */
-const LyricDisplay = memo(function LyricDisplay({
-  activeIdx,
-  text,
-}: {
-  activeIdx: number;
-  text: string;
-}) {
+const LyricDisplay = memo(function LyricDisplay({ activeIdx, text }: { activeIdx: number; text: string }) {
+  const { current } = usePlayer();
+  const line = current?.lyrics?.[activeIdx];
+  const nextLineTime = current?.lyrics?.[activeIdx + 1]?.time;
+
   return (
     <div
       className="relative mx-auto mt-2 flex h-10 max-w-[88%] items-center justify-center overflow-hidden"
@@ -33,7 +90,13 @@ const LyricDisplay = memo(function LyricDisplay({
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           className="line-clamp-2 px-3 text-center text-[13px] font-medium leading-4 tracking-tight text-foreground/85"
         >
-          {activeIdx >= 0 && text ? text : "· · ·"}
+          {activeIdx >= 0 && line ? (
+            <PhoneActiveWordFlow line={line} nextLineTime={nextLineTime} />
+          ) : activeIdx >= 0 && text ? (
+            text
+          ) : (
+            "· · ·"
+          )}
         </motion.p>
       </AnimatePresence>
     </div>

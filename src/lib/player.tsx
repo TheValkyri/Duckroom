@@ -85,6 +85,11 @@ export function usePlayerTimeSnapshot(): number {
   return store ? store.getTime() : 0;
 }
 
+export function useGetPlayerTime(): () => number {
+  const store = useContext(PlayerTimeCtx);
+  return useCallback(() => (store ? store.getTime() : 0), [store]);
+}
+
 export function usePlayerTime(): number {
   const store = useContext(PlayerTimeCtx);
   if (!store) throw new Error("usePlayerTime must be used inside PlayerProvider");

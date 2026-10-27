@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { applyLyricsOffset, beautifyLrcString, parseLrc, shiftLrcTime } from "../lib/lyrics-formatter";
+import {
+  applyLyricsOffset,
+  beautifyLrcString,
+  computeWordTimings,
+  parseLrc,
+  shiftLrcTime,
+} from "../lib/lyrics-formatter";
 
 describe("Lyrics Formatter V2 — Zero Content Mutation & Precise Timing", () => {
   it("parses valid LRC timestamps into chronologically sorted LyricLine objects", () => {
@@ -136,6 +142,106 @@ describe("Lyrics Formatter V2 — Zero Content Mutation & Precise Timing", () =>
     it("sort ổn định: cùng timestamp giữ thứ tự trong file", () => {
       const parsed = parseLrc(`[00:30.00]A trước\n[00:30.00]B sau\n[00:10.00]C đầu`);
       expect(parsed.map((l) => l.text)).toEqual(["C đầu", "A trước", "B sau"]);
+    });
+  });
+
+  describe("Visuals & Lyrics 2.0 — Word-by-word & Syllable-level Synced Lyrics", () => {
+    it("parses Enhanced LRC format with syllable timestamps <mm:ss.xx>", () => {
+      const enhancedLrc = `[00:10.00] <00:10.00> Em <00:10.50> có <00:11.20> nghe <00:11.80> mùa <00:12.40> thu`;
+      const parsed = parseLrc(enhancedLrc);
+      expect(parsed).toHaveLength(1);
+      expect(parsed[0]!.text).toBe("Em có nghe mùa thu");
+      expect(parsed[0]!.time).toBeCloseTo(10.0);
+      expect(parsed[0]!.words).toBeDefined();
+      expect(parsed[0]!.words).toHaveLength(5);
+      expect(parsed[0]!.words![0]!.text).toBe("Em");
+      expect(parsed[0]!.words![0]!.startTime).toBeCloseTo(10.0);
+      expect(parsed[0]!.words![0]!.endTime).toBeCloseTo(10.5);
+      expect(parsed[0]!.words![1]!.text).toBe("có");
+      expect(parsed[0]!.words![1]!.startTime).toBeCloseTo(10.5);
+      expect(parsed[0]!.words![2]!.text).toBe("nghe");
+      expect(parsed[0]!.words![2]!.startTime).toBeCloseTo(11.2);
+    });
+
+    it("shifts word timestamps in applyLyricsOffset without mutating source", () => {
+      const parsed = parseLrc(`[00:10.00] <00:10.00> Từ <00:10.60> đầu`);
+      const shifted = applyLyricsOffset(parsed, 1000); // +1000ms
+      expect(shifted[0]!.time).toBeCloseTo(11.0);
+      expect(shifted[0]!.words![0]!.startTime).toBeCloseTo(11.0);
+      expect(shifted[0]!.words![0]!.endTime).toBeCloseTo(11.6);
+      expect(shifted[0]!.words![1]!.startTime).toBeCloseTo(11.6);
+
+      // Verify original is untouched
+      expect(parsed[0]!.time).toBeCloseTo(10.0);
+      expect(parsed[0]!.words![0]!.startTime).toBeCloseTo(10.0);
+    });
+
+    it("shifts word timestamps in shiftLrcTime accurately", () => {
+      const original = `[00:10.00] <00:10.00> Một <00:10.50> hai`;
+      const shifted = shiftLrcTime(original, 2.5);
+      expect(shifted).toContain("[00:12.50]");
+      expect(shifted).toContain("<00:12.50> Một");
+      expect(shifted).toContain("<00:13.00> hai");
+    });
+
+    it("computes proportional syllable flow for standard line-synced lyrics with computeWordTimings", () => {
+      const line = { time: 5.0, text: "Gió heo may qua phố dài" };
+      const words = computeWordTimings(line, 9.0); // next line starts at 9.0s (4s duration)
+      expect(words).toHaveLength(6);
+      expect(words[0]!.text).toBe("Gió");
+      expect(words[0]!.startTime).toBe(5.0);
+      expect(words[words.length - 1]!.text).toBe("dài");
+      expect(words[words.length - 1]!.endTime).toBeLessThanOrEqual(9.0);
+      expect(words[words.length - 1]!.startTime).toBeGreaterThan(5.0);
+
+      // Monotonically increasing timestamps
+      for (let i = 0; i < words.length - 1; i++) {
+        expect(words[i]!.startTime).toBeLessThan(words[i + 1]!.startTime);
+        expect(words[i]!.endTime).toBeLessThanOrEqual(words[i + 1]!.startTime);
+      }
+    });
+
+    it("preserves explicit words directly in computeWordTimings", () => {
+      const explicitWords = [
+        { text: "Word1", startTime: 1.0, endTime: 2.0 },
+        { text: "Word2", startTime: 2.0, endTime: 3.0 },
+      ];
+      const line = { time: 1.0, text: "Word1 Word2", words: explicitWords };
+      expect(computeWordTimings(line)).toBe(explicitWords);
+    });
+
+    it("parses Enhanced LRC with text occurring before the first syllable tag", () => {
+      const lrc = `[00:15.00] Dạo đầu <00:16.00> lời hát`;
+      const parsed = parseLrc(lrc);
+      expect(parsed).toHaveLength(1);
+      expect(parsed[0]!.text).toBe("Dạo đầu lời hát");
+      expect(parsed[0]!.words).toBeDefined();
+      expect(parsed[0]!.words).toHaveLength(4);
+      expect(parsed[0]!.words![0]!.text).toBe("Dạo");
+      expect(parsed[0]!.words![0]!.startTime).toBeCloseTo(15.0);
+      expect(parsed[0]!.words![1]!.text).toBe("đầu");
+      expect(parsed[0]!.words![2]!.text).toBe("lời");
+      expect(parsed[0]!.words![2]!.startTime).toBeCloseTo(16.0);
+    });
+
+    it("handles multi-word syllable chunks within a single tag", () => {
+      const lrc = `[00:20.00] <00:20.00> Xin chào quý vị <00:22.00> các bạn`;
+      const parsed = parseLrc(lrc);
+      expect(parsed[0]!.words).toHaveLength(6);
+      expect(parsed[0]!.words![0]!.text).toBe("Xin");
+      expect(parsed[0]!.words![1]!.text).toBe("chào");
+      expect(parsed[0]!.words![2]!.text).toBe("quý");
+      expect(parsed[0]!.words![3]!.text).toBe("vị");
+      expect(parsed[0]!.words![4]!.text).toBe("các");
+      expect(parsed[0]!.words![5]!.text).toBe("bạn");
+    });
+
+    it("beautifyLrcString preserves syllable timestamps accurately", () => {
+      const raw = `[00:05.00] <00:05.00> Lời <00:05.50> ca`;
+      const beautified = beautifyLrcString(raw);
+      expect(beautified).toContain("[00:05.00]");
+      expect(beautified).toContain("<00:05.00> Lời");
+      expect(beautified).toContain("<00:05.50> ca");
     });
   });
 });

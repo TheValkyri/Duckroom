@@ -9,7 +9,17 @@ import {
   updateTrackDomainServer,
 } from "../lib/domain-mutations";
 
-export type LyricLine = { time: number; text: string };
+export type LyricWord = {
+  text: string;
+  startTime: number; // in seconds
+  endTime: number; // in seconds
+};
+
+export type LyricLine = {
+  time: number;
+  text: string;
+  words?: LyricWord[] | undefined;
+};
 
 export type Track = {
   id: string;

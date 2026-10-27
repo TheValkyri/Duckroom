@@ -1,4 +1,15 @@
-import { ChevronUp, ListMusic, Mic2, Play, SkipBack, SkipForward, Sparkles, Volume2, VolumeX } from "lucide-react";
+import {
+  ChevronUp,
+  ListMusic,
+  Mic2,
+  PictureInPicture2,
+  Play,
+  SkipBack,
+  SkipForward,
+  Sparkles,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { albumById, formatTime } from "../../data/library";
@@ -10,6 +21,8 @@ import { SeekBar, TransportControls } from "./Controls";
 import { QueuePanel } from "./QueuePanel";
 import { QueueSheet } from "./QueueSheet";
 import { useIsPhoneLayout } from "../../hooks/use-media-query";
+import { useDocumentPip } from "../../hooks/use-document-pip";
+import { FloatingPipPortal } from "./FloatingPipPortal";
 
 export function PlayerBar() {
   const {
@@ -37,6 +50,16 @@ export function PlayerBar() {
 
   const [coverLoaded, setCoverLoaded] = useState(false);
   const isPhone = useIsPhoneLayout();
+  const pipState = useDocumentPip();
+  const [inAppFloatingOpen, setInAppFloatingOpen] = useState(false);
+
+  const handleTogglePip = () => {
+    if (pipState.isSupported) {
+      void pipState.togglePip();
+    } else {
+      setInAppFloatingOpen((prev) => !prev);
+    }
+  };
 
   if (!current) return null;
   const album = albumById(current.albumId);
@@ -47,6 +70,12 @@ export function PlayerBar() {
 
   return (
     <>
+      {/* Floating Picture-in-Picture Mini-Player Portal */}
+      <FloatingPipPortal
+        pipState={pipState}
+        inAppFloatingOpen={inAppFloatingOpen}
+        onCloseInAppFloating={() => setInAppFloatingOpen(false)}
+      />
       {/* Queue surface: bottom sheet trên phone (touch-first), drawer giữ
           nguyên cho >=md. Cùng một usePlayer API — không nhân bản logic. */}
       <AnimatePresence>{queueOpen && isPhone && <QueueSheet />}</AnimatePresence>
@@ -334,6 +363,26 @@ export function PlayerBar() {
               )}
             >
               <ListMusic className="size-4" />
+            </motion.button>
+            <motion.button
+              aria-label="Cửa sổ nổi Mini Player"
+              title={
+                pipState.isPipActive || inAppFloatingOpen
+                  ? "Đóng Mini Player nổi"
+                  : pipState.isSupported
+                    ? "Mở Mini Player nổi (Document PiP)"
+                    : "Mở Mini Player nổi"
+              }
+              onClick={handleTogglePip}
+              whileTap={tapScale}
+              whileHover={{ y: -1 }}
+              transition={springSnappy}
+              className={cn(
+                "text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-1.5 rounded-full hover:bg-accent/50",
+                (pipState.isPipActive || inAppFloatingOpen) && "text-primary bg-primary/10",
+              )}
+            >
+              <PictureInPicture2 className="size-4" />
             </motion.button>
             <VolumeBar />
           </div>

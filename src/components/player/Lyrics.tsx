@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { usePlayer, usePlayerTime, usePlayerTimeSnapshot } from "../../lib/player";
-import { applyLyricsOffset } from "../../lib/lyrics-formatter";
+import { usePlayer, usePlayerTime, usePlayerTimeSnapshot, useGetPlayerTime } from "../../lib/player";
+import { applyLyricsOffset, computeWordTimings } from "../../lib/lyrics-formatter";
 import { cn } from "../../lib/utils";
 import type { LyricLine } from "../../data/library";
 
@@ -141,6 +141,7 @@ function getOrHydrateItems(
 
 export function LyricsPane({ compact = false }: { compact?: boolean }) {
   const { current, seek } = usePlayer();
+  const getPlayerTime = useGetPlayerTime();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const isUserScrollingRef = useRef(false);
@@ -180,35 +181,38 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
 
   const isPlainLyrics = useMemo(() => lines.length > 0 && lines.every((l) => !l.time || l.time === 0), [lines]);
 
-  const scrollActiveIntoView = useCallback((idx: number) => {
-    const container = containerRef.current;
-    if (!container) return;
-    cancelScrollRef.current();
-    if (idx <= 0) {
-      if (isInitialMountRef.current) {
-        container.scrollTop = 0;
-        isInitialMountRef.current = false;
-      } else {
-        cancelScrollRef.current = animateScrollTo(container, 0);
+  const scrollActiveIntoView = useCallback(
+    (idx: number) => {
+      const container = containerRef.current;
+      if (!container) return;
+      cancelScrollRef.current();
+      if (idx <= 0) {
+        if (isInitialMountRef.current) {
+          container.scrollTop = 0;
+          isInitialMountRef.current = false;
+        } else {
+          cancelScrollRef.current = animateScrollTo(container, 0);
+        }
+        return;
       }
-      return;
-    }
-    const items = getOrHydrateItems(itemRefs, containerRef, trackId);
-    const el = items[idx];
-    if (el) {
-      // Invariant rect-based scroll computation: immune to offsetParent nesting, padding, or CSS transforms
-      const containerRect = container.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      const elTopInContainer = elRect.top - containerRect.top + container.scrollTop;
-      const targetScroll = Math.max(0, elTopInContainer - container.clientHeight * 0.35);
-      if (isInitialMountRef.current) {
-        container.scrollTop = targetScroll;
-        isInitialMountRef.current = false;
-      } else {
-        cancelScrollRef.current = animateScrollTo(container, targetScroll);
+      const items = getOrHydrateItems(itemRefs, containerRef, trackId);
+      const el = items[idx];
+      if (el) {
+        // Invariant rect-based scroll computation: immune to offsetParent nesting, padding, or CSS transforms
+        const containerRect = container.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        const elTopInContainer = elRect.top - containerRect.top + container.scrollTop;
+        const targetScroll = Math.max(0, elTopInContainer - container.clientHeight * 0.35);
+        if (isInitialMountRef.current) {
+          container.scrollTop = targetScroll;
+          isInitialMountRef.current = false;
+        } else {
+          cancelScrollRef.current = animateScrollTo(container, targetScroll);
+        }
       }
-    }
-  }, [trackId]);
+    },
+    [trackId],
+  );
 
   const handleUserScroll = () => {
     isUserScrollingRef.current = true;
@@ -242,7 +246,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
       if (isPlainLyrics || lines.length === 0) return;
       const items = getOrHydrateItems(itemRefs, containerRef, trackId);
       if (!items || items.length === 0) return;
-      const snapTime = usePlayerTimeSnapshot();
+      const snapTime = getPlayerTime();
       const idx = activeFromTime(lines, snapTime);
       activeIndexRef.current = idx;
       applyActiveClasses(items, -1, idx, isPlainLyrics);
@@ -256,7 +260,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
       window.removeEventListener("focus", handleWake);
       document.removeEventListener("visibilitychange", handleWake);
     };
-  }, [trackId, lines, isPlainLyrics, scrollActiveIntoView]);
+  }, [trackId, lines, isPlainLyrics, scrollActiveIntoView, getPlayerTime]);
 
   // Anti-deadlock failsafe: ensure lines are hydrated and active line scrolled into view after transition
   useEffect(() => {
@@ -264,7 +268,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
       if (isPlainLyrics || lines.length === 0) return;
       const items = getOrHydrateItems(itemRefs, containerRef);
       if (items.length > 0) {
-        const snapTime = usePlayerTimeSnapshot();
+        const snapTime = getPlayerTime();
         const idx = activeFromTime(lines, snapTime);
         activeIndexRef.current = idx;
         applyActiveClasses(items, -1, idx, isPlainLyrics);
@@ -274,7 +278,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
       }
     }, 320);
     return () => clearTimeout(timer);
-  }, [trackId, lines, isPlainLyrics, scrollActiveIntoView]);
+  }, [trackId, lines, isPlainLyrics, scrollActiveIntoView, getPlayerTime]);
 
   useEffect(
     () => () => {
@@ -294,6 +298,13 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
    * của pane. */
   const timeNow = usePlayerTimeSnapshot();
   const initialActive = activeIndexRef.current < 0 ? activeFromTime(lines, timeNow) : -2;
+  const [activeLineState, setActiveLineState] = useState<number>(() =>
+    initialActive === -2 ? activeIndexRef.current : initialActive,
+  );
+
+  useEffect(() => {
+    setActiveLineState(-1);
+  }, [trackId]);
 
   if (!lines.length) {
     return (
@@ -353,6 +364,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
                 onClick={() => {
                   if (isPlainLyrics) return;
                   isUserScrollingRef.current = false;
+                  setActiveLineState(i);
                   seek(line.time);
                 }}
                 className={cn(
@@ -364,9 +376,17 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
                   compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
                 )}
               >
-                {/* Span con: KHÔNG transition-all (feedback "nhồi hiệu ứng");
-                    inherit transition từ cha là đủ — text chỉ đổi màu. */}
-                <span className="inline-block">{line.text}</span>
+                {/* Active line with Word-by-Word syllable fluid fill (Apple Music style) */}
+                {i ===
+                  (activeLineState >= 0
+                    ? activeLineState
+                    : initialActive >= 0
+                      ? initialActive
+                      : activeIndexRef.current) && !isPlainLyrics ? (
+                  <WordByWordActiveLine line={line} nextLineTime={lines[i + 1]?.time} />
+                ) : (
+                  <span className="inline-block">{line.text}</span>
+                )}
               </button>
             ))}
           </div>
@@ -394,6 +414,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
         isUserScrollingRef={isUserScrollingRef}
         isPlainLyrics={isPlainLyrics}
         onActiveChange={(idx) => {
+          setActiveLineState(idx);
           if (isUserScrollingRef.current) return;
           if (idx <= 0) {
             const c = containerRef.current;
@@ -559,3 +580,61 @@ function LyricsTicker({
   }, [time, lines, itemRefs, containerRef, trackId, activeIndexRef, isUserScrollingRef, isPlainLyrics, onActiveChange]);
   return null;
 }
+
+/**
+ * WordByWordActiveLine — dòng lời đang phát tô chữ theo từng âm tiết (Visuals & Lyrics 2.0).
+ * Phong cách Apple Music / Karaoke fluid fill, chỉ subscribe usePlayerTime() trên
+ * đúng 1 dòng active duy nhất để giữ hiệu năng tối đa 0-layout thrash.
+ */
+const WordByWordActiveLine = memo(function WordByWordActiveLine({
+  line,
+  nextLineTime,
+}: {
+  line: LyricLineView;
+  nextLineTime?: number | undefined;
+}) {
+  const time = usePlayerTime();
+  const words = useMemo(() => computeWordTimings(line, nextLineTime), [line, nextLineTime]);
+
+  if (!words.length) {
+    return <span className="inline-block">{line.text}</span>;
+  }
+
+  return (
+    <span className="inline-flex flex-wrap gap-x-2 gap-y-1">
+      {words.map((w, idx) => {
+        const isPast = time >= w.endTime;
+        const isFuture = time < w.startTime;
+        const isSinging = !isPast && !isFuture;
+
+        const progress = isPast
+          ? 1
+          : isFuture
+            ? 0
+            : Math.min(1, Math.max(0, (time - w.startTime) / Math.max(0.01, w.endTime - w.startTime)));
+
+        const pct = (progress * 100).toFixed(1);
+
+        return (
+          <span
+            key={`${idx}-${w.text}`}
+            className={cn(
+              "relative inline-block transition-transform duration-150 transform-gpu will-change-transform",
+              isSinging && "scale-[1.04] origin-bottom text-white",
+            )}
+            style={{
+              background: `linear-gradient(90deg, #ffffff 0%, #ffffff ${pct}%, rgba(255, 255, 255, 0.42) ${pct}%, rgba(255, 255, 255, 0.42) 100%)`,
+              WebkitBackgroundClip: "text",
+              backgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              color: "transparent",
+              filter: isSinging ? "drop-shadow(0 0 14px rgba(255,255,255,0.75))" : "none",
+            }}
+          >
+            {w.text}
+          </span>
+        );
+      })}
+    </span>
+  );
+});

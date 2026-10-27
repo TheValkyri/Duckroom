@@ -1,4 +1,4 @@
-import { ChevronDown, ListMusic, Mic2, SkipForward, Waves } from "lucide-react";
+import { ChevronDown, ListMusic, Mic2, PictureInPicture2, SkipForward, Waves } from "lucide-react";
 import { AnimatePresence, motion, useDragControls, type PanInfo } from "motion/react";
 import { useEffect, useState } from "react";
 import { albumById } from "../../data/library";
@@ -12,6 +12,7 @@ import { SeekBar, TransportControls } from "./Controls";
 import { LyricsPane } from "./Lyrics";
 import { SleepTimerMenu } from "./SleepTimerMenu";
 import { useIsPhoneLayout } from "../../hooks/use-media-query";
+import { useDocumentPip } from "../../hooks/use-document-pip";
 import { NowPlayingTimeLabel } from "./NowPlayingTimeLabel";
 import { AmbientCrossfadeBackground } from "./AmbientCrossfadeBackground";
 import { PhoneCurrentLyricLine } from "./PhoneCurrentLyricLine";
@@ -45,6 +46,7 @@ export function NowPlaying() {
   // useScrollLock dành cho sheets/modals KHÔNG phủ kín màn hình.
   const isPhone = useIsPhoneLayout();
   const phoneDragControls = useDragControls();
+  const pipState = useDocumentPip();
   const album = current ? albumById(current.albumId) : undefined;
   // Fallback NỘI BỘ (gradient) — không tải ảnh mạng nữa: trước đây dùng
   // unsplash → mỗi lần chuyển bài lỗi cover là 1 request mạng + flash trắng.
@@ -252,6 +254,25 @@ export function NowPlaying() {
               >
                 <Waves className={isPhone ? "size-6" : "size-4"} />
                 {!isPhone && <span>Sóng nhạc</span>}
+              </motion.button>
+              <motion.button
+                onClick={() => {
+                  if (pipState.isSupported) {
+                    void pipState.openPip();
+                    handleMinimize();
+                  }
+                }}
+                whileTap={tapScale}
+                transition={springSnappy}
+                aria-label="Mở Mini Player nổi (Document PiP)"
+                title="Mở Mini Player nổi (Always-on-Top)"
+                className={cn(
+                  "text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors cursor-pointer rounded-full border border-transparent",
+                  isPhone ? "p-2.5" : "px-3.5 py-1.5 text-sm",
+                )}
+              >
+                <PictureInPicture2 className={isPhone ? "size-6" : "size-4"} />
+                {!isPhone && <span>Nổi</span>}
               </motion.button>
             </div>
           </div>
@@ -473,9 +494,10 @@ export function NowPlaying() {
                   {showVisualizer && (
                     <Visualizer
                       playing={isPlaying}
-                      bars={isPhone ? 28 : 36}
-                      height={isPhone ? 16 : 38}
-                      className={isPhone ? "mt-2 opacity-70" : "mt-3"}
+                      bars={isPhone ? 28 : 42}
+                      height={isPhone ? 28 : 52}
+                      showModeControls={!isPhone}
+                      className={isPhone ? "mt-2 opacity-80" : "mt-3"}
                     />
                   )}
 

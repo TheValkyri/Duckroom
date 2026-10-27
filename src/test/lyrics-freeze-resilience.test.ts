@@ -68,7 +68,7 @@ describe("Visualizer & Tab-Media Resource Leak Prevention Contract", () => {
 
   it("PhoneCurrentLyricLine isolates AnimatePresence via memoized LyricDisplay", () => {
     expect(phoneLyricSrc).toContain("const LyricDisplay = memo(function LyricDisplay");
-    expect(phoneLyricSrc).toContain("<LyricDisplay activeIdx={activeIdx} text={line.text ?? \"\"} />");
+    expect(phoneLyricSrc).toContain('<LyricDisplay activeIdx={activeIdx} text={line.text ?? ""} />');
   });
 
   it("tab-media-sync avoids redundant DOM mutations when favicon or title is unchanged", () => {
@@ -77,6 +77,8 @@ describe("Visualizer & Tab-Media Resource Leak Prevention Contract", () => {
   });
 
   it("player.tsx immediately pauses previous audio when syncing new track source", () => {
-    expect(playerSrc).toMatch(/if\s*\(!el\.paused\s*&&\s*currentPrimaryTrackId\s*!==\s*current\.id\)\s*\{\s*el\.pause\(\);\s*\}/);
+    expect(playerSrc).toMatch(
+      /if\s*\(!el\.paused\s*&&\s*currentPrimaryTrackId\s*!==\s*current\.id\)\s*\{\s*el\.pause\(\);\s*\}/,
+    );
   });
 });
