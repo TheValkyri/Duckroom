@@ -342,7 +342,7 @@ export function NowPlaying() {
                           damping: 20,
                           delay: 0.14,
                         }}
-                        className="absolute size-[min(34vh,270px)] rounded-full border-4 border-neutral-900 bg-neutral-950 shadow-2xl pointer-events-none z-0"
+                        className="absolute size-[min(34vh,270px)] rounded-full border-4 border-neutral-900 bg-neutral-950 shadow-2xl pointer-events-none z-0 transform-gpu"
                       >
                         <motion.div
                           animate={isPlaying ? { rotate: 360 } : { rotate: 0 }}
@@ -351,8 +351,8 @@ export function NowPlaying() {
                               ? { rotate: { repeat: Infinity, duration: 16, ease: "linear" } }
                               : { duration: 0.5 }
                           }
-                          style={{ transformOrigin: "center center" }}
-                          className="size-full relative rounded-full"
+                          style={{ transformOrigin: "center center", willChange: "transform" }}
+                          className="size-full relative rounded-full transform-gpu"
                         >
                           <div className="absolute inset-4 rounded-full border border-neutral-800/60" />
                           <div className="absolute inset-8 rounded-full border border-neutral-800/40" />

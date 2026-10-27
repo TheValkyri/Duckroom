@@ -65,15 +65,35 @@ export function Visualizer({
 
     let raf = 0;
     let t = 0;
+    let isSettled = true;
     const freqData = new Uint8Array(64);
     let cachedAnalyserEl: HTMLAudioElement | null = null;
     let cachedAnalyser: AnalyserNode | null = null;
 
+    let isIntersecting = true;
+    const observer =
+      typeof IntersectionObserver !== "undefined"
+        ? new IntersectionObserver(
+            (entries) => {
+              for (const entry of entries) {
+                isIntersecting = entry.isIntersecting;
+                if (isIntersecting && !document.hidden && (playing || !isSettled)) {
+                  cancelAnimationFrame(raf);
+                  raf = requestAnimationFrame(draw);
+                }
+              }
+            },
+            { threshold: 0.01 },
+          )
+        : null;
+    observer?.observe(canvas);
+
     const draw = () => {
-      // Never orphan the loop: skip WORK on hidden tabs but always reschedule,
-      // otherwise the animation freezes mid-deceleration and never resumes.
+      // Pause loop when document is hidden to save CPU/GPU; handleVisibilityChange cleanly resumes
       if (document.hidden) {
-        raf = requestAnimationFrame(draw);
+        return;
+      }
+      if (!isIntersecting) {
         return;
       }
 
@@ -105,7 +125,7 @@ export function Visualizer({
       t += 0.035;
       const gap = 2;
       const bw = Math.max(2, w / bars - gap);
-      let isSettled = true;
+      isSettled = true;
 
       const el = audioRef?.current ?? null;
       if (el !== cachedAnalyserEl) {
@@ -126,6 +146,12 @@ export function Visualizer({
       }
 
       const center = (bars - 1) / 2 || 1;
+
+      // Single shared vertical gradient created ONCE per frame:
+      // completely eliminates 36-48 CanvasGradient allocations per frame and stops GC pauses.
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, colors.peak);
+      grad.addColorStop(1, colors.base);
 
       for (let i = 0; i < bars; i++) {
         let target = 0.04;
@@ -168,10 +194,7 @@ export function Visualizer({
         const y = h - bh;
 
         // THANH 3 LỚP (VU analog):
-        // 1) thân chính — gradient dọc theo 2 bậc màu theme
-        const grad = ctx.createLinearGradient(0, y, 0, h);
-        grad.addColorStop(0, colors.peak);
-        grad.addColorStop(1, colors.base);
+        // 1) thân chính — gradient dọc theo 2 bậc màu theme (dùng shared grad đã chuẩn bị)
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.roundRect(x, y, bw, bh, bw / 2);
@@ -206,17 +229,21 @@ export function Visualizer({
     };
 
     const handleVisibilityChange = () => {
-      if (!document.hidden && (playing || !ref.current)) {
+      cancelAnimationFrame(raf);
+      if (!document.hidden && isIntersecting && (playing || !isSettled)) {
         raf = requestAnimationFrame(draw);
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    raf = requestAnimationFrame(draw);
+    if (!document.hidden && isIntersecting) {
+      raf = requestAnimationFrame(draw);
+    }
 
     return () => {
       cancelAnimationFrame(raf);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      observer?.disconnect();
       unsub();
     };
   }, [bars, playing, audioRef]);

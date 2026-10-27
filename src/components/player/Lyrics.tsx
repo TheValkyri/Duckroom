@@ -115,6 +115,30 @@ function lineClass(i: number, activeIndex: number, isPlain = false): string {
   return LINE_FUTURE;
 }
 
+function getOrHydrateItems(
+  itemRefs: React.RefObject<(HTMLButtonElement | null)[]>,
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  expectedTrackId?: string | undefined,
+): (HTMLButtonElement | null)[] {
+  let items = itemRefs.current ?? [];
+  const container = containerRef.current;
+  if (!container) return items;
+
+  // Prevent cross-track button leakage: if container is still tagged with a previous track during exit animation, do not hydrate from it
+  if (expectedTrackId && container.dataset["lyricsTrack"] && container.dataset["lyricsTrack"] !== expectedTrackId) {
+    return [];
+  }
+
+  if ((!items || items.length === 0 || !items[0]) && container) {
+    const found = Array.from(container.querySelectorAll<HTMLButtonElement>("button"));
+    if (found.length > 0) {
+      itemRefs.current = found;
+      items = found;
+    }
+  }
+  return items;
+}
+
 export function LyricsPane({ compact = false }: { compact?: boolean }) {
   const { current, seek } = usePlayer();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -169,10 +193,14 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
       }
       return;
     }
-    const el = itemRefs.current[idx];
+    const items = getOrHydrateItems(itemRefs, containerRef, trackId);
+    const el = items[idx];
     if (el) {
-      const elTop = el.offsetTop - container.offsetTop;
-      const targetScroll = Math.max(0, elTop - container.clientHeight * 0.35);
+      // Invariant rect-based scroll computation: immune to offsetParent nesting, padding, or CSS transforms
+      const containerRect = container.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const elTopInContainer = elRect.top - containerRect.top + container.scrollTop;
+      const targetScroll = Math.max(0, elTopInContainer - container.clientHeight * 0.35);
       if (isInitialMountRef.current) {
         container.scrollTop = targetScroll;
         isInitialMountRef.current = false;
@@ -180,7 +208,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
         cancelScrollRef.current = animateScrollTo(container, targetScroll);
       }
     }
-  }, []);
+  }, [trackId]);
 
   const handleUserScroll = () => {
     isUserScrollingRef.current = true;
@@ -202,11 +230,51 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
     activeIndexRef.current = -1;
     cancelScrollRef.current();
     if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-    itemRefs.current = [];
     if (containerRef.current) {
       containerRef.current.scrollTop = 0;
     }
   }, [trackId]);
+
+  // Window focus & tab visibility recovery: when tab wakes or Alt-Tab returns, immediately re-align
+  useEffect(() => {
+    const handleWake = () => {
+      if (document.hidden) return;
+      if (isPlainLyrics || lines.length === 0) return;
+      const items = getOrHydrateItems(itemRefs, containerRef, trackId);
+      if (!items || items.length === 0) return;
+      const snapTime = usePlayerTimeSnapshot();
+      const idx = activeFromTime(lines, snapTime);
+      activeIndexRef.current = idx;
+      applyActiveClasses(items, -1, idx, isPlainLyrics);
+      if (!isUserScrollingRef.current) {
+        scrollActiveIntoView(idx);
+      }
+    };
+    window.addEventListener("focus", handleWake);
+    document.addEventListener("visibilitychange", handleWake);
+    return () => {
+      window.removeEventListener("focus", handleWake);
+      document.removeEventListener("visibilitychange", handleWake);
+    };
+  }, [trackId, lines, isPlainLyrics, scrollActiveIntoView]);
+
+  // Anti-deadlock failsafe: ensure lines are hydrated and active line scrolled into view after transition
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isPlainLyrics || lines.length === 0) return;
+      const items = getOrHydrateItems(itemRefs, containerRef);
+      if (items.length > 0) {
+        const snapTime = usePlayerTimeSnapshot();
+        const idx = activeFromTime(lines, snapTime);
+        activeIndexRef.current = idx;
+        applyActiveClasses(items, -1, idx, isPlainLyrics);
+        if (!isUserScrollingRef.current) {
+          scrollActiveIntoView(idx);
+        }
+      }
+    }, 320);
+    return () => clearTimeout(timer);
+  }, [trackId, lines, isPlainLyrics, scrollActiveIntoView]);
 
   useEffect(
     () => () => {
@@ -260,14 +328,15 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           exit={{ opacity: 0, y: -14, filter: "blur(6px)" }}
           transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-          className="h-full w-full"
+          className="h-full w-full transform-gpu [will-change:opacity,transform]"
         >
           <div
             ref={containerRef}
+            data-lyrics-track={trackId}
             onWheel={handleUserScroll}
             onTouchStart={handleUserScroll}
             onTouchMove={handleUserScroll}
-            className="flex h-full flex-col gap-5 sm:gap-6 md:gap-7 overflow-y-auto pt-10 sm:pt-16 pb-32 px-4 md:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className="relative flex h-full flex-col gap-5 sm:gap-6 md:gap-7 overflow-y-auto pt-10 sm:pt-16 pb-32 px-4 md:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
           >
             {lines.map((line, i) => (
               <button
@@ -308,6 +377,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
             isUserScrollingRef={isUserScrollingRef}
             containerRef={containerRef}
             isPlainLyrics={isPlainLyrics}
+            trackId={trackId}
             scrollActiveIntoView={scrollActiveIntoView}
           />
         </motion.div>
@@ -318,6 +388,8 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
       <LyricsTicker
         lines={lines}
         itemRefs={itemRefs}
+        containerRef={containerRef}
+        trackId={trackId}
         activeIndexRef={activeIndexRef}
         isUserScrollingRef={isUserScrollingRef}
         isPlainLyrics={isPlainLyrics}
@@ -348,6 +420,7 @@ function LyricsMountSync({
   isUserScrollingRef,
   containerRef,
   isPlainLyrics,
+  trackId,
   scrollActiveIntoView,
 }: {
   lines: LyricLineView[];
@@ -356,6 +429,7 @@ function LyricsMountSync({
   isUserScrollingRef: React.RefObject<boolean>;
   containerRef: React.RefObject<HTMLDivElement | null>;
   isPlainLyrics: boolean;
+  trackId?: string | undefined;
   scrollActiveIntoView: (idx: number) => void;
 }) {
   const mountTime = usePlayerTimeSnapshot();
@@ -364,8 +438,9 @@ function LyricsMountSync({
       applyActiveClasses(itemRefs.current ?? [], -1, -1, true);
       return;
     }
+    const items = getOrHydrateItems(itemRefs, containerRef, trackId);
     const currentIdx = activeFromTime(lines, mountTime);
-    applyActiveClasses(itemRefs.current ?? [], -1, currentIdx, false);
+    applyActiveClasses(items, -1, currentIdx, false);
     activeIndexRef.current = currentIdx;
     if (!isUserScrollingRef.current) {
       scrollActiveIntoView(currentIdx);
@@ -378,6 +453,7 @@ function LyricsMountSync({
     activeIndexRef,
     isUserScrollingRef,
     containerRef,
+    trackId,
     scrollActiveIntoView,
   ]);
 
@@ -408,8 +484,9 @@ function applyActiveClasses(items: (HTMLButtonElement | null)[], prev: number, n
 
   const setCls = (i: number, cls: string) => {
     const el = items[i];
-    if (!el || !el.dataset["base"]) return;
-    el.className = `${el.dataset["base"]} ${cls}`;
+    if (!el) return;
+    const base = el.dataset["base"] || LINE_BASE;
+    el.className = `${base} ${cls}`;
   };
 
   if (next === -1) {
@@ -445,6 +522,8 @@ function applyActiveClasses(items: (HTMLButtonElement | null)[], prev: number, n
 function LyricsTicker({
   lines,
   itemRefs,
+  containerRef,
+  trackId,
   activeIndexRef,
   isUserScrollingRef,
   isPlainLyrics,
@@ -452,6 +531,8 @@ function LyricsTicker({
 }: {
   lines: LyricLineView[];
   itemRefs: React.RefObject<(HTMLButtonElement | null)[]>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  trackId?: string | undefined;
   activeIndexRef: React.RefObject<number>;
   isUserScrollingRef: React.RefObject<boolean>;
   isPlainLyrics: boolean;
@@ -459,13 +540,22 @@ function LyricsTicker({
 }) {
   const time = usePlayerTime();
   useEffect(() => {
-    if (isPlainLyrics) return;
+    if (isPlainLyrics || lines.length === 0) return;
     const next = activeFromTime(lines, time);
     const prev = activeIndexRef.current ?? -1;
-    if (next === prev) return;
-    applyActiveClasses(itemRefs.current ?? [], prev, next, false);
+    const items = getOrHydrateItems(itemRefs, containerRef, trackId);
+    if (!items || items.length === 0) return;
+
+    // Self-healing: if active line is the same index but its element lacks active styling (e.g. after transition),
+    // force apply so song transition never freezes.
+    const activeEl = next >= 0 ? items[next] : null;
+    const needsSync = activeEl && !activeEl.className.includes("scale-[1.03]");
+
+    if (next === prev && !needsSync) return;
+
+    applyActiveClasses(items, prev, next, false);
     activeIndexRef.current = next;
     onActiveChange(next);
-  }, [time, lines, itemRefs, activeIndexRef, isUserScrollingRef, isPlainLyrics, onActiveChange]);
+  }, [time, lines, itemRefs, containerRef, trackId, activeIndexRef, isUserScrollingRef, isPlainLyrics, onActiveChange]);
   return null;
 }

@@ -774,6 +774,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (!el.paused && currentPrimaryTrackId !== current.id) {
+      el.pause();
+    }
+
     let isCancelled = false;
 
     async function syncAudioSource() {
@@ -1447,10 +1451,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
       navigator.mediaSession.playbackState = projectedIsPlaying ? "playing" : "paused";
     }
-
-    return () => {
-      syncBrowserTabMedia(null, false);
-    };
   }, [projectedTrackId, projectedIsPlaying, engineState.queue]);
 
   // ---- Hotkeys (unchanged contract) ----------------------------------------

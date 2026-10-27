@@ -119,12 +119,16 @@ function renderArtworkFavicon(img: HTMLImageElement): string {
   }
 }
 
+let currentFaviconUrl: string | null = null;
+
 /**
  * Updates browser <link rel="icon"> elements in <head>.
  * Replaces existing nodes to force Chrome/Edge/Safari to immediately update the tab icon.
  */
 function setFavicon(iconUrl: string | null) {
   if (typeof document === "undefined") return;
+  if (currentFaviconUrl === iconUrl) return;
+  currentFaviconUrl = iconUrl;
 
   const existingIcons = document.querySelectorAll<HTMLLinkElement>("link[rel*='icon']");
   existingIcons.forEach((el) => el.remove());
@@ -186,7 +190,10 @@ function isTrackTitle(title: string): boolean {
 function applyTrackTitle(track: SyncTrackInfo, isPlaying: boolean) {
   if (typeof document === "undefined") return;
   const prefix = isPlaying ? PLAY_PREFIX : PAUSE_PREFIX;
-  document.title = `${prefix}${track.title} • ${track.artist} — Duckroom`;
+  const targetTitle = `${prefix}${track.title} • ${track.artist} — Duckroom`;
+  if (document.title !== targetTitle) {
+    document.title = targetTitle;
+  }
 }
 
 /**
@@ -289,6 +296,7 @@ export function syncBrowserTabMedia(track: SyncTrackInfo | null, isPlaying: bool
   } else {
     currentActiveTrack = null;
     currentIsPlaying = false;
+    currentFaviconUrl = null;
     // Revert to page title, default duck icons, and default theme-color
     document.title = originalRouteTitle || "Duckroom";
     setFavicon(null);

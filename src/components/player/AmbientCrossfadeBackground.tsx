@@ -34,7 +34,7 @@ export function AmbientCrossfadeBackground({ cover, accent }: { cover: string; a
   }, [cover, currentAccent]);
 
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden select-none -z-10 bg-background">
+    <div className="pointer-events-none absolute inset-0 overflow-hidden select-none -z-10 bg-background [contain:strict]">
       <AnimatePresence>
         {layers.map((layer) => (
           <motion.div
@@ -58,9 +58,10 @@ export function AmbientCrossfadeBackground({ cover, accent }: { cover: string; a
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
-              className="absolute -top-[12%] -left-[10%] w-[90vw] h-[90vh] rounded-full opacity-45 pointer-events-none transform-gpu blur-[40px] md:blur-[80px]"
+              className="absolute -top-[12%] -left-[10%] w-[90vw] h-[90vh] rounded-full opacity-45 pointer-events-none transform-gpu blur-[40px] md:blur-[80px] [will-change:transform]"
               style={{
                 background: `radial-gradient(circle at 40% 40%, ${layer.accent} 0%, transparent 68%)`,
+                willChange: "transform",
               }}
             />
 
@@ -75,9 +76,10 @@ export function AmbientCrossfadeBackground({ cover, accent }: { cover: string; a
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
-              className="absolute -bottom-[15%] -right-[10%] w-[85vw] h-[85vh] rounded-full opacity-35 pointer-events-none transform-gpu blur-[40px] md:blur-[80px]"
+              className="absolute -bottom-[15%] -right-[10%] w-[85vw] h-[85vh] rounded-full opacity-35 pointer-events-none transform-gpu blur-[40px] md:blur-[80px] [will-change:transform]"
               style={{
                 background: `radial-gradient(circle at 60% 60%, ${layer.accent} 0%, transparent 65%)`,
+                willChange: "transform",
               }}
             />
 
