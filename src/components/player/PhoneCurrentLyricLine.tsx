@@ -1,6 +1,6 @@
 import { memo, useMemo } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { usePlayer, usePlayerTime } from "../../lib/player";
+import { usePlayer, usePlayerTime, useSmoothLyricTime } from "../../lib/player";
 import { computeWordTimings } from "../../lib/lyrics-formatter";
 import type { LyricLine } from "../../data/library";
 import { cn } from "../../lib/utils";
@@ -15,7 +15,8 @@ const PhoneActiveWordFlow = memo(function PhoneActiveWordFlow({
   line: LyricLine;
   nextLineTime?: number | undefined;
 }) {
-  const time = usePlayerTime();
+  const fallbackTime = usePlayerTime();
+  const time = useSmoothLyricTime(fallbackTime);
   const words = useMemo(() => computeWordTimings(line, nextLineTime), [line, nextLineTime]);
 
   if (!words.length) {
@@ -36,14 +37,13 @@ const PhoneActiveWordFlow = memo(function PhoneActiveWordFlow({
             : Math.min(1, Math.max(0, (time - w.startTime) / Math.max(0.01, w.endTime - w.startTime)));
 
         const pct = (progress * 100).toFixed(1);
+        const feather = Math.min(12, Math.max(0, (1 - progress) * 24));
+        const leadStart = Math.max(0, Number(pct) - feather).toFixed(1);
 
         return (
           <span
             key={`${idx}-${w.text}`}
-            className={cn(
-              "relative inline-block transition-transform duration-150 font-semibold",
-              isSinging && "scale-[1.06] origin-center",
-            )}
+            className="relative inline-block transition-transform duration-150 font-semibold"
           >
             {/* Base text: real font glyphs, visible in all environments */}
             <span className={cn("inline-block", isPast ? "text-white font-semibold" : "text-white/45")}>{w.text}</span>
@@ -55,7 +55,9 @@ const PhoneActiveWordFlow = memo(function PhoneActiveWordFlow({
                 style={{
                   clipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
                   WebkitClipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
-                  textShadow: "0 0 10px rgba(255, 255, 255, 0.75)",
+                  maskImage: `linear-gradient(90deg, #000 0%, #000 ${leadStart}%, transparent ${pct}%, transparent 100%)`,
+                  WebkitMaskImage: `linear-gradient(90deg, #000 0%, #000 ${leadStart}%, transparent ${pct}%, transparent 100%)`,
+                  textShadow: "none",
                 }}
                 aria-hidden="true"
               >

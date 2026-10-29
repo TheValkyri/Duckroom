@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { albumById, formatTime, type LyricLine } from "../../data/library";
-import { usePlayer, usePlayerTime } from "../../lib/player";
+import { usePlayer, usePlayerTime, useSmoothLyricTime } from "../../lib/player";
 import { computeWordTimings } from "../../lib/lyrics-formatter";
 import { cn } from "../../lib/utils";
 
@@ -25,12 +25,14 @@ import { cn } from "../../lib/utils";
 const KaraokeLine = memo(function KaraokeLine({
   line,
   nextLineTime,
-  time,
+  time: propTime,
 }: {
   line: LyricLine;
   nextLineTime?: number | undefined;
-  time: number;
+  time?: number;
 }) {
+  const fallbackTime = propTime ?? 0;
+  const time = useSmoothLyricTime(fallbackTime);
   const words = useMemo(() => computeWordTimings(line, nextLineTime), [line, nextLineTime]);
 
   if (!words.length) {
@@ -50,14 +52,13 @@ const KaraokeLine = memo(function KaraokeLine({
             ? 0
             : Math.min(1, Math.max(0, (time - w.startTime) / Math.max(0.01, w.endTime - w.startTime)));
         const pct = (progress * 100).toFixed(1);
+        const feather = Math.min(12, Math.max(0, (1 - progress) * 24));
+        const leadStart = Math.max(0, Number(pct) - feather).toFixed(1);
 
         return (
           <span
             key={`${idx}-${w.text}`}
-            className={cn(
-              "relative inline-block transition-transform duration-150 font-semibold",
-              isSinging && "scale-[1.06] origin-center",
-            )}
+            className="relative inline-block transition-transform duration-150 font-semibold"
           >
             {/* Base text: 100% visible across all PiP themes and windows */}
             <span className={cn("inline-block", isPast ? "text-primary font-semibold" : "text-foreground/45")}>
@@ -71,6 +72,8 @@ const KaraokeLine = memo(function KaraokeLine({
                 style={{
                   clipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
                   WebkitClipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
+                  maskImage: `linear-gradient(90deg, #000 0%, #000 ${leadStart}%, transparent ${pct}%, transparent 100%)`,
+                  WebkitMaskImage: `linear-gradient(90deg, #000 0%, #000 ${leadStart}%, transparent ${pct}%, transparent 100%)`,
                   textShadow: "0 0 10px var(--primary, #d97706)",
                 }}
                 aria-hidden="true"

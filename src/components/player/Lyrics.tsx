@@ -1,6 +1,12 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { usePlayer, usePlayerTime, usePlayerTimeSnapshot, useGetPlayerTime } from "../../lib/player";
+import {
+  usePlayer,
+  usePlayerTime,
+  usePlayerTimeSnapshot,
+  useGetPlayerTime,
+  useSmoothLyricTime,
+} from "../../lib/player";
 import { applyLyricsOffset, computeWordTimings } from "../../lib/lyrics-formatter";
 import { cn } from "../../lib/utils";
 import type { LyricLine } from "../../data/library";
@@ -593,7 +599,8 @@ const WordByWordActiveLine = memo(function WordByWordActiveLine({
   line: LyricLineView;
   nextLineTime?: number | undefined;
 }) {
-  const time = usePlayerTime();
+  const fallbackTime = usePlayerTime();
+  const time = useSmoothLyricTime(fallbackTime);
   const words = useMemo(() => computeWordTimings(line, nextLineTime), [line, nextLineTime]);
 
   if (!words.length) {
@@ -614,15 +621,11 @@ const WordByWordActiveLine = memo(function WordByWordActiveLine({
             : Math.min(1, Math.max(0, (time - w.startTime) / Math.max(0.01, w.endTime - w.startTime)));
 
         const pct = (progress * 100).toFixed(1);
+        const feather = Math.min(12, Math.max(0, (1 - progress) * 24));
+        const leadStart = Math.max(0, Number(pct) - feather).toFixed(1);
 
         return (
-          <span
-            key={`${idx}-${w.text}`}
-            className={cn(
-              "relative inline-block transition-transform duration-150",
-              isSinging && "scale-[1.04] origin-bottom",
-            )}
-          >
+          <span key={`${idx}-${w.text}`} className="relative inline-block transition-transform duration-150">
             {/* Base text: 100% visible font glyphs, immune to CSS text background clipping glitches */}
             <span className={cn("inline-block", isPast ? "text-white" : "text-white/40")}>{w.text}</span>
 
@@ -633,7 +636,9 @@ const WordByWordActiveLine = memo(function WordByWordActiveLine({
                 style={{
                   clipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
                   WebkitClipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
-                  textShadow: "0 0 14px rgba(255, 255, 255, 0.8)",
+                  maskImage: `linear-gradient(90deg, #000 0%, #000 ${leadStart}%, transparent ${pct}%, transparent 100%)`,
+                  WebkitMaskImage: `linear-gradient(90deg, #000 0%, #000 ${leadStart}%, transparent ${pct}%, transparent 100%)`,
+                  textShadow: "none",
                 }}
                 aria-hidden="true"
               >

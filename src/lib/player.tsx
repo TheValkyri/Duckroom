@@ -96,6 +96,8 @@ export function usePlayerTime(): number {
   return useSyncExternalStore(store.subscribe, store.getTime, () => 0);
 }
 
+export { useSmoothLyricTime } from "./use-smooth-lyric-time";
+
 /* ---------------------------------------------------------------------------
  * SELECTOR HOOKS (perf 2026-09-01) — cho danh sách dài (TrackRow × 76+).
  *
