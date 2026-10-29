@@ -17,6 +17,7 @@ import {
 import { albumById, formatTime, type LyricLine } from "../../data/library";
 import { usePlayer, usePlayerTime, useSmoothLyricTime } from "../../lib/player";
 import { computeWordTimings } from "../../lib/lyrics-formatter";
+import { useTrackLyrics } from "../../lib/use-track-lyrics";
 import { cn } from "../../lib/utils";
 
 /**
@@ -62,6 +63,11 @@ const KaraokeLine = memo(function KaraokeLine({
               "relative inline-block transition-transform duration-150 font-semibold",
               isSinging && "-translate-y-0.5",
             )}
+            style={{
+              transitionTimingFunction: isSinging
+                ? "cubic-bezier(0.175, 0.885, 0.32, 1.275)"
+                : "cubic-bezier(0.16, 1, 0.3, 1)",
+            }}
           >
             {/* Base text: 100% visible across all PiP themes and windows */}
             <span className={cn("inline-block", isPast ? "text-primary font-semibold" : "text-foreground/45")}>
@@ -102,6 +108,7 @@ export function DocumentPipPlayer({ onClose, isFloatingOverlay = false }: Docume
 
   const time = usePlayerTime();
   const [viewMode, setViewMode] = useState<"vinyl" | "lyrics">("vinyl");
+  const { lines } = useTrackLyrics(current);
 
   if (!current) {
     return (
@@ -117,7 +124,6 @@ export function DocumentPipPlayer({ onClose, isFloatingOverlay = false }: Docume
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect width='400' height='400' fill='%2318181b'/%3E%3C/svg%3E";
   const coverUrl = current.cover || album?.cover || fallbackCover;
 
-  const lines = current.lyrics || [];
   let activeLyricIdx = -1;
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];

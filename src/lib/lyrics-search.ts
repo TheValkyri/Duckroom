@@ -91,6 +91,49 @@ async function safeFetchJson(url: string, timeoutMs = 5000): Promise<any> {
 }
 
 /**
+ * Tra cứu nhanh bài hát trong kho dữ liệu cộng đồng (Duckroom Community Vault)
+ */
+export function findMatchingCommunityLyric(
+  title: string,
+  artist: string = "",
+): (typeof COMMUNITY_LYRICS)[number] | null {
+  if (!title) return null;
+  const cleanT = cleanSongQuery(title);
+  const cleanA = cleanSongQuery(artist);
+  const nonDiacriticT = removeVietnameseDiacritics(cleanT).toLowerCase();
+  const nonDiacriticA = removeVietnameseDiacritics(cleanA).toLowerCase();
+  const fullNormQuery = `${nonDiacriticA} ${nonDiacriticT}`.trim();
+  const searchTokens = Array.from(
+    new Set(`${nonDiacriticA} ${nonDiacriticT}`.split(/\s+/).filter((w) => w.length >= 2)),
+  );
+
+  for (const preset of COMMUNITY_LYRICS) {
+    const pTitleNorm = removeVietnameseDiacritics(preset.title).toLowerCase();
+    const pArtistNorm = removeVietnameseDiacritics(preset.artist).toLowerCase();
+    const pFullNorm = `${pArtistNorm} ${pTitleNorm}`;
+    const pRevNorm = `${pTitleNorm} ${pArtistNorm}`;
+
+    const allTokensMatch =
+      searchTokens.length > 0 &&
+      searchTokens.every((token) => pTitleNorm.includes(token) || pArtistNorm.includes(token));
+
+    const isMatch =
+      allTokensMatch ||
+      pTitleNorm === nonDiacriticT ||
+      pFullNorm === fullNormQuery ||
+      pRevNorm === fullNormQuery ||
+      (nonDiacriticT && pTitleNorm.includes(nonDiacriticT)) ||
+      (fullNormQuery && pFullNorm.includes(fullNormQuery)) ||
+      (fullNormQuery && (pTitleNorm.includes(fullNormQuery) || fullNormQuery.includes(pTitleNorm)));
+
+    if (isMatch) {
+      return preset;
+    }
+  }
+  return null;
+}
+
+/**
  * Tìm kiếm lời bài hát chuyên sâu qua nhiều tầng (Multi-tier Strategy)
  */
 export async function searchOnlineLyricsMultiSource(title: string, artist: string = ""): Promise<LyricSearchResult[]> {

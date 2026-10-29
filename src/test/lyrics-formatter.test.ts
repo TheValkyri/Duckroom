@@ -284,5 +284,51 @@ describe("Lyrics Formatter V2 — Zero Content Mutation & Precise Timing", () =>
       expect(readStoredOffset("track-test")).toBe(0);
       expect(readStoredOffset(undefined)).toBe(0);
     });
+
+    it("dispatches duckroom:lyrics-offset-changed event on saveStoredOffset", () => {
+      let receivedOffset: number | null = null;
+      const originalWindow = (globalThis as any).window;
+      const listeners: Record<string, Array<(e: any) => void>> = {};
+      (globalThis as any).window = {
+        dispatchEvent: (e: any) => {
+          (listeners[e.type] || []).forEach((cb) => cb(e));
+          return true;
+        },
+        addEventListener: (type: string, cb: (e: any) => void) => {
+          listeners[type] = listeners[type] || [];
+          listeners[type]!.push(cb);
+        },
+        removeEventListener: (type: string, cb: (e: any) => void) => {
+          listeners[type] = (listeners[type] || []).filter((f) => f !== cb);
+        },
+      };
+
+      const listener = (e: any) => {
+        if (e.detail?.trackId === "evt-track") {
+          receivedOffset = e.detail.offsetMs;
+        }
+      };
+      (globalThis as any).window.addEventListener("duckroom:lyrics-offset-changed", listener);
+      saveStoredOffset("evt-track", 250);
+      expect(receivedOffset).toBe(250);
+      (globalThis as any).window.removeEventListener("duckroom:lyrics-offset-changed", listener);
+
+      if (originalWindow !== undefined) {
+        (globalThis as any).window = originalWindow;
+      } else {
+        delete (globalThis as any).window;
+      }
+    });
+
+    it("protects natural duration for short held phrases instead of prematurely cutting them off", () => {
+      const line = { time: 5.0, text: "Tao không thích" };
+      // Next line is at 8.5s (gap 3.5s)
+      const words = computeWordTimings(line, 8.5);
+      expect(words).toHaveLength(3);
+      const totalDuration = words[words.length - 1]!.endTime - words[0]!.startTime;
+      // Singing spans natural duration (> 2.0s) rather than being crushed to 1.5s
+      expect(totalDuration).toBeGreaterThan(2.0);
+      expect(words[words.length - 1]!.endTime).toBeLessThanOrEqual(8.5);
+    });
   });
 });

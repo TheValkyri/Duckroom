@@ -2,6 +2,7 @@ import { memo, useMemo } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePlayer, usePlayerTime, useSmoothLyricTime } from "../../lib/player";
 import { computeWordTimings } from "../../lib/lyrics-formatter";
+import { useTrackLyrics } from "../../lib/use-track-lyrics";
 import type { LyricLine } from "../../data/library";
 import { cn } from "../../lib/utils";
 
@@ -47,6 +48,11 @@ const PhoneActiveWordFlow = memo(function PhoneActiveWordFlow({
               "relative inline-block transition-transform duration-150 font-semibold",
               isSinging && "-translate-y-0.5",
             )}
+            style={{
+              transitionTimingFunction: isSinging
+                ? "cubic-bezier(0.175, 0.885, 0.32, 1.275)"
+                : "cubic-bezier(0.16, 1, 0.3, 1)",
+            }}
           >
             {/* Base text: real font glyphs, visible in all environments */}
             <span className={cn("inline-block", isPast ? "text-white font-semibold" : "text-white/45")}>{w.text}</span>
@@ -54,7 +60,7 @@ const PhoneActiveWordFlow = memo(function PhoneActiveWordFlow({
             {/* Active syllable fluid fill overlay */}
             {isSinging && (
               <span
-                className="absolute inset-0 whitespace-nowrap text-white font-semibold select-none pointer-events-none"
+                className="absolute inset-0 whitespace-nowrap text-white font-semibold select-none pointer-events-none drop-shadow-[0_2px_8px_rgba(255,255,255,0.25)]"
                 style={{
                   clipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
                   WebkitClipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
@@ -82,8 +88,9 @@ const PhoneActiveWordFlow = memo(function PhoneActiveWordFlow({
  */
 const LyricDisplay = memo(function LyricDisplay({ activeIdx, text }: { activeIdx: number; text: string }) {
   const { current } = usePlayer();
-  const line = current?.lyrics?.[activeIdx];
-  const nextLineTime = current?.lyrics?.[activeIdx + 1]?.time;
+  const { lines } = useTrackLyrics(current);
+  const line = lines?.[activeIdx];
+  const nextLineTime = lines?.[activeIdx + 1]?.time;
 
   return (
     <div
@@ -119,7 +126,7 @@ const LyricDisplay = memo(function LyricDisplay({ activeIdx, text }: { activeIdx
 export function PhoneCurrentLyricLine() {
   const { current } = usePlayer();
   const time = usePlayerTime();
-  const lines = current?.lyrics;
+  const { lines } = useTrackLyrics(current);
 
   if (!lines || lines.length === 0) return null;
 

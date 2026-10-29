@@ -14,6 +14,7 @@ import {
   saveStoredOffset,
   OFFSET_LIMIT_MS,
 } from "../../lib/lyrics-formatter";
+import { useTrackLyrics } from "../../lib/use-track-lyrics";
 import { cn } from "../../lib/utils";
 import type { LyricLine } from "../../data/library";
 
@@ -146,10 +147,6 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   // §10.4 — global offset: display-time shift only, per-track persistence.
   // Fix 2026-08-25: pill UI chỉnh offset (− / giá trị / +) đã bị XÓA SẠCH theo
   // yêu cầu — không còn bất kỳ control nào trên pane lời. Offset đã lưu trong
-  // localStorage (nếu có) vẫn được áp dụng khi hiển thị.
-  const [offsetMs, setOffsetMs] = useState(0);
-  const [nudgeToast, setNudgeToast] = useState<string | null>(null);
-  const nudgeTimeoutRef = useRef<any>(null);
   const trackId = current?.id;
   const lastTrackIdRef = useRef(trackId);
   if (lastTrackIdRef.current !== trackId) {
@@ -160,33 +157,9 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
     itemRefs.current = [];
   }
 
-  useEffect(() => {
-    setOffsetMs(readStoredOffset(trackId));
-  }, [trackId]);
+  const { lines, source, offsetMs, handleNudgeOffset, handleResetOffset, nudgeToast } = useTrackLyrics(current);
 
-  const handleNudgeOffset = useCallback(
-    (deltaMs: number) => {
-      if (!trackId) return;
-      setOffsetMs((prev) => {
-        const next = Math.max(-OFFSET_LIMIT_MS, Math.min(OFFSET_LIMIT_MS, prev + deltaMs));
-        saveStoredOffset(trackId, next);
-        setNudgeToast(`${next > 0 ? `+${next}` : next}ms`);
-        if (nudgeTimeoutRef.current) clearTimeout(nudgeTimeoutRef.current);
-        nudgeTimeoutRef.current = setTimeout(() => setNudgeToast(null), 1800);
-        return next;
-      });
-    },
-    [trackId],
-  );
-
-  const handleResetOffset = useCallback(() => {
-    if (!trackId) return;
-    setOffsetMs(0);
-    saveStoredOffset(trackId, 0);
-    setNudgeToast("0ms (Mặc định)");
-    if (nudgeTimeoutRef.current) clearTimeout(nudgeTimeoutRef.current);
-    nudgeTimeoutRef.current = setTimeout(() => setNudgeToast(null), 1800);
-  }, [trackId]);
+  const isPlainLyrics = useMemo(() => lines.length > 0 && lines.every((l) => !l.time || l.time === 0), [lines]);
 
   // Real-time micro-sync keyboard shortcuts: [ earlier, ] later
   useEffect(() => {
@@ -208,17 +181,6 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [handleNudgeOffset]);
-
-  // Stabilize mảng lines cho useMemo: `current?.lyrics ?? []` tạo array mới
-  // mỗi render khi không có lời → useMemo bên dưới chạy lại vô nghĩa.
-  const emptyLines = useMemo<LyricLineView[]>(() => [], []);
-  const originalLines = current?.lyrics ?? emptyLines;
-  const lines = useMemo(
-    () => (offsetMs === 0 ? originalLines : applyLyricsOffset(originalLines, offsetMs)),
-    [originalLines, offsetMs],
-  );
-
-  const isPlainLyrics = useMemo(() => lines.length > 0 && lines.every((l) => !l.time || l.time === 0), [lines]);
 
   const scrollActiveIntoView = useCallback(
     (idx: number) => {
@@ -524,6 +486,14 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
               Reset
             </button>
           )}
+          {source && (
+            <span
+              className="ml-1 hidden sm:inline-block max-w-[120px] truncate text-[9px] font-medium text-emerald-400/90 tracking-wide"
+              title={`Nguồn: ${source}`}
+            >
+              • {source.includes("Community") ? "Community" : "LRCLIB"}
+            </span>
+          )}
         </div>
       )}
 
@@ -741,7 +711,7 @@ const WordByWordActiveLine = memo(function WordByWordActiveLine({
             )}
             style={{
               transitionTimingFunction: isSinging
-                ? "cubic-bezier(0.175, 0.885, 0.32, 1.25)"
+                ? "cubic-bezier(0.175, 0.885, 0.32, 1.275)"
                 : "cubic-bezier(0.16, 1, 0.3, 1)",
             }}
           >
@@ -751,7 +721,7 @@ const WordByWordActiveLine = memo(function WordByWordActiveLine({
             {/* Active syllable fluid fill overlay */}
             {isSinging && (
               <span
-                className="absolute inset-0 whitespace-nowrap text-white select-none pointer-events-none"
+                className="absolute inset-0 whitespace-nowrap text-white select-none pointer-events-none drop-shadow-[0_2px_8px_rgba(255,255,255,0.25)]"
                 style={{
                   clipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
                   WebkitClipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,

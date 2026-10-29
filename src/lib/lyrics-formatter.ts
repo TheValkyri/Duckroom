@@ -205,6 +205,25 @@ export function saveStoredOffset(trackId: string | undefined, offsetMs: number):
       // Storage quota or private mode fallback
     }
   }
+
+  const dispatchTarget =
+    typeof window !== "undefined" && typeof window.dispatchEvent === "function"
+      ? window
+      : typeof globalThis !== "undefined" && typeof (globalThis as any).dispatchEvent === "function"
+        ? (globalThis as any)
+        : null;
+
+  if (dispatchTarget) {
+    try {
+      dispatchTarget.dispatchEvent(
+        new CustomEvent("duckroom:lyrics-offset-changed", {
+          detail: { trackId, offsetMs: clamped },
+        }),
+      );
+    } catch {
+      // ignore
+    }
+  }
 }
 
 const QUICK_INTERJECTIONS = new Set([
@@ -334,9 +353,16 @@ export function computeWordTimings(line: LyricLine, nextLineTime?: number): Lyri
   const lineStart = line.time;
   let lineDuration: number;
   if (typeof nextLineTime === "number" && nextLineTime > lineStart) {
-    lineDuration = Math.min(nextLineTime - lineStart, Math.max(1.2, rawWords.length * 0.55));
+    const gap = nextLineTime - lineStart;
+    if (gap <= 4.5) {
+      // Short/moderate gap: singing naturally spans the interval with a small breath rest at the end
+      lineDuration = Math.min(gap - 0.15, Math.max(1.2, gap * 0.9, rawWords.length * 0.32));
+    } else {
+      // Long gap (interlude/solo): vocals complete naturally without stretching across the whole interlude
+      lineDuration = Math.min(gap - 0.5, Math.max(2.0, rawWords.length * 0.55 + 0.6));
+    }
   } else {
-    lineDuration = Math.max(1.5, rawWords.length * 0.42);
+    lineDuration = Math.max(2.0, rawWords.length * 0.45 + 0.5);
   }
 
   const activeDuration = Math.max(0.8, lineDuration * 0.94);
@@ -348,7 +374,7 @@ export function computeWordTimings(line: LyricLine, nextLineTime?: number): Lyri
     const isLast = i === rawWords.length - 1;
     let w = getAcousticWeight(clean, isLast);
     const p = getPunctuationPause(word);
-    w += p * 1.6; // Punctuation adds natural dwell/cadence weight
+    w += p * 0.65; // Balanced cadence dwell for punctuation
     rawWeights.push(w);
   }
 
