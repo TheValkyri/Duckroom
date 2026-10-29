@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Track, LyricLine } from "../data/library";
-import { applyLyricsOffset, readStoredOffset, saveStoredOffset, OFFSET_LIMIT_MS, parseLrc } from "./lyrics-formatter";
+import { applyLyricsOffset, readStoredOffset, parseLrc } from "./lyrics-formatter";
 import { findMatchingCommunityLyric } from "./lyrics-search";
 
 export interface TrackLyricsResult {
@@ -10,9 +10,6 @@ export interface TrackLyricsResult {
   isSynced: boolean;
   source: string | null;
   offsetMs: number;
-  handleNudgeOffset: (deltaMs: number) => void;
-  handleResetOffset: () => void;
-  nudgeToast: string | null;
 }
 
 const AUTO_LYRICS_CACHE_PREFIX = "duckroom.autoLyrics.";
@@ -20,10 +17,8 @@ const AUTO_LYRICS_CACHE_PREFIX = "duckroom.autoLyrics.";
 export function useTrackLyrics(track: Track | undefined | null): TrackLyricsResult {
   const trackId = track?.id;
   const [offsetMs, setOffsetMs] = useState<number>(() => readStoredOffset(trackId));
-  const [nudgeToast, setNudgeToast] = useState<string | null>(null);
   const [autoLyricsLines, setAutoLyricsLines] = useState<LyricLine[] | null>(null);
   const [autoSource, setAutoSource] = useState<string | null>(null);
-  const nudgeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync offset when track changes
   useEffect(() => {
@@ -186,30 +181,6 @@ export function useTrackLyrics(track: Track | undefined | null): TrackLyricsResu
     [rawLines, offsetMs],
   );
 
-  const handleNudgeOffset = useCallback(
-    (deltaMs: number) => {
-      if (!trackId) return;
-      setOffsetMs((prev) => {
-        const next = Math.max(-OFFSET_LIMIT_MS, Math.min(OFFSET_LIMIT_MS, prev + deltaMs));
-        saveStoredOffset(trackId, next);
-        setNudgeToast(`${next > 0 ? `+${next}` : next}ms`);
-        if (nudgeTimeoutRef.current) clearTimeout(nudgeTimeoutRef.current);
-        nudgeTimeoutRef.current = setTimeout(() => setNudgeToast(null), 1800);
-        return next;
-      });
-    },
-    [trackId],
-  );
-
-  const handleResetOffset = useCallback(() => {
-    if (!trackId) return;
-    setOffsetMs(0);
-    saveStoredOffset(trackId, 0);
-    setNudgeToast("0ms (Mặc định)");
-    if (nudgeTimeoutRef.current) clearTimeout(nudgeTimeoutRef.current);
-    nudgeTimeoutRef.current = setTimeout(() => setNudgeToast(null), 1800);
-  }, [trackId]);
-
   return {
     lines,
     originalLines: rawLines,
@@ -217,8 +188,5 @@ export function useTrackLyrics(track: Track | undefined | null): TrackLyricsResu
     isSynced: !isPlainLyrics && lines.length > 0,
     source: resolved.source,
     offsetMs,
-    handleNudgeOffset,
-    handleResetOffset,
-    nudgeToast,
   };
 }

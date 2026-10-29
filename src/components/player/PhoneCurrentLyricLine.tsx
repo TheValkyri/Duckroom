@@ -42,25 +42,14 @@ const PhoneActiveWordFlow = memo(function PhoneActiveWordFlow({
         const leadStart = Math.max(0, Number(pct) - feather).toFixed(1);
 
         return (
-          <span
-            key={`${idx}-${w.text}`}
-            className={cn(
-              "relative inline-block transition-transform duration-150 font-semibold",
-              isSinging && "-translate-y-0.5",
-            )}
-            style={{
-              transitionTimingFunction: isSinging
-                ? "cubic-bezier(0.175, 0.885, 0.32, 1.275)"
-                : "cubic-bezier(0.16, 1, 0.3, 1)",
-            }}
-          >
+          <span key={`${idx}-${w.text}`} className="relative inline-block font-semibold">
             {/* Base text: real font glyphs, visible in all environments */}
             <span className={cn("inline-block", isPast ? "text-white font-semibold" : "text-white/45")}>{w.text}</span>
 
             {/* Active syllable fluid fill overlay */}
             {isSinging && (
               <span
-                className="absolute inset-0 whitespace-nowrap text-white font-semibold select-none pointer-events-none drop-shadow-[0_2px_8px_rgba(255,255,255,0.25)]"
+                className="absolute inset-0 whitespace-nowrap text-white font-semibold select-none pointer-events-none"
                 style={{
                   clipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
                   WebkitClipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,

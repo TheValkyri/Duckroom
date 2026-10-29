@@ -103,7 +103,7 @@ describe("Lyric Rendering Anti-Glitch Invariants (media_1793110613521_b0a6803e r
   it("maintains consistent font-weight on parent word spans to prevent layout shifts and kerning offsets", () => {
     // PhoneCurrentLyricLine and DocumentPipPlayer must include font-semibold on parent word span
     // so unsung, singing, and sung states share identical letter metrics and bounding boxes.
-    expect(phoneSrc).toContain('"relative inline-block transition-transform duration-150 font-semibold"');
-    expect(pipSrc).toContain('"relative inline-block transition-transform duration-150 font-semibold"');
+    expect(phoneSrc).toContain('"relative inline-block font-semibold"');
+    expect(pipSrc).toContain('"relative inline-block font-semibold"');
   });
 });

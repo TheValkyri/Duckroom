@@ -57,18 +57,7 @@ const KaraokeLine = memo(function KaraokeLine({
         const leadStart = Math.max(0, Number(pct) - feather).toFixed(1);
 
         return (
-          <span
-            key={`${idx}-${w.text}`}
-            className={cn(
-              "relative inline-block transition-transform duration-150 font-semibold",
-              isSinging && "-translate-y-0.5",
-            )}
-            style={{
-              transitionTimingFunction: isSinging
-                ? "cubic-bezier(0.175, 0.885, 0.32, 1.275)"
-                : "cubic-bezier(0.16, 1, 0.3, 1)",
-            }}
-          >
+          <span key={`${idx}-${w.text}`} className="relative inline-block font-semibold">
             {/* Base text: 100% visible across all PiP themes and windows */}
             <span className={cn("inline-block", isPast ? "text-primary font-semibold" : "text-foreground/45")}>
               {w.text}
