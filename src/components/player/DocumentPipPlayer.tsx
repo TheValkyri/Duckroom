@@ -58,7 +58,10 @@ const KaraokeLine = memo(function KaraokeLine({
         return (
           <span
             key={`${idx}-${w.text}`}
-            className="relative inline-block transition-transform duration-150 font-semibold"
+            className={cn(
+              "relative inline-block transition-transform duration-150 font-semibold",
+              isSinging && "-translate-y-0.5",
+            )}
           >
             {/* Base text: 100% visible across all PiP themes and windows */}
             <span className={cn("inline-block", isPast ? "text-primary font-semibold" : "text-foreground/45")}>

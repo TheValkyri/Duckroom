@@ -14,6 +14,7 @@ const KEYS: ReadonlyArray<{ keys: string; label: string }> = [
   { keys: "S", label: "Trộn bài (rải nghệ sĩ)" },
   { keys: "R", label: "Lặp lại: Tắt → Tất cả → Một bài" },
   { keys: "L", label: "Bật/tắt lời bài hát" },
+  { keys: "[ / ]", label: "Chỉnh đồng bộ lời sớm / trễ (±50ms)" },
   { keys: "Esc", label: "Thu nhỏ trình phát" },
   { keys: "?", label: "Bảng phím tắt này" },
 ];

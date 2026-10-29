@@ -5,6 +5,10 @@ import {
   computeWordTimings,
   parseLrc,
   shiftLrcTime,
+  readStoredOffset,
+  saveStoredOffset,
+  OFFSET_STORAGE_PREFIX,
+  OFFSET_LIMIT_MS,
 } from "../lib/lyrics-formatter";
 
 describe("Lyrics Formatter V2 — Zero Content Mutation & Precise Timing", () => {
@@ -242,6 +246,43 @@ describe("Lyrics Formatter V2 — Zero Content Mutation & Precise Timing", () =>
       expect(beautified).toContain("[00:05.00]");
       expect(beautified).toContain("<00:05.00> Lời");
       expect(beautified).toContain("<00:05.50> ca");
+    });
+
+    it("allocates acoustic dwell time to punctuation words (commas, periods, ellipses)", () => {
+      const line = { time: 10.0, text: "Không gặp đâu, bitch" };
+      const words = computeWordTimings(line, 14.0);
+      expect(words).toHaveLength(4);
+      expect(words[2]!.text).toBe("đâu,");
+      expect(words[3]!.text).toBe("bitch");
+      // "đâu," has a comma so it receives natural cadence dwell time
+      expect(words[2]!.endTime - words[2]!.startTime).toBeGreaterThan(0.2);
+      expect(words[2]!.endTime).toBeCloseTo(words[3]!.startTime, 5);
+    });
+
+    it("ensures monotonic progress and strict line duration bounds for rapid rap lines", () => {
+      const line = { time: 20.0, text: "Yeah tao bước đi vào pit, yeah" };
+      const words = computeWordTimings(line, 23.0);
+      expect(words.length).toBeGreaterThan(0);
+      expect(words[0]!.startTime).toBe(20.0);
+      expect(words[words.length - 1]!.endTime).toBeLessThanOrEqual(23.0);
+      for (let i = 0; i < words.length - 1; i++) {
+        expect(words[i]!.startTime).toBeLessThan(words[i + 1]!.startTime);
+        expect(words[i]!.endTime).toBeLessThanOrEqual(words[i + 1]!.startTime);
+      }
+    });
+  });
+
+  describe("readStoredOffset & saveStoredOffset", () => {
+    it("persists and reads track offset clamped within limit", () => {
+      saveStoredOffset("track-test", 150);
+      expect(readStoredOffset("track-test")).toBe(150);
+      saveStoredOffset("track-test", 999999);
+      expect(readStoredOffset("track-test")).toBe(OFFSET_LIMIT_MS);
+      saveStoredOffset("track-test", -999999);
+      expect(readStoredOffset("track-test")).toBe(-OFFSET_LIMIT_MS);
+      saveStoredOffset("track-test", 0);
+      expect(readStoredOffset("track-test")).toBe(0);
+      expect(readStoredOffset(undefined)).toBe(0);
     });
   });
 });

@@ -7,32 +7,18 @@ import {
   useGetPlayerTime,
   useSmoothLyricTime,
 } from "../../lib/player";
-import { applyLyricsOffset, computeWordTimings } from "../../lib/lyrics-formatter";
+import {
+  applyLyricsOffset,
+  computeWordTimings,
+  readStoredOffset,
+  saveStoredOffset,
+  OFFSET_LIMIT_MS,
+} from "../../lib/lyrics-formatter";
 import { cn } from "../../lib/utils";
 import type { LyricLine } from "../../data/library";
 
 /** Dùng nội bộ cho memo dependency ổn định của LyricsPane. */
 type LyricLineView = LyricLine;
-
-/**
- * Runtime lyrics offset storage (Master Plan §10.4).
- * Per-track global offset persisted locally; the stored LRC payload itself is
- * NEVER rewritten — offset is applied at display time only.
- */
-const OFFSET_STORAGE_PREFIX = "duckroom.lyricsOffset.";
-const OFFSET_LIMIT_MS = 10_000;
-
-function readStoredOffset(trackId: string | undefined): number {
-  if (!trackId || typeof window === "undefined" || !window.localStorage) return 0;
-  try {
-    const raw = window.localStorage.getItem(OFFSET_STORAGE_PREFIX + trackId);
-    const parsed = raw ? Number.parseFloat(raw) : 0;
-    if (!Number.isFinite(parsed)) return 0;
-    return Math.max(-OFFSET_LIMIT_MS, Math.min(OFFSET_LIMIT_MS, parsed));
-  } catch {
-    return 0;
-  }
-}
 
 /**
  * Cuộn mượt tự viết (thay cho `scrollTo({behavior:"smooth"})` của trình duyệt).
@@ -162,6 +148,8 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   // yêu cầu — không còn bất kỳ control nào trên pane lời. Offset đã lưu trong
   // localStorage (nếu có) vẫn được áp dụng khi hiển thị.
   const [offsetMs, setOffsetMs] = useState(0);
+  const [nudgeToast, setNudgeToast] = useState<string | null>(null);
+  const nudgeTimeoutRef = useRef<any>(null);
   const trackId = current?.id;
   const lastTrackIdRef = useRef(trackId);
   if (lastTrackIdRef.current !== trackId) {
@@ -175,6 +163,51 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   useEffect(() => {
     setOffsetMs(readStoredOffset(trackId));
   }, [trackId]);
+
+  const handleNudgeOffset = useCallback(
+    (deltaMs: number) => {
+      if (!trackId) return;
+      setOffsetMs((prev) => {
+        const next = Math.max(-OFFSET_LIMIT_MS, Math.min(OFFSET_LIMIT_MS, prev + deltaMs));
+        saveStoredOffset(trackId, next);
+        setNudgeToast(`${next > 0 ? `+${next}` : next}ms`);
+        if (nudgeTimeoutRef.current) clearTimeout(nudgeTimeoutRef.current);
+        nudgeTimeoutRef.current = setTimeout(() => setNudgeToast(null), 1800);
+        return next;
+      });
+    },
+    [trackId],
+  );
+
+  const handleResetOffset = useCallback(() => {
+    if (!trackId) return;
+    setOffsetMs(0);
+    saveStoredOffset(trackId, 0);
+    setNudgeToast("0ms (Mặc định)");
+    if (nudgeTimeoutRef.current) clearTimeout(nudgeTimeoutRef.current);
+    nudgeTimeoutRef.current = setTimeout(() => setNudgeToast(null), 1800);
+  }, [trackId]);
+
+  // Real-time micro-sync keyboard shortcuts: [ earlier, ] later
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (/input|textarea|select/i.test(el.tagName) || el.isContentEditable)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      if (e.key === "[") {
+        e.preventDefault();
+        const step = e.shiftKey ? -100 : -50;
+        handleNudgeOffset(step);
+      } else if (e.key === "]") {
+        e.preventDefault();
+        const step = e.shiftKey ? 100 : 50;
+        handleNudgeOffset(step);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [handleNudgeOffset]);
 
   // Stabilize mảng lines cho useMemo: `current?.lyrics ?? []` tạo array mới
   // mỗi render khi không có lời → useMemo bên dưới chạy lại vô nghĩa.
@@ -436,6 +469,81 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
           }
         }}
       />
+      {/* Quick-offset micro-sync nudge pill (Apple Music style) */}
+      {!isPlainLyrics && lines.length > 0 && (
+        <div
+          className={cn(
+            "absolute z-20 flex items-center gap-1 rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-xs text-white/90 shadow-xl backdrop-blur-md transition-all select-none hover:border-white/20 hover:bg-black/75",
+            compact ? "bottom-20 right-4" : "bottom-6 right-8",
+          )}
+        >
+          <button
+            type="button"
+            title="Lời sớm hơn 50ms (Phím [ hoặc Shift+[ cho 100ms)"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNudgeOffset(-50);
+            }}
+            className="flex size-5 items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white active:scale-95 transition-all cursor-pointer font-bold text-sm"
+            aria-label="Lời sớm hơn 50ms"
+          >
+            −
+          </button>
+          <span
+            className={cn(
+              "px-1.5 font-mono text-[11px] font-medium tracking-tight",
+              offsetMs !== 0 ? "text-amber-300 font-semibold" : "text-white/60",
+            )}
+            title="Độ lệch đồng bộ hiện tại. Nhấn [ hoặc ] trên bàn phím để chỉnh."
+          >
+            {offsetMs === 0 ? "Sync 0ms" : `${offsetMs > 0 ? `+${offsetMs}` : offsetMs}ms`}
+          </span>
+          <button
+            type="button"
+            title="Lời trễ hơn 50ms (Phím ] hoặc Shift+] cho 100ms)"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNudgeOffset(50);
+            }}
+            className="flex size-5 items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white active:scale-95 transition-all cursor-pointer font-bold text-sm"
+            aria-label="Lời trễ hơn 50ms"
+          >
+            +
+          </button>
+          {offsetMs !== 0 && (
+            <button
+              type="button"
+              title="Đặt lại độ lệch về 0ms"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleResetOffset();
+              }}
+              className="ml-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-white/50 hover:bg-white/15 hover:text-white transition-all cursor-pointer"
+              aria-label="Đặt lại độ lệch về 0ms"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Floating Nudge Toast Feedback */}
+      <AnimatePresence>
+        {nudgeToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className={cn(
+              "pointer-events-none absolute z-30 rounded-lg border border-primary/40 bg-neutral-900/90 px-2.5 py-1 text-[11px] font-semibold text-primary shadow-xl backdrop-blur-md",
+              compact ? "bottom-28 right-4" : "bottom-14 right-8",
+            )}
+          >
+            Đồng bộ: {nudgeToast}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -625,7 +733,18 @@ const WordByWordActiveLine = memo(function WordByWordActiveLine({
         const leadStart = Math.max(0, Number(pct) - feather).toFixed(1);
 
         return (
-          <span key={`${idx}-${w.text}`} className="relative inline-block transition-transform duration-150">
+          <span
+            key={`${idx}-${w.text}`}
+            className={cn(
+              "relative inline-block transform-gpu transition-transform duration-200 [will-change:transform]",
+              isSinging ? "-translate-y-1" : "translate-y-0",
+            )}
+            style={{
+              transitionTimingFunction: isSinging
+                ? "cubic-bezier(0.175, 0.885, 0.32, 1.25)"
+                : "cubic-bezier(0.16, 1, 0.3, 1)",
+            }}
+          >
             {/* Base text: 100% visible font glyphs, immune to CSS text background clipping glitches */}
             <span className={cn("inline-block", isPast ? "text-white" : "text-white/40")}>{w.text}</span>
 

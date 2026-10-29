@@ -56,24 +56,38 @@ function addResult(results: LyricSearchResult[], seenKeys: Set<string>, item: Ly
   }
 }
 
-/** Helper: safely fetch JSON with timeout */
+/** Helper: safely fetch JSON with timeout and single transient retry (503/429 backoff) */
 async function safeFetchJson(url: string, timeoutMs = 5000): Promise<any> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "DuckroomLossless/2.0 (https://duckroom.vercel.app)",
-      },
-    });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "DuckroomLossless/2.0 (https://duckroom.vercel.app)",
+        },
+      });
+      if (res.status === 503 || res.status === 429) {
+        if (attempt === 0) {
+          await new Promise((r) => setTimeout(r, 350));
+          continue;
+        }
+        return null;
+      }
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      if (attempt === 0) {
+        await new Promise((r) => setTimeout(r, 250));
+        continue;
+      }
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
   }
+  return null;
 }
 
 /**

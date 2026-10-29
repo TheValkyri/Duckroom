@@ -43,7 +43,10 @@ const PhoneActiveWordFlow = memo(function PhoneActiveWordFlow({
         return (
           <span
             key={`${idx}-${w.text}`}
-            className="relative inline-block transition-transform duration-150 font-semibold"
+            className={cn(
+              "relative inline-block transition-transform duration-150 font-semibold",
+              isSinging && "-translate-y-0.5",
+            )}
           >
             {/* Base text: real font glyphs, visible in all environments */}
             <span className={cn("inline-block", isPast ? "text-white font-semibold" : "text-white/45")}>{w.text}</span>

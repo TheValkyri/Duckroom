@@ -151,11 +151,178 @@ export function parseLrc(lrcText: string): LyricLine[] {
     .map((e) => e.line);
 }
 
+export const OFFSET_STORAGE_PREFIX = "duckroom.lyricsOffset.";
+export const OFFSET_LIMIT_MS = 10_000;
+
+const inMemoryOffsets = new Map<string, number>();
+
+function getStorage(): Storage | null {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) return window.localStorage;
+    if (typeof localStorage !== "undefined") return localStorage;
+    if (typeof globalThis !== "undefined" && (globalThis as any).localStorage) return (globalThis as any).localStorage;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export function readStoredOffset(trackId: string | undefined): number {
+  if (!trackId) return 0;
+  const storage = getStorage();
+  if (storage) {
+    try {
+      const raw = storage.getItem(OFFSET_STORAGE_PREFIX + trackId);
+      const parsed = raw ? Number.parseFloat(raw) : 0;
+      if (Number.isFinite(parsed) && raw !== null) {
+        return Math.max(-OFFSET_LIMIT_MS, Math.min(OFFSET_LIMIT_MS, parsed));
+      }
+    } catch {
+      // Fallback to in-memory store
+    }
+  }
+  return inMemoryOffsets.get(trackId) ?? 0;
+}
+
+export function saveStoredOffset(trackId: string | undefined, offsetMs: number): void {
+  if (!trackId) return;
+  const clamped = Math.max(-OFFSET_LIMIT_MS, Math.min(OFFSET_LIMIT_MS, Math.round(offsetMs)));
+  if (clamped === 0) {
+    inMemoryOffsets.delete(trackId);
+  } else {
+    inMemoryOffsets.set(trackId, clamped);
+  }
+
+  const storage = getStorage();
+  if (storage) {
+    try {
+      if (clamped === 0) {
+        storage.removeItem(OFFSET_STORAGE_PREFIX + trackId);
+      } else {
+        storage.setItem(OFFSET_STORAGE_PREFIX + trackId, clamped.toString());
+      }
+    } catch {
+      // Storage quota or private mode fallback
+    }
+  }
+}
+
+const QUICK_INTERJECTIONS = new Set([
+  "yeah",
+  "yea",
+  "yah",
+  "yeh",
+  "yo",
+  "uh",
+  "huh",
+  "ah",
+  "ha",
+  "ey",
+  "ay",
+  "oh",
+  "nah",
+  "ok",
+  "okay",
+  "bitch",
+  "ơ",
+  "ờ",
+  "à",
+  "hả",
+  "ừ",
+  "ê",
+  "ôi",
+  "uôi",
+  "úi",
+  "he",
+  "woo",
+  "whoa",
+]);
+
+const WEAK_PARTICLES = new Set([
+  "và",
+  "với",
+  "mà",
+  "là",
+  "thì",
+  "của",
+  "ở",
+  "cho",
+  "vào",
+  "ra",
+  "lại",
+  "lên",
+  "xuống",
+  "đi",
+  "đến",
+  "qua",
+  "khi",
+  "nơi",
+  "đã",
+  "sẽ",
+  "đang",
+  "được",
+  "bị",
+  "con",
+  "cái",
+  "a",
+  "an",
+  "the",
+  "in",
+  "on",
+  "at",
+  "to",
+  "for",
+  "of",
+  "and",
+  "but",
+  "or",
+  "so",
+  "with",
+  "is",
+  "it",
+  "my",
+]);
+
+function getAcousticWeight(cleanWord: string, isLastWord: boolean): number {
+  const lower = cleanWord.toLowerCase();
+  if (QUICK_INTERJECTIONS.has(lower)) {
+    return isLastWord ? 0.85 : 0.65;
+  }
+  if (WEAK_PARTICLES.has(lower)) {
+    return isLastWord ? 0.95 : 0.78;
+  }
+
+  // Count vowel clusters for multi-syllable Latin/English words vs monosyllabic Vietnamese tokens
+  const vowelClusters = lower.match(/[aeiouyàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]+/gi);
+  const syllables = vowelClusters ? vowelClusters.length : 1;
+  let weight = syllables > 1 ? Math.max(1.0, syllables * 0.88) : cleanWord.length >= 6 ? 1.15 : 1.0;
+
+  if (cleanWord.length >= 3 && cleanWord === cleanWord.toUpperCase()) {
+    weight *= 1.12; // Emphasis / All caps
+  }
+
+  if (isLastWord) {
+    weight *= 1.28; // Cadence trail-off / sustained note
+  }
+  return weight;
+}
+
+function getPunctuationPause(rawWord: string): number {
+  if (/\.{3}|…/.test(rawWord)) return 0.28; // Ellipsis
+  if (/[.!?]/.test(rawWord)) return 0.22; // Terminal punctuation
+  if (/[,;:\-–—]/.test(rawWord)) return 0.14; // Breath pause / comma
+  if (/~/.test(rawWord)) return 0.16; // Vocal extension / melisma
+  return 0;
+}
+
 /**
  * Computes or retrieves word-by-word syllable timings for Apple Music-style smooth karaoke flow.
  * - If line already contains exact Enhanced LRC words, uses them directly.
- * - If line is standard line-synced, generates proportional syllable durations based on word lengths
- *   interpolating smoothly to next line time or line duration.
+ * - If line is standard line-synced, generates acoustic-weighted syllable durations factoring in:
+ *   1. Punctuation cadence dwell (commas, periods, question marks extend dwell time naturally).
+ *   2. Monosyllabic interjection cadence (quick onset for words like "yeah", "yo", "ah", "bitch").
+ *   3. Multi-syllable & vowel weighting for natural musical singing cadence.
+ *   4. Final-word phrase elongation.
  */
 export function computeWordTimings(line: LyricLine, nextLineTime?: number): LyricWord[] {
   if (line.words && line.words.length > 0) {
@@ -173,20 +340,34 @@ export function computeWordTimings(line: LyricLine, nextLineTime?: number): Lyri
   }
 
   const activeDuration = Math.max(0.8, lineDuration * 0.94);
-  const totalWeight = rawWords.reduce((sum, w) => sum + Math.max(2, w.length), 0);
+  const rawWeights: number[] = [];
+
+  for (let i = 0; i < rawWords.length; i++) {
+    const word = rawWords[i]!;
+    const clean = word.replace(/[.,!?;:…"“”'’\-–—()[\]{}]/g, "");
+    const isLast = i === rawWords.length - 1;
+    let w = getAcousticWeight(clean, isLast);
+    const p = getPunctuationPause(word);
+    w += p * 1.6; // Punctuation adds natural dwell/cadence weight
+    rawWeights.push(w);
+  }
+
+  const totalWeight = rawWeights.reduce((a, b) => a + b, 0);
   let currentStart = lineStart;
   const words: LyricWord[] = [];
 
   for (let i = 0; i < rawWords.length; i++) {
     const word = rawWords[i]!;
-    const weight = Math.max(2, word.length);
-    const duration = (weight / totalWeight) * activeDuration;
+    const w = rawWeights[i]!;
+    const duration = (w / totalWeight) * activeDuration;
     const end = currentStart + duration;
+
     words.push({
       text: word,
       startTime: currentStart,
       endTime: end,
     });
+
     currentStart = end;
   }
 

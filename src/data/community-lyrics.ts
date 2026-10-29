@@ -249,4 +249,65 @@ export const COMMUNITY_LYRICS: PresetLyric[] = [
 [00:41.80] Người ra đi không một lời từ biệt
 [00:46.50] Để lại nỗi đau riêng mình anh biết...`,
   },
+  {
+    title: "Slippery",
+    artist: "RPT MCK",
+    album: "HVL",
+    duration: 216,
+    isSynced: true,
+    source: "Duckroom Community (Genius / Studio Verified)",
+    syncedLyrics: `[00:00.00] Slippery - RPT MCK ft. Tùng Dương
+[00:03.50] Chúng mày thì biết cái đéo gì về tao
+[00:06.20] Rockstar made, tao đéo ngại thằng nào
+[00:09.10] Da vàng trẻ, tao nhét tiền vào bao
+[00:12.40] Cho đến khi tao chết, tao vẫn lowkey flex
+[00:15.50] Đừng nói vấn đề khác, bởi vì tao không thích
+[00:18.20] Tao không thích
+[00:20.50] Tao không— Tao không thích
+[00:23.20] Tao không thích mấy thằng hai mặt đâu, bitch
+[00:26.50] Tao sẽ không gặp đâu, bitch
+[00:29.80] Trái tim chrome outfit
+[00:32.20] Trái tim chrome outfit, bitch
+[00:35.50] Yeah, tao bước đi vào pit, yeah
+[00:38.80] Yeah, tao bước đi vào pit
+[00:41.50] Mấy cô em trông lit
+[00:43.80] Mấy quả cảnh sâu tít
+[00:46.50] Tao đang thích nghi, nó quá slippery, cả người tao trơn trượt
+[00:51.50] Yeah, tao thích bay dưới những đám mây đéo thể nào cao hơn được
+[00:57.00] Mày muốn respect của tao? Muốn trust của tao?
+[01:00.80] Thử dành lấy đi bố mày xem nào
+[01:04.00] N0L4B3L là công ty riêng, mấy thằng ngoài kia đừng cố mà xen vào
+[01:09.20] Bởi vì tao không thích mấy thằng hai mặt đâu, bitch
+[01:12.80] Tao sẽ không gặp đâu, bitch
+[01:15.80] Trái tim chrome outfit
+[01:18.50] Trái tim chrome outfit, bitch
+[01:21.80] Yeah, tao bước đi vào pit
+[01:24.80] Yeah, tao bước đi vào pit
+[01:27.50] Mấy cô em trông lit
+[01:29.80] Mấy quả cảnh sâu tít
+[01:32.50] Tao không thích mấy thằng hai mặt đâu, bitch
+[01:35.80] Tao sẽ không gặp đâu, bitch
+[01:38.80] Trái tim chrome outfit
+[01:41.50] Trái tim chrome outfit, bitch
+[01:44.80] Yeah, tao bước đi vào pit
+[01:47.80] Yeah, tao bước đi vào pit
+[01:50.50] Mấy cô em trông lit
+[01:52.80] Mấy quả cảnh sâu...
+[01:56.50] Mẹ ơi, dưới đất trời con cúi lạy
+[02:04.00] Trên đỉnh núi cao chơi vơi quá
+[02:11.50] Trong vô định, con tìm về nơi bắt đầu...
+[02:22.00] Thích như nào, thích như nào
+[02:25.50] Thích như nào, như nào
+[02:28.50] Cách số phận lôi tao vào rap game này
+[02:32.00] Tao bước ra đằng trước, huh-huh
+[02:35.50] Tham vọng lan khắp phòng, uh-huh
+[02:39.00] Từng đường nét chroma, chroma
+[02:43.00] Từng đường nét chroma, chroma
+[02:48.00] Tao không thích mấy thằng hai mặt đâu, bitch
+[02:51.50] Tao sẽ không gặp đâu, bitch
+[02:54.80] Trái tim chrome outfit, chrome outfit
+[02:58.50] Yeah, tao bước đi vào pit
+[03:01.80] Yeah, tao bước đi vào pit
+[03:05.00] Mấy cô em trông lit...`,
+  },
 ];
