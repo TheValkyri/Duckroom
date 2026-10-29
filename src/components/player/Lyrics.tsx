@@ -100,8 +100,12 @@ const LINE_ACTIVE =
   "text-white opacity-100 translate-y-0 scale-[1.03] origin-left font-bold blur-none drop-shadow-[0_2px_14px_rgba(255,255,255,0.22)]";
 const LINE_PASSED =
   "text-white/50 opacity-45 -translate-y-0.5 blur-[0.7px] scale-[1.0] origin-left hover:text-white/90 hover:opacity-90 hover:blur-none hover:scale-[1.01] active:blur-none active:opacity-90";
+const LINE_PASSED_DISTANT =
+  "text-white/35 opacity-25 -translate-y-1 blur-[1.5px] scale-[0.96] origin-left hover:text-white/80 hover:opacity-80 hover:blur-none hover:scale-[1.0] active:blur-none active:opacity-90";
 const LINE_FUTURE =
   "text-white/35 opacity-30 translate-y-2 blur-[1.2px] scale-[0.98] origin-left hover:text-white/85 hover:opacity-85 hover:blur-none hover:scale-[1.01] active:blur-none active:opacity-90";
+const LINE_FUTURE_DISTANT =
+  "text-white/20 opacity-20 translate-y-3 blur-[2.0px] scale-[0.95] origin-left hover:text-white/75 hover:opacity-75 hover:blur-none hover:scale-[1.0] active:blur-none active:opacity-90";
 const LINE_PRELUDE =
   "text-white/70 opacity-70 translate-y-0.5 blur-none scale-[1.01] origin-left hover:text-white/90 hover:opacity-90 hover:scale-[1.02] active:blur-none active:opacity-90";
 const LINE_PLAIN =
@@ -113,8 +117,10 @@ function lineClass(i: number, activeIndex: number, isPlain = false): string {
     return i === 0 ? LINE_PRELUDE : LINE_FUTURE;
   }
   if (i === activeIndex) return LINE_ACTIVE;
-  if (i < activeIndex) return LINE_PASSED;
-  return LINE_FUTURE;
+  if (i === activeIndex - 1) return LINE_PASSED;
+  if (i < activeIndex - 1) return LINE_PASSED_DISTANT;
+  if (i === activeIndex + 1) return LINE_FUTURE;
+  return LINE_FUTURE_DISTANT;
 }
 
 function getOrHydrateItems(
@@ -341,46 +347,70 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
               compact ? "pt-[30vh] pb-[40vh]" : "pt-[35vh] pb-[45vh]",
             )}
           >
-            {lines.map((line, i) => (
-              <button
-                key={`${line.time}-${i}`}
-                ref={(el) => {
-                  if (el) {
-                    itemRefs.current[i] = el;
-                    el.dataset["base"] = cn(
+            {lines.map((line, i) => {
+              const nextLine = lines[i + 1];
+              const isLongGap = nextLine && typeof nextLine.time === "number" && nextLine.time - line.time >= 4.0;
+              return (
+                <div key={`${line.time}-${i}`} className="w-full flex flex-col">
+                  <button
+                    ref={(el) => {
+                      if (el) {
+                        itemRefs.current[i] = el;
+                        el.dataset["base"] = cn(
+                          LINE_BASE,
+                          compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
+                        );
+                      }
+                    }}
+                    onClick={() => {
+                      if (isPlainLyrics) return;
+                      isUserScrollingRef.current = false;
+                      setActiveLineState(i);
+                      seek(line.time);
+                    }}
+                    className={cn(
                       LINE_BASE,
+                      // -2 = danh sách render lần sau (state settled) — giữ ref
+                      // value (đã đúng); giá trị 0..n từ initialActive chỉ dùng ở
+                      // frame đầu để tránh "flash FUTURE".
+                      lineClass(i, initialActive === -2 ? activeIndexRef.current : initialActive, isPlainLyrics),
                       compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
-                    );
-                  }
-                }}
-                onClick={() => {
-                  if (isPlainLyrics) return;
-                  isUserScrollingRef.current = false;
-                  setActiveLineState(i);
-                  seek(line.time);
-                }}
-                className={cn(
-                  LINE_BASE,
-                  // -2 = danh sách render lần sau (state settled) — giữ ref
-                  // value (đã đúng); giá trị 0..n từ initialActive chỉ dùng ở
-                  // frame đầu để tránh "flash FUTURE".
-                  lineClass(i, initialActive === -2 ? activeIndexRef.current : initialActive, isPlainLyrics),
-                  compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
-                )}
-              >
-                {/* Active line with Word-by-Word syllable fluid fill (Apple Music style) */}
-                {i ===
-                  (activeLineState >= 0
-                    ? activeLineState
-                    : initialActive >= 0
-                      ? initialActive
-                      : activeIndexRef.current) && !isPlainLyrics ? (
-                  <WordByWordActiveLine line={line} nextLineTime={lines[i + 1]?.time} />
-                ) : (
-                  <span className="inline">{line.text}</span>
-                )}
-              </button>
-            ))}
+                    )}
+                  >
+                    {/* Active line with Word-by-Word syllable fluid fill (Apple Music style) */}
+                    {i ===
+                      (activeLineState >= 0
+                        ? activeLineState
+                        : initialActive >= 0
+                          ? initialActive
+                          : activeIndexRef.current) && !isPlainLyrics ? (
+                      <WordByWordActiveLine line={line} nextLineTime={lines[i + 1]?.time} />
+                    ) : (
+                      <span className="inline">{line.text}</span>
+                    )}
+                  </button>
+
+                  {/* Instrumental Metronome indicator (Apple Music style) */}
+                  {isLongGap && !isPlainLyrics && (
+                    <InstrumentalBreakIndicator
+                      isActiveInterlude={
+                        (activeLineState >= 0
+                          ? activeLineState
+                          : initialActive >= 0
+                            ? initialActive
+                            : activeIndexRef.current) === i
+                      }
+                      vocalEndTime={
+                        line.words && line.words.length > 0
+                          ? line.words[line.words.length - 1]!.endTime
+                          : line.time + 2.5
+                      }
+                      nextLineTime={nextLine.time}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
           <LyricsMountSync
             lines={lines}
@@ -506,7 +536,8 @@ function applyActiveClasses(items: (HTMLButtonElement | null)[], prev: number, n
   if (next === -1) {
     for (let i = 0; i < items.length; i++) {
       if (i === 0) setCls(i, LINE_PRELUDE);
-      else setCls(i, LINE_FUTURE);
+      else if (i === 1) setCls(i, LINE_FUTURE);
+      else setCls(i, LINE_FUTURE_DISTANT);
     }
     return;
   }
@@ -514,14 +545,25 @@ function applyActiveClasses(items: (HTMLButtonElement | null)[], prev: number, n
   if (prev < 0 || next < 0 || Math.abs(next - prev) > 1) {
     for (let i = 0; i < items.length; i++) {
       if (i === next) setCls(i, LINE_ACTIVE);
-      else if (i < next) setCls(i, LINE_PASSED);
-      else setCls(i, LINE_FUTURE);
+      else if (i === next - 1) setCls(i, LINE_PASSED);
+      else if (i < next - 1) setCls(i, LINE_PASSED_DISTANT);
+      else if (i === next + 1) setCls(i, LINE_FUTURE);
+      else setCls(i, LINE_FUTURE_DISTANT);
     }
     return;
   }
 
-  if (prev >= 0) setCls(prev, prev < next ? LINE_PASSED : LINE_FUTURE);
-  if (next >= 0) setCls(next, LINE_ACTIVE);
+  // Multi-tier optical blur window around prev and next
+  const minIdx = Math.max(0, Math.min(prev - 2, next - 2));
+  const maxIdx = Math.min(items.length - 1, Math.max(prev + 2, next + 2));
+
+  for (let i = minIdx; i <= maxIdx; i++) {
+    if (i === next) setCls(i, LINE_ACTIVE);
+    else if (i === next - 1) setCls(i, LINE_PASSED);
+    else if (i < next - 1) setCls(i, LINE_PASSED_DISTANT);
+    else if (i === next + 1) setCls(i, LINE_FUTURE);
+    else setCls(i, LINE_FUTURE_DISTANT);
+  }
 }
 
 /**
@@ -574,6 +616,46 @@ function LyricsTicker({
   }, [time, lines, itemRefs, containerRef, trackId, activeIndexRef, isUserScrollingRef, isPlainLyrics, onActiveChange]);
   return null;
 }
+
+/**
+ * InstrumentalBreakIndicator — 3 chấm nhịp điệu phong cách Apple Music
+ * cho các đoạn nhạc dạo / guitar solo / drop beat dài (gap >= 4.0s).
+ * - Giữ layout height cố định h-8 để Zero Cumulative Layout Shift (Zero CLS).
+ * - Tự động fade in khi ca sĩ dứt lời câu hiện tại và mờ dần khi sắp sang câu mới.
+ */
+const InstrumentalBreakIndicator = memo(function InstrumentalBreakIndicator({
+  isActiveInterlude,
+  vocalEndTime,
+  nextLineTime,
+}: {
+  isActiveInterlude: boolean;
+  vocalEndTime: number;
+  nextLineTime: number;
+}) {
+  const fallbackTime = usePlayerTime();
+  const time = useSmoothLyricTime(fallbackTime);
+
+  // Active during the interlude gap after vocals finish until 0.35s before next line
+  const isInterludeActive = isActiveInterlude && time >= vocalEndTime + 0.3 && time < nextLineTime - 0.35;
+
+  return (
+    <div
+      className={cn(
+        "h-8 flex items-center gap-2 px-1 text-white/50 select-none transition-opacity duration-300 pointer-events-none",
+        isInterludeActive ? "opacity-100" : "opacity-0",
+      )}
+      aria-label="Nhạc dạo"
+      aria-hidden={!isInterludeActive}
+    >
+      <span className="size-2 rounded-full bg-white/70 animate-ping [animation-duration:1.4s]" />
+      <span className="size-2 rounded-full bg-white/60 animate-pulse [animation-delay:200ms]" />
+      <span className="size-2 rounded-full bg-white/50 animate-pulse [animation-delay:400ms]" />
+      <span className="text-[11px] font-mono tracking-widest text-white/45 uppercase ml-1.5 font-semibold">
+        Nhạc dạo
+      </span>
+    </div>
+  );
+});
 
 /**
  * WordByWordActiveLine — dòng lời đang phát tô chữ theo từng âm tiết (Visuals & Lyrics 2.0).

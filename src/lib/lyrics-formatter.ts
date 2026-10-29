@@ -350,24 +350,7 @@ export function computeWordTimings(line: LyricLine, nextLineTime?: number): Lyri
   const rawWords = line.text.trim().split(/\s+/).filter(Boolean);
   if (!rawWords.length) return [];
 
-  const lineStart = line.time;
-  let lineDuration: number;
-  if (typeof nextLineTime === "number" && nextLineTime > lineStart) {
-    const gap = nextLineTime - lineStart;
-    if (gap <= 4.5) {
-      // Short/moderate gap: singing naturally spans the interval with a small breath rest at the end
-      lineDuration = Math.min(gap - 0.15, Math.max(1.2, gap * 0.9, rawWords.length * 0.32));
-    } else {
-      // Long gap (interlude/solo): vocals complete naturally without stretching across the whole interlude
-      lineDuration = Math.min(gap - 0.5, Math.max(2.0, rawWords.length * 0.55 + 0.6));
-    }
-  } else {
-    lineDuration = Math.max(2.0, rawWords.length * 0.45 + 0.5);
-  }
-
-  const activeDuration = Math.max(0.8, lineDuration * 0.94);
   const rawWeights: number[] = [];
-
   for (let i = 0; i < rawWords.length; i++) {
     const word = rawWords[i]!;
     const clean = word.replace(/[.,!?;:…"“”'’\-–—()[\]{}]/g, "");
@@ -379,6 +362,30 @@ export function computeWordTimings(line: LyricLine, nextLineTime?: number): Lyri
   }
 
   const totalWeight = rawWeights.reduce((a, b) => a + b, 0);
+  // Natural acoustic duration estimate (~400ms per acoustic syllable unit)
+  const naturalAcousticDuration = totalWeight * 0.42;
+
+  const lineStart = line.time;
+  let lineDuration: number;
+  if (typeof nextLineTime === "number" && nextLineTime > lineStart) {
+    const gap = nextLineTime - lineStart;
+    if (gap <= 1.6) {
+      // Shortest gap (continuous singing): fit snugly before next line
+      lineDuration = Math.max(0.7, Math.min(gap - 0.1, naturalAcousticDuration));
+    } else if (gap <= 4.2) {
+      // Moderate gap: vocal completes at its natural acoustic cadence.
+      // Crucial: avoid forcing gap * 0.9 on fast verses so lyrics do not crawl when a 2-3s beat pause follows.
+      const maxAllowed = gap - 0.25;
+      lineDuration = Math.min(maxAllowed, Math.max(2.15, Math.min(gap * 0.82, naturalAcousticDuration)));
+    } else {
+      // Long gap (interlude / guitar solo / drop): vocals finish naturally without dragging into musical break
+      lineDuration = Math.min(gap - 0.5, Math.max(2.1, naturalAcousticDuration));
+    }
+  } else {
+    lineDuration = Math.max(2.2, naturalAcousticDuration);
+  }
+
+  const activeDuration = Math.max(0.8, lineDuration * 0.95);
   let currentStart = lineStart;
   const words: LyricWord[] = [];
 
