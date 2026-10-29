@@ -39,20 +39,26 @@ type LyricLineView = LyricLine;
  *    uniformity) thay vì 520ms cứng cho mọi quãng → dòng lyric sát nhau
  *    (bài nhanh) không trôi lười, dòng cách xa vẫn kịp.
  */
-function animateScrollTo(el: HTMLElement, target: number, maxDuration = 640) {
+/**
+ * Cuộn mượt tự nhiên (Smooth Physics-Based Easing).
+ *
+ * Sử dụng Perlin C2-continuous smootherstep: 6t^5 - 15t^4 + 10t^3.
+ * - Khởi động với đạo hàm bằng 0 (ease-in nhẹ nhàng, hoàn toàn không giật cục / khựng).
+ * - Lướt êm ái ở dải vận tốc chuyển động tự nhiên.
+ * - Hãm phanh mềm mại ở cuối (cushioned landing) tiếp cận tâm nhìn 35%.
+ */
+function animateScrollTo(el: HTMLElement, target: number, maxDuration = 700) {
   const start = el.scrollTop;
   const distance = target - start;
   if (Math.abs(distance) < 1) return () => {};
 
-  // Duration theo quãng: 400ms cho ~120px (1 dòng), vèo tối đa 640ms cho
-  // cuộn xa (seek). Sensory scaling sqrt — cảm giác tuyến tính cho mắt.
-  const duration = Math.min(maxDuration, 400 + Math.sqrt(Math.abs(distance)) * 12);
+  // Duration thích ứng: ~550ms cho 1 dòng (khoảng 60-120px), tối đa 700ms cho cuộn xa
+  const duration = Math.min(maxDuration, 520 + Math.sqrt(Math.abs(distance)) * 10);
   const startTime = performance.now();
   let raf = 0;
 
-  // EXPO-OUT — "duck glide" vật lý: khởi động dứt khoát, hãm mềm muộn.
-  // Phân mảnh an toàn cho t lớn (2^-10 lớn hơn mọi số double dương).
-  const ease = (t: number) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));
+  // C2-continuous smootherstep: không bao giờ giật tốc độ đột ngột tại t=0
+  const ease = (t: number) => (t >= 1 ? 1 : t <= 0 ? 0 : t * t * t * (t * (t * 6 - 15) + 10));
 
   const tick = (now: number) => {
     const elapsed = now - startTime;
@@ -160,7 +166,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
       const container = containerRef.current;
       if (!container) return;
       cancelScrollRef.current();
-      if (idx <= 0) {
+      if (idx < 0) {
         if (isInitialMountRef.current) {
           container.scrollTop = 0;
           isInitialMountRef.current = false;
@@ -321,7 +327,10 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
             onWheel={handleUserScroll}
             onTouchStart={handleUserScroll}
             onTouchMove={handleUserScroll}
-            className="relative flex h-full flex-col gap-5 sm:gap-6 md:gap-7 overflow-y-auto pt-10 sm:pt-16 pb-32 px-4 md:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className={cn(
+              "relative flex h-full flex-col gap-5 sm:gap-6 md:gap-7 overflow-y-auto px-4 md:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+              compact ? "pt-[30vh] pb-[40vh]" : "pt-[35vh] pb-[45vh]",
+            )}
           >
             {lines.map((line, i) => (
               <button
@@ -390,7 +399,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
         onActiveChange={(idx) => {
           setActiveLineState(idx);
           if (isUserScrollingRef.current) return;
-          if (idx <= 0) {
+          if (idx < 0) {
             const c = containerRef.current;
             if (!c) return;
             if (isInitialMountRef.current) {
