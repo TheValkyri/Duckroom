@@ -53,14 +53,22 @@ export function useTrackLyrics(track: Track | undefined | null): TrackLyricsResu
   }, [trackId]);
 
   // Resolve base lyrics:
-  // 1. Community Verified Vault (instant offline / studio synced)
-  // 2. Track's own lyrics (from library / database)
+  // 1. Track's own lyrics (from library / database / user upload) - Highest Priority
+  // 2. Curated Community Vault (fallback for precision sync)
   // 3. Runtime auto-resolved lyrics (LRCLIB)
   // 4. Cached auto lyrics from localStorage
   const resolved = useMemo(() => {
     if (!track) return { lines: [] as LyricLine[], source: null as string | null };
 
-    // 1. Curated Community Vault (Highest priority for precision sync)
+    // 1. User/track's explicit lyrics (highest priority - allows custom .LRC upload and edits)
+    if (Array.isArray(track.lyrics) && track.lyrics.length > 0) {
+      return {
+        lines: track.lyrics,
+        source: track.lyricsSource || null,
+      };
+    }
+
+    // 2. Curated Community Vault (Fallback for precision sync)
     const community = findMatchingCommunityLyric(track.title, track.artist);
     if (community?.syncedLyrics) {
       const parsed = parseLrc(community.syncedLyrics);
@@ -70,14 +78,6 @@ export function useTrackLyrics(track: Track | undefined | null): TrackLyricsResu
           source: community.source || "Duckroom Community",
         };
       }
-    }
-
-    // 2. Track's existing lyrics
-    if (Array.isArray(track.lyrics) && track.lyrics.length > 0) {
-      return {
-        lines: track.lyrics,
-        source: track.lyricsSource || null,
-      };
     }
 
     // 3. State-cached auto lyrics
@@ -113,13 +113,13 @@ export function useTrackLyrics(track: Track | undefined | null): TrackLyricsResu
   useEffect(() => {
     if (!track || !trackId) return;
 
-    // Skip if community vault already has a verified match
-    const comm = findMatchingCommunityLyric(track.title, track.artist);
-    if (comm?.syncedLyrics) return;
-
     // Skip if track already has time-synced lyrics
     const hasSynced = Array.isArray(track.lyrics) && track.lyrics.some((l) => (l.time ?? 0) > 0);
     if (hasSynced) return;
+
+    // Skip if community vault already has a verified match
+    const comm = findMatchingCommunityLyric(track.title, track.artist);
+    if (comm?.syncedLyrics) return;
 
     // Skip if already cached in localStorage
     if (typeof window !== "undefined" && window.localStorage) {

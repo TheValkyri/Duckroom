@@ -22,6 +22,7 @@ import { compressAndResizeImageFile, cropBlackLetterbox, dataURLtoFile } from ".
 import { modalOverlayVariants, modalPanelVariants, springSnappy, tapScale } from "../lib/motion";
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
 import { beautifyLrcString, parseLrc, shiftLrcTime } from "../lib/lyrics-formatter";
+import { findMatchingCommunityLyric } from "../lib/lyrics-search";
 import { autoTimePacingLyrics } from "../lib/metadata";
 import { useDuckroomRole } from "../lib/useRole";
 import { useScrollLock } from "../hooks/use-scroll-lock";
@@ -55,9 +56,14 @@ export function EditTrackModal({
   const [year, setYear] = useState(track.year ? track.year.toString() : "");
   const [albumName, setAlbumName] = useState(currentAlbum?.title || "");
   const [trackNo, setTrackNo] = useState(track.trackNo ? track.trackNo.toString() : "1");
-  const [lyricsText, setLyricsText] = useState(
-    track.lyrics ? track.lyrics.map((l) => `[${formatTimeSec(l.time)}] ${l.text}`).join("\n") : "",
-  );
+  const [lyricsText, setLyricsText] = useState(() => {
+    if (track.lyrics && track.lyrics.length > 0) {
+      return track.lyrics.map((l) => `[${formatTimeSec(l.time)}] ${l.text}`).join("\n");
+    }
+    const comm = findMatchingCommunityLyric(track.title, track.artist);
+    if (comm?.syncedLyrics) return comm.syncedLyrics;
+    return "";
+  });
   const [lyricsSource, setLyricsSource] = useState<string | null>(track.lyricsSource ?? null);
   const [artworkFile, setArtworkFile] = useState<File | null>(null);
 
@@ -181,6 +187,14 @@ export function EditTrackModal({
         lyrics: parseLrc(lyricsText),
         lyricsSource: lyricsSource ?? null,
       });
+
+      if (typeof window !== "undefined" && window.localStorage && track.id) {
+        try {
+          window.localStorage.removeItem("duckroom.autoLyrics." + track.id);
+        } catch {
+          // ignore
+        }
+      }
 
       onUpdated();
       onClose();

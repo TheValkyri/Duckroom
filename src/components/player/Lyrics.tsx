@@ -40,6 +40,15 @@ type LyricLineView = LyricLine;
  *    (bài nhanh) không trôi lười, dòng cách xa vẫn kịp.
  */
 /**
+ * Thời gian đón đầu (anticipation lead time) để dòng lyric trôi lên vị trí trước
+ * khi ca sĩ cất giọng hát câu tiếp theo.
+ * Khi audio time đạt T - 0.32s, animation cuộn mượt (smootherstep) khởi hành.
+ * Đến đúng mốc T (khi ca từ bắt đầu chạy fluid fill), dòng chữ đã hạ cánh
+ * vững vàng tại vị trí 35% mắt nhìn mà không hề bị rung lắc hay khựng giật.
+ */
+const SCROLL_LEAD_SECONDS = 0.32;
+
+/**
  * Cuộn mượt tự nhiên (Smooth Physics-Based Easing).
  *
  * Sử dụng Perlin C2-continuous smootherstep: 6t^5 - 15t^4 + 10t^3.
@@ -47,13 +56,13 @@ type LyricLineView = LyricLine;
  * - Lướt êm ái ở dải vận tốc chuyển động tự nhiên.
  * - Hãm phanh mềm mại ở cuối (cushioned landing) tiếp cận tâm nhìn 35%.
  */
-function animateScrollTo(el: HTMLElement, target: number, maxDuration = 700) {
+function animateScrollTo(el: HTMLElement, target: number, maxDuration = 520) {
   const start = el.scrollTop;
   const distance = target - start;
   if (Math.abs(distance) < 1) return () => {};
 
-  // Duration thích ứng: ~550ms cho 1 dòng (khoảng 60-120px), tối đa 700ms cho cuộn xa
-  const duration = Math.min(maxDuration, 520 + Math.sqrt(Math.abs(distance)) * 10);
+  // Duration thích ứng: ~340ms cho 1 dòng (khoảng 60-100px), tối đa 520ms cho cuộn xa
+  const duration = Math.min(maxDuration, 310 + Math.sqrt(Math.abs(distance)) * 4);
   const startTime = performance.now();
   let raf = 0;
 
@@ -464,11 +473,12 @@ function LyricsMountSync({
   return null;
 }
 
-function activeFromTime(lines: LyricLineView[], time: number): number {
+function activeFromTime(lines: LyricLineView[], time: number, leadSeconds = SCROLL_LEAD_SECONDS): number {
   let idx = -1;
+  const effectiveTime = time + leadSeconds;
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
-    if (l && typeof l.time === "number" && time >= l.time) idx = i;
+    if (l && typeof l.time === "number" && effectiveTime >= l.time) idx = i;
   }
   return idx;
 }
@@ -542,10 +552,11 @@ function LyricsTicker({
   isPlainLyrics: boolean;
   onActiveChange: (idx: number) => void;
 }) {
-  const time = usePlayerTime();
+  const fallbackTime = usePlayerTime();
+  const time = useSmoothLyricTime(fallbackTime);
   useEffect(() => {
     if (isPlainLyrics || lines.length === 0) return;
-    const next = activeFromTime(lines, time);
+    const next = activeFromTime(lines, time, SCROLL_LEAD_SECONDS);
     const prev = activeIndexRef.current ?? -1;
     const items = getOrHydrateItems(itemRefs, containerRef, trackId);
     if (!items || items.length === 0) return;
