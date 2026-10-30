@@ -66,9 +66,9 @@ describe("crossfade handover time-reset contract (WP2)", () => {
 describe("stall soft-reload hardening contract (WP1, Agent-1 fix pinned)", () => {
   const src = read("src/lib/player.tsx");
 
-  it("stall threshold is 14s, gated on readyState === 0 and end-of-track distance", () => {
-    expect(src).toContain("}, 14000)");
-    expect(src).toMatch(/el\.readyState > 0/);
+  it("stall threshold is 4s, gated on forward progress delta < 0.1s and end-of-track distance", () => {
+    expect(src).toContain("}, 4000)");
+    expect(src).toMatch(/progress < 0\.1/);
     expect(src).toMatch(/remaining < 30/);
   });
 

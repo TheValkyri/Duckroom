@@ -1,7 +1,6 @@
-import { Disc3, Image as ImageIcon, Loader2, Scissors, Trash2, UploadCloud, X } from "lucide-react";
+import { Disc3, Image as ImageIcon, Loader2, Scissors, UploadCloud, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { updateAlbum, type Album } from "../data/library";
 import { fetchAlbumArtworkUrl } from "../lib/s3";
 import { ArtworkCropModal } from "./ArtworkCropModal";

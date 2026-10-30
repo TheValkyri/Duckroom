@@ -13,7 +13,6 @@ import {
   retryStagingCleanupInternal,
   cancelUploadSessionInternal,
   markSessionCleanupPending,
-  markTerminalStagingCleanupPending,
 } from "../lib/ingestion";
 import * as supabaseModule from "../lib/supabase";
 import * as s3FunctionsModule from "../lib/s3-functions";

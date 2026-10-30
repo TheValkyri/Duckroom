@@ -1,28 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import {
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Eye,
-  FastForward,
-  FileText,
-  Mic,
-  Minus,
-  Pause,
-  Play,
-  Plus,
-  RefreshCw,
-  Rewind,
-  RotateCcw,
-  Sliders,
-  Sparkles,
-  Volume2,
-  X,
-  Zap,
-} from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Check, Eye, FileText, Mic, Pause, Play, RefreshCw, RotateCcw, Sliders, X, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { beautifyLrcString, shiftLrcTime } from "../lib/lyrics-formatter";
-import { springSnappy, tapScale, tweenBase } from "../lib/motion";
+import { beautifyLrcString } from "../lib/lyrics-formatter";
+import { springSnappy, tapScale } from "../lib/motion";
 import { ModalPortal } from "./ui/modal-portal";
 import { cn } from "../lib/utils";
 

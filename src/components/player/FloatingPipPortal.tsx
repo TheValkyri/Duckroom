@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { DocumentPipPlayer } from "./DocumentPipPlayer";
-import { useDocumentPip, type UseDocumentPipReturn } from "../../hooks/use-document-pip";
+import type { UseDocumentPipReturn } from "../../hooks/use-document-pip";
 import { AnimatePresence, motion } from "motion/react";
 import { springGentle } from "../../lib/motion";
 

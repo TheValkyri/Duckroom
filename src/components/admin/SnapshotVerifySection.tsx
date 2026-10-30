@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, CheckCircle2, RefreshCw, Save, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, RefreshCw, Save } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { springSnappy, tapScale } from "../../lib/motion";

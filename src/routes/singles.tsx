@@ -5,7 +5,6 @@ import {
   Edit,
   Grid,
   List,
-  Music2,
   Pause,
   Play,
   Plus,
@@ -21,16 +20,8 @@ import { useCallback, useMemo, useState } from "react";
 import { EditTrackModal } from "../components/EditTrackModal";
 import { TrackRow } from "../components/TrackRow";
 import { deleteTrack, syncLibraryWithS3, type Track } from "../data/library";
-import {
-  listContainerVariants,
-  listItemVariants,
-  springGentle,
-  springPill,
-  springSnappy,
-  tapScale,
-  tweenBase,
-} from "../lib/motion";
-import { usePlayer, usePlayerActions, usePlayerIsCurrent, usePlayerIsPlaying } from "../lib/player";
+import { listContainerVariants, listItemVariants, springPill, springSnappy, tapScale } from "../lib/motion";
+import { usePlayerActions, usePlayerIsCurrent, usePlayerIsPlaying } from "../lib/player";
 import { useDuckroomRole } from "../lib/useRole";
 import { useLibrary } from "../lib/useLibrary";
 import { cn } from "../lib/utils";
@@ -486,7 +477,7 @@ function SinglesPage() {
                 className="grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
               >
                 <AnimatePresence initial={false}>
-                  {filteredSingles.map((track, i) => (
+                  {filteredSingles.map((track) => (
                     <motion.div key={track.id} layout variants={listItemVariants}>
                       <SingleCard
                         track={track}

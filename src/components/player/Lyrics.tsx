@@ -613,25 +613,28 @@ function LyricsTicker({
   return null;
 }
 
-const STOP_CONSONANT_RE = /(?:[cptk]|ch|ck|pt|ct|ft|d|b|g)$/i;
+const STOP_CONSONANT_RE = /(?:[cptk]|ch|ck|pt|ct|ft|d|b|(?<!n)g)$/i;
 const PROLONGED_CHAR_RE = /(.)\1{2,}|[~]{1,}/i;
+const VOCAL_CHOP_RE = /^(?:ah|ha|oh|la|na|da|yo|uh|ba|ta|pa|hey|ay|eh)[.,!?;:~…\-–—]*$/i;
+const OPEN_MELISMA_VOWEL_RE =
+  /(?:[aeiouyàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹ]|oi|ơi|ôi|ai|ay|ao|au|âu|eo|êu|ui|ưi|ươi|uôi)$/i;
 
 function computeCadenceProgress(linear: number, text: string): number {
   if (linear <= 0) return 0;
   if (linear >= 1) return 1;
 
   const clean = text.replace(/[.,!?;:…"“”'’\-–—()[\]{}]/g, "");
-  const isHyphenChop = text.endsWith("-");
+  const isHyphenChop = text.endsWith("-") || VOCAL_CHOP_RE.test(clean);
   const isStopConsonant = STOP_CONSONANT_RE.test(clean);
-  const isProlonged = PROLONGED_CHAR_RE.test(clean) || /~/.test(text);
+  const isProlonged = PROLONGED_CHAR_RE.test(clean) || /~/.test(text) || OPEN_MELISMA_VOWEL_RE.test(clean);
 
   if (isStopConsonant && !isProlonged) {
-    // Staccato (nhấp nhả): reach 100% active fill at ~80% of syllable window and hold for crisp micro-rest
-    return Math.min(1, linear / 0.82);
+    // Staccato (nhấp nhả): brisk musical attack, completes at ~78% and rests crisply
+    return Math.min(1, Math.pow(linear / 0.78, 0.85));
   }
 
   if (isHyphenChop) {
-    // Vocal chop runs ("ah-", "oh-", "la-"): energetic ease-out pulse on each syllable beat
+    // Vocal chop runs ("ah-", "ah", "oh-", "la-"): energetic rhythmic pulse on beat
     return 1 - Math.pow(1 - linear, 1.8);
   }
 
@@ -687,7 +690,7 @@ const WordByWordActiveLine = memo(function WordByWordActiveLine({
           <span key={`${idx}-${w.text}`} className="inline">
             <span className="relative inline-block font-bold align-baseline">
               {/* Base text: 100% visible font glyphs, immune to CSS text background clipping glitches */}
-              <span className={cn("inline-block", isPast ? "text-white" : "text-white/40")}>{w.text}</span>
+              <span className={cn("inline", isPast ? "text-white" : "text-white/40")}>{w.text}</span>
 
               {/* Active syllable fluid fill overlay */}
               {isSinging && (
@@ -706,7 +709,7 @@ const WordByWordActiveLine = memo(function WordByWordActiveLine({
                 </span>
               )}
             </span>
-            {idx < words.length - 1 && !w.text.endsWith("-") ? " " : ""}
+            {idx < words.length - 1 && (!w.text.endsWith("-") ? " " : <wbr />)}
           </span>
         );
       })}

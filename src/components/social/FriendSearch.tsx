@@ -1,4 +1,4 @@
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { Check, CheckCircle2, Loader2, Search, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -24,7 +24,6 @@ export function FriendSearch({ onActionSuccess, className }: FriendSearchProps) 
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
 
   // Search effect with debounce
   useEffect(() => {

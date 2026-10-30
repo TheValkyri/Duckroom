@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { IngestionVerificationError, createUploadSessionInternal } from "../lib/ingestion";
 import * as supabaseModule from "../lib/supabase";
 
@@ -12,7 +12,6 @@ describe("Media Integrity — production duplicate detection & ingestion guards"
   const KNOWN_SHA = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
   const EXISTING_TRACK = { id: "track-1", title: "Một Đêm Trắng", artist: "Hồ Việt Trung" };
 
-  let maybeSingleSpy: ReturnType<typeof vi.fn>;
   let limitSpy: ReturnType<typeof vi.fn>;
   let eqSpy: ReturnType<typeof vi.fn>;
 
@@ -20,7 +19,6 @@ describe("Media Integrity — production duplicate detection & ingestion guards"
     // WP-4 (2026-09-11): the duplicate lookup is `.limit(2)` + first-match
     // instead of `.maybeSingle()` — tolerant of multiple rows sharing a
     // sha256 after a legitimate "upload anyway" duplicate commit.
-    maybeSingleSpy = vi.fn().mockResolvedValue({ data: existingTrack, error: null });
     limitSpy = vi.fn().mockResolvedValue({ data: existingTrack ? [existingTrack] : [], error: null });
     eqSpy = vi.fn(() => ({
       neq: (_col: string, _val: string) => ({ order: () => ({ limit: limitSpy }) }),

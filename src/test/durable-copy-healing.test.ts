@@ -157,7 +157,7 @@ describe("Durable Media Ingestion & Self-Healing Playback Tests", () => {
           if (table === "tracks") {
             return {
               select: () => ({
-                eq: (col: string, val: string) => ({
+                eq: (_col: string, _val: string) => ({
                   maybeSingle: vi.fn().mockResolvedValue({
                     data: {
                       id: "track-heal-1",
@@ -169,7 +169,7 @@ describe("Durable Media Ingestion & Self-Healing Playback Tests", () => {
                 }),
               }),
               update: (patch: any) => ({
-                eq: vi.fn().mockImplementation((col: string, val: string) => {
+                eq: vi.fn().mockImplementation((_col: string, _val: string) => {
                   if (patch.storage_key) updatedTracksKey = patch.storage_key;
                   return Promise.resolve({ data: null, error: null });
                 }),
@@ -199,7 +199,7 @@ describe("Durable Media Ingestion & Self-Healing Playback Tests", () => {
           if (table === "track_files") {
             return {
               update: (patch: any) => ({
-                eq: vi.fn().mockImplementation((col: string, val: string) => {
+                eq: vi.fn().mockImplementation((_col: string, _val: string) => {
                   if (patch.storage_key) updatedTrackFilesKey = patch.storage_key;
                   return Promise.resolve({ data: null, error: null });
                 }),
@@ -300,7 +300,6 @@ describe("Durable Media Ingestion & Self-Healing Playback Tests", () => {
 
   describe("4. Toxic Fallback Elimination in Ingestion Commit", () => {
     it("never writes temp/ staging key to DB when CopyObjectCommand times out or fails with network error", async () => {
-      let insertedTrack: any = null;
       let updatedTrack: any = null;
       let sessionFinalStatus = "";
 
@@ -346,7 +345,6 @@ describe("Durable Media Ingestion & Self-Healing Playback Tests", () => {
             return {
               select: () => ({ eq: () => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null }) }) }),
               insert: (row: any) => {
-                insertedTrack = row;
                 return {
                   select: () => ({
                     single: vi.fn().mockResolvedValue({ data: { id: row.id }, error: null }),

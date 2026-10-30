@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import {
   ArrowUpDown,
   Check,
@@ -9,7 +9,6 @@ import {
   Disc,
   Disc3,
   ExternalLink,
-  Layers,
   Loader2,
   Music,
   Search,

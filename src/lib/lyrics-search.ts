@@ -146,7 +146,6 @@ export async function searchOnlineLyricsMultiSource(title: string, artist: strin
   const cleanA = cleanSongQuery(rawArtist);
   const nonDiacriticT = removeVietnameseDiacritics(cleanT).toLowerCase();
   const nonDiacriticA = removeVietnameseDiacritics(cleanA).toLowerCase();
-  const fullSearchQuery = `${cleanA} ${cleanT}`.trim().toLowerCase();
   const fullNormQuery = `${nonDiacriticA} ${nonDiacriticT}`.trim();
   const searchTokens = Array.from(
     new Set(`${nonDiacriticA} ${nonDiacriticT}`.split(/\s+/).filter((w) => w.length >= 2)),

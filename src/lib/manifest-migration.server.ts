@@ -434,6 +434,7 @@ export async function executeManifestMigration(rawManifest: unknown, actorUserId
   const timestamp = new Date().toISOString();
   const report: MigrationReport = {
     success: true,
+    sourceSnapshotChecksum: createHash("sha256").update(JSON.stringify(rawManifest)).digest("hex"),
     timestamp,
     counts: {
       manifest: { tracks: tracks.length, albums: albums.length, videos: videos.length },

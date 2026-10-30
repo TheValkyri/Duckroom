@@ -28,10 +28,6 @@ export function PlayerBar() {
   const {
     current,
     isPlaying,
-    volume,
-    isMuted,
-    setVolume,
-    toggleMute,
     crossfade,
     setCrossfade,
     expanded,
@@ -50,7 +46,7 @@ export function PlayerBar() {
 
   const [coverLoaded, setCoverLoaded] = useState(false);
   const isPhone = useIsPhoneLayout();
-  const isCompactDock = useMediaQuery("(max-width: 1023px)");
+  const isCompactDock = useMediaQuery("(max-width: 1023px)") || isPhone;
   const pipState = useDocumentPip();
   const [inAppFloatingOpen, setInAppFloatingOpen] = useState(false);
 

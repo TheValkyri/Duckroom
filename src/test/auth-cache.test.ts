@@ -337,7 +337,7 @@ describe("Phase 1 — In-Memory Auth Cache 60s & LRU Cache (P1.2)", () => {
       await new Promise((r) => setTimeout(r, 2200));
 
       // Should have expired from cache
-      const cachedResult = await verifyMemberAuthorization(undefined, shortJwt);
+      await verifyMemberAuthorization(undefined, shortJwt);
       expect(getUserMock).toHaveBeenCalledTimes(2); // Re-verified from Supabase
     });
 

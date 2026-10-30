@@ -16,10 +16,8 @@ import {
   normalizeHandle,
   sendFriendRequestSchema,
   type BlockedUserItem,
-  type FriendActionInput,
   type FriendItem,
   type FriendRequestItem,
-  type FriendSearchQueryInput,
   type FriendSearchResult,
   type SendFriendRequestInput,
 } from "./social-types";

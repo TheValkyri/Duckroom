@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Check, Copy, Loader2, ShieldAlert, UserCheck, UserMinus, UserPlus, X } from "lucide-react";
+import { Check, Copy, ShieldAlert, UserCheck, UserMinus, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   acceptFriendRequest,
@@ -20,7 +20,6 @@ import { FriendActivity } from "./FriendActivity";
 import { springSmooth } from "../../lib/motion";
 import { useScrollLock } from "../../hooks/use-scroll-lock";
 import { ModalPortal } from "../ui/modal-portal";
-import { cn } from "../../lib/utils";
 
 import { getCachedProfile, invalidateProfileCache, setCachedProfile } from "../../lib/social/profile-cache";
 

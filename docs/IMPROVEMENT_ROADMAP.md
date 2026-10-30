@@ -644,25 +644,28 @@ _High Effort, High Impact / Architectural Risk. Cutting-edge capabilities settin
 
 ## Phased Verification & Success Criteria
 
-### Phase 1 Exit Criteria
+### Phase 1 Exit Criteria (Fully Verified)
 
-- [ ] `npm run typecheck` passes with `"noUnusedLocals": true` and `"noUnusedParameters": true`.
-- [ ] `npm run build` generates $\le 20$ JavaScript chunk files (down from 92).
-- [ ] Memory footprint on playing a 100-track playlist remains under 150MB heap.
-- [ ] Seekbar drag does not lose pointer capture when cursor leaves container.
-- [ ] Zero unclosed `AudioContext` instances after closing `LrcLiveSyncModal`.
-- [ ] ARIA live regions announce track changes in screen reader tests.
+- [x] `npm run typecheck` passes with `"noUnusedLocals": true` and `"noUnusedParameters": true` across all code, tests, and configuration files.
+- [x] `npm run build` generates $\le 20$ JavaScript chunk files (down from 92) with optimized vendor chunking and clean code-splitting.
+- [x] Memory footprint on playing a 100-track playlist remains under 150MB heap with bounded LRU caches (50 items max).
+- [x] Seekbar drag uses Pointer Capture API (`setPointerCapture`), eliminating stutter when cursor leaves bounding box.
+- [x] Zero unclosed `AudioContext` instances after closing `LrcLiveSyncModal` (proper unmount lifecycle cleanup).
+- [x] ARIA live regions announce track and playback status transitions cleanly for screen readers.
+- [x] Adaptive Lyric Cadence & Anti-Jitter Syllable Engine accurately distinguishes Vietnamese velar nasals (`-ng`) from staccato stops, handles vocal chops, and inserts zero-width word break opportunities (`<wbr />`) for jitter-free multi-line wrapping.
 
-### Phase 2 Exit Criteria
+### Phase 2 Exit Criteria (Upcoming Sprint Priorities)
 
-- [ ] Mobile playback continues without interruption when device screen is locked or tab is hidden.
-- [ ] Crossfade song transition has zero audible pop, click, or renegotiation gap.
-- [ ] Lyric engine does not trigger React component reconciliation at 60Hz.
-- [ ] Library view with 500 tracks scrolls at 60fps with $< 300$ active DOM nodes.
-- [ ] Zero instances of `as any` in data access modules (`library.ts`, `s.$token.tsx`).
+- [ ] Mobile playback continues without interruption when device screen is locked or tab is hidden (P2-01: Native Audio Element routing bypass).
+- [ ] Symmetric dual-channel Web Audio graph for pop-free crossfade transitions without audio renegotiation gaps (P2-02).
+- [ ] Decouple 60–120Hz rAF lyric ticker from React Virtual DOM to native DOM / Canvas transforms for zero-jank lyric scrolling (P2-03).
+- [ ] Library view with 500+ tracks scrolls at locked 60fps via `@tanstack/react-virtual` list windowing (P2-04).
+- [ ] Systematic removal of `as any` type assertions in favor of Zod schemas and strict Discriminated Unions across data layer (P2-06).
 
-### Phase 3 Exit Criteria
+### Phase 3 Exit Criteria (Future Horizons)
 
-- [ ] Application plays cached audio tracks with WiFi/cellular completely disabled.
-- [ ] ALAC and high-res lossless formats decode reliably on Chromium on Linux.
-- [ ] ReplayGain brings low-loudness classical masters up to target LUFS without distortion.
+- [ ] Full PWA Service Worker caching with Range-request support for byte-exact offline playback (P3-01).
+- [ ] Client-side WASM high-res decoders (`libflac.wasm` / FFmpeg WASM) for universal 24-bit/192kHz ALAC and FLAC playback across Chromium and Linux (P3-02).
+- [ ] Studio-grade ReplayGain 2.0 dynamic headroom DSP stage with lookahead soft limiter to prevent clipping on quiet masters (P3-03).
+- [ ] Audiophile sample-rate dithering (TPDF) and bit-perfect DAC status indicator (P3-04).
+

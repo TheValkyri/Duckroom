@@ -214,7 +214,7 @@ describe("Social Profile Server Domain Functions (social-profile.server.ts)", ()
       },
       auth: {
         admin: {
-          getUserById: vi.fn((uid: string) => Promise.resolve({ data: { user: { email: "test@duckroom.test" } } })),
+          getUserById: vi.fn((_uid: string) => Promise.resolve({ data: { user: { email: "test@duckroom.test" } } })),
         },
       },
     };

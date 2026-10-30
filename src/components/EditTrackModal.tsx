@@ -1,17 +1,4 @@
-import {
-  AlertCircle,
-  Disc,
-  FastForward,
-  FileText,
-  Image,
-  Loader2,
-  Rewind,
-  Scissors,
-  Sparkles,
-  Wand2,
-  X,
-  Zap,
-} from "lucide-react";
+import { AlertCircle, Disc, FastForward, FileText, Image, Loader2, Rewind, Scissors, Sparkles, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { ArtworkCropModal } from "./ArtworkCropModal";
@@ -23,7 +10,6 @@ import { modalOverlayVariants, modalPanelVariants, springSnappy, tapScale } from
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
 import { beautifyLrcString, parseLrc, shiftLrcTime } from "../lib/lyrics-formatter";
 import { findMatchingCommunityLyric } from "../lib/lyrics-search";
-import { autoTimePacingLyrics } from "../lib/metadata";
 import { useDuckroomRole } from "../lib/useRole";
 import { useScrollLock } from "../hooks/use-scroll-lock";
 import { ModalPortal } from "./ui/modal-portal";
@@ -78,7 +64,6 @@ export function EditTrackModal({
   const [showCropModal, setShowCropModal] = useState(false);
   const [showLyricsSearchModal, setShowLyricsSearchModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isFetchingLyrics, setIsFetchingLyrics] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [notice, setNotice] = useState<{ text: string; type: "success" | "warning" | "shift" } | null>(null);
 

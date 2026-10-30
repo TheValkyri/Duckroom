@@ -1,8 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Disc3, Image as ImageIcon, Loader2, Play, Plus, Scissors, Trash2, UploadCloud, X } from "lucide-react";
+import { Disc3, Image as ImageIcon, Loader2, Plus, Scissors, UploadCloud, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useMemo, useState } from "react";
-import { albumTracks, albums, createAlbum, deleteAlbum, type Album } from "../data/library";
+import { albumTracks, createAlbum, deleteAlbum, type Album } from "../data/library";
 import { usePlayerActions } from "../lib/player";
 import { ArtworkCropModal } from "../components/ArtworkCropModal";
 import { compressAndResizeImageFile, cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
@@ -13,7 +13,6 @@ import {
   modalPanelVariants,
   springSnappy,
   tapScale,
-  tweenBase,
 } from "../lib/motion";
 import { requestPresignedUploadUrlServer } from "../lib/s3-functions";
 import { cn } from "../lib/utils";

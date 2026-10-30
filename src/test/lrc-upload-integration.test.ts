@@ -1,8 +1,7 @@
+import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import { normalizeBaseFileName } from "../lib/upload-store";
 import { parseLrc, shiftLrcTime, beautifyLrcString } from "../lib/lyrics-formatter";
-import fs from "fs";
-import path from "path";
 
 describe("LRC Upload & Auto-Pairing Integration", () => {
   describe("normalizeBaseFileName", () => {

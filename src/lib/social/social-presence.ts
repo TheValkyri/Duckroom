@@ -1,12 +1,7 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../supabase-client";
 import type { TabRole } from "../player-broadcast";
-import type {
-  SocialListeningActivity,
-  SocialPresencePayload,
-  SocialPresenceStatus,
-  SocialVisibility,
-} from "./social-types";
+import type { SocialPresencePayload, SocialPresenceStatus, SocialVisibility } from "./social-types";
 
 export const SOCIAL_HEARTBEAT_INTERVAL_MS = 5000; // ~5s per Friends Plan §12 & §13
 

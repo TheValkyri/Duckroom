@@ -1,4 +1,4 @@
-import { FileMusic, Filter, Mic2, Music, Search } from "lucide-react";
+import { Mic2, Music, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { formatTime } from "../../data/library";
 import type { OwnerTrackItem } from "../../lib/owner-data";

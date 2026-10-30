@@ -14,19 +14,16 @@ import {
   deleteTrack,
   formatTime,
   removeTrackFromAlbum,
-  syncLibraryWithS3,
   type Track,
 } from "../data/library";
 import { fetchAlbumArtworkUrl } from "../lib/s3";
 import {
   listContainerVariants,
   listItemVariants,
-  modalOverlayVariants,
   modalPanelVariants,
   springSmooth,
   springSnappy,
   tapScale,
-  tweenBase,
 } from "../lib/motion";
 import { useDuckroomRole } from "../lib/useRole";
 import { ShareMenu } from "../components/ShareMenu";
@@ -226,7 +223,7 @@ function isDisplayableImageUrl(url: string | null | undefined): boolean {
 
 function AlbumPage() {
   const { album: loadedAlbum, tracks: loadedTracks, albumId: paramAlbumId } = Route.useLoaderData();
-  const { tracks, albums, refresh, status } = useLibrary();
+  const { refresh, status } = useLibrary();
   const { playQueue } = usePlayerActions();
   const { isOwner } = useDuckroomRole();
   const navigate = useNavigate();

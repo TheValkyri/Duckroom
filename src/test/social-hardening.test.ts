@@ -1,9 +1,7 @@
 import { describe, expect, it, beforeEach, vi, afterEach } from "vitest";
 import {
   buildPresencePayload,
-  getNextRevision,
   resetRevisionForTesting,
-  socialPresencePublisher,
   SocialPresencePublisher,
   SOCIAL_HEARTBEAT_INTERVAL_MS,
 } from "../lib/social/social-presence";

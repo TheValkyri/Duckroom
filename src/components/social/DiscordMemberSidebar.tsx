@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Headphones, LogIn, PanelRightClose, PanelRightOpen, Plus, Radio, UserPlus, Users } from "lucide-react";
+import { LogIn, PanelRightClose, Plus, UserPlus, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { useAuth } from "../../lib/useAuth";
 import { listFriends, type FriendItem } from "../../lib/social";
@@ -18,7 +18,7 @@ export interface DiscordMemberSidebarProps {
 }
 
 export function DiscordMemberSidebar({ open, onToggle }: DiscordMemberSidebarProps) {
-  const { isLoggedIn, isLoading: authLoading } = useAuth();
+  const { isLoggedIn } = useAuth();
   const [friends, setFriends] = useState<FriendItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -200,7 +200,9 @@ export function DiscordMemberSidebar({ open, onToggle }: DiscordMemberSidebarPro
                               <span className="w-[2px] h-1/2 bg-primary rounded-full animate-pulse [animation-delay:150ms]" />
                               <span className="w-[2px] h-3/4 bg-primary rounded-full animate-pulse [animation-delay:300ms]" />
                             </span>
-                            <span className="truncate">{trackTitle}</span>
+                            <span className="truncate">
+                              {artistName ? `${trackTitle} • ${artistName}` : trackTitle}
+                            </span>
                           </div>
                         </div>
                       </button>

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createPlayerEngine, type PlayerEngineState } from "../lib/player-engine";
 import type { Track } from "../data/library";
 

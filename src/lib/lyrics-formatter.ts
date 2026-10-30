@@ -302,7 +302,7 @@ const WEAK_PARTICLES = new Set([
   "my",
 ]);
 
-const STOP_CONSONANT_RE = /(?:[cptk]|ch|ck|pt|ct|ft|d|b|g)$/i;
+const STOP_CONSONANT_RE = /(?:[cptk]|ch|ck|pt|ct|ft|d|b|(?<!n)g)$/i;
 const PROLONGED_CHAR_RE = /(.)\1{2,}|[~]{1,}/i;
 
 function getAcousticWeight(cleanWord: string, isLastWord: boolean): number {
@@ -362,6 +362,7 @@ function getAcousticWeight(cleanWord: string, isLastWord: boolean): number {
 }
 
 function getPunctuationPause(rawWord: string): number {
+  if (rawWord.endsWith("-")) return 0; // Sub-syllable chop run ("ah-"): musical pulse, not punctuation breath pause
   if (/\.{3}|…/.test(rawWord)) return 0.28; // Ellipsis
   if (/[.!?]/.test(rawWord)) return 0.22; // Terminal punctuation
   if (/[,;:\-–—]/.test(rawWord)) return 0.14; // Breath pause / comma
@@ -390,10 +391,18 @@ export function computeWordTimings(line: LyricLine, nextLineTime?: number): Lyri
   // Segment hyphenated syllable runs into individual sub-syllable LyricWords with trailing hyphens
   const rawWords: string[] = [];
   for (const token of rawTokens) {
+    if (/^[.,!?;:~…\-–—()[\]{}]+$/u.test(token)) {
+      if (rawWords.length > 0) {
+        rawWords[rawWords.length - 1] += ` ${token}`;
+      }
+      continue;
+    }
     if (
-      /^[a-zA-Z0-9\u00C0-\u024F\u1EA0-\u1EF9]+(?:-[a-zA-Z0-9\u00C0-\u024F\u1EA0-\u1EF9]+)+[.,!?;:~…]*$/u.test(token)
+      /^[a-zA-Z0-9\u00C0-\u024F\u1EA0-\u1EF9]+(?:[-‐‑‒–—][a-zA-Z0-9\u00C0-\u024F\u1EA0-\u1EF9]+)+[.,!?;:~…]*$/u.test(
+        token,
+      )
     ) {
-      const parts = token.split("-");
+      const parts = token.split(/[-‐‑‒–—]/u);
       for (let s = 0; s < parts.length; s++) {
         const part = parts[s]!;
         if (!part) continue;

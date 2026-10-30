@@ -154,7 +154,7 @@ describe("Social Friendships — Domain Logic & Canonical Relationship Model (Ph
         from: vi.fn((tableName: string) => {
           if (tableName === "profiles") {
             return {
-              select: vi.fn((fields: string) => ({
+              select: vi.fn((_fields: string) => ({
                 eq: vi.fn((col: string, val: any) => ({
                   maybeSingle: vi.fn(async () => ({
                     data: mockProfilesTable.find((p) => p[col] === val) || null,
@@ -192,7 +192,7 @@ describe("Social Friendships — Domain Logic & Canonical Relationship Model (Ph
 
           if (tableName === "friendships") {
             return {
-              select: vi.fn((fields: string) => ({
+              select: vi.fn((_fields: string) => ({
                 eq: vi.fn((col: string, val: any) => ({
                   eq: vi.fn((col2: string, val2: any) => ({
                     maybeSingle: vi.fn(async () => {
@@ -215,7 +215,7 @@ describe("Social Friendships — Domain Logic & Canonical Relationship Model (Ph
                   const byUser = mockFriendshipsTable.filter((f) => f.user_low_id === uId || f.user_high_id === uId);
                   return {
                     in: vi.fn((col: string, vals: any[]) => ({
-                      order: vi.fn((orderCol: string, opts?: any) => {
+                      order: vi.fn((_orderCol: string, _opts?: any) => {
                         const filtered = byUser.filter((f) => vals.includes(f[col]));
                         return Promise.resolve({ data: [...filtered], error: null });
                       }),

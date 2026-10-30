@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Disc3, Music2, RefreshCw, Search, Trash2, UploadCloud, X } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { TrackRow } from "../components/TrackRow";
 import { LibrarySkeleton } from "../components/LibrarySkeleton";
 import { viFold } from "../lib/vi-search";

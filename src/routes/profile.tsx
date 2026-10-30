@@ -2,7 +2,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Camera,
   Check,
-  CheckCircle2,
   Copy,
   Eye,
   EyeOff,
@@ -40,7 +39,7 @@ function ProfilePage() {
   const navigate = useNavigate();
   const { isLoggedIn, isLoading: authLoading, signOut } = useAuth();
   const { isOwner } = useDuckroomRole();
-  const { profile, isLoading: profileLoading, updateProfile, uploadAvatar, uploadBanner } = useSocialProfile();
+  const { profile, updateProfile, uploadAvatar, uploadBanner } = useSocialProfile();
 
   // Edit states
   const [editingName, setEditingName] = useState(false);

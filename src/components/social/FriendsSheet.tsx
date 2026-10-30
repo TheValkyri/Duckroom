@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Inbox, Loader2, Search, UserPlus, Users } from "lucide-react";
+import { Inbox, Search, UserPlus, Users } from "lucide-react";
 import { MobileSheet } from "../MobileSheet";
 import { FriendCard } from "./FriendCard";
 import { FriendRequestRow } from "./FriendRequestRow";

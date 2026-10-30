@@ -439,7 +439,6 @@ export async function finalizeIngestionCommitInternal(data: FinalizeIngestionCom
   }
 
   // Step 3: S3 Artwork Copy with Explicit Failure State, Verification Retry & Compensation Check
-  const artworkKeyInUse = canonicalArtworkKey;
   if (canonicalArtworkKey && session.artwork_staging_key) {
     try {
       await copyObjectWithVerifyRetry(s3Durable, BUCKET_NAME, session.artwork_staging_key, canonicalArtworkKey, 3);

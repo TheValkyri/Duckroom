@@ -7,7 +7,6 @@ import {
   shiftLrcTime,
   readStoredOffset,
   saveStoredOffset,
-  OFFSET_STORAGE_PREFIX,
   OFFSET_LIMIT_MS,
 } from "../lib/lyrics-formatter";
 
@@ -403,6 +402,42 @@ describe("Lyrics Formatter V2 — Zero Content Mutation & Precise Timing", () =>
       const caDuration = caWord.endTime - caWord.startTime;
       expect(caDuration).toBeGreaterThan(0.35);
       expect(caWord.endTime).toBeLessThanOrEqual(12.0);
+    });
+
+    it("distinguishes velar nasal consonants (-ng) from staccato stop consonants (-c, -t, -p, -ch)", () => {
+      // "hứng" and "từng" end in nasal [ŋ] (not stop consonants)
+      // "hát" ends in stop consonant -t
+      const line = { time: 0.0, text: "hát từng câu hứng" };
+      const words = computeWordTimings(line, 4.0);
+      expect(words).toHaveLength(4);
+      const hatDur = words[0]!.endTime - words[0]!.startTime;
+      const tungDur = words[1]!.endTime - words[1]!.startTime;
+      const hungDur = words[3]!.endTime - words[3]!.startTime;
+
+      // "hát" is staccato stop consonant and should be crisper than the resonant nasal "từng"
+      expect(hatDur).toBeLessThan(tungDur);
+      // Final "hứng" ends in resonant nasal and is naturally sustained
+      expect(hungDur).toBeGreaterThan(hatDur);
+    });
+
+    it("supports Unicode hyphens (en-dash, em-dash, non-breaking hyphen) in vocal chop runs", () => {
+      const line = { time: 5.0, text: "hát ah–ah–ah–ah" }; // en-dash U+2013
+      const words = computeWordTimings(line, 9.0);
+      expect(words).toHaveLength(5);
+      expect(words[0]!.text).toBe("hát");
+      expect(words[1]!.text).toBe("ah-");
+      expect(words[2]!.text).toBe("ah-");
+      expect(words[3]!.text).toBe("ah-");
+      expect(words[4]!.text).toBe("ah");
+    });
+
+    it("attaches standalone dashes or punctuation to preceding word without creating phantom lyric words", () => {
+      const line = { time: 2.0, text: "Anh yêu em - nhiều lắm" };
+      const words = computeWordTimings(line, 6.0);
+      // 5 words: "Anh", "yêu", "em -", "nhiều", "lắm" (dash is attached to "em" as a breath pause)
+      expect(words).toHaveLength(5);
+      expect(words[2]!.text).toBe("em -");
+      expect(words[3]!.text).toBe("nhiều");
     });
   });
 });

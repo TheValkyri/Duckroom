@@ -35,8 +35,6 @@ export function NowPlaying() {
     // QoL: sleep timer cần pause + volume khi hết giờ.
     pause,
     setVolume,
-    volume,
-    toggle: togglePlayback,
   } = usePlayer();
   const open = expanded;
   // LƯU Ý: KHÔNG scroll-lock ở đây. Fullscreen player là `fixed inset-0`

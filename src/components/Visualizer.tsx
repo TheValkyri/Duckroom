@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getAudioAnalyser } from "../lib/audio-analyser";
 import { usePlayer } from "../lib/player";
 import { subscribeTheme, accentCssVars, getThemeState } from "../lib/theme";
-import { getSavedVisualizerMode, saveVisualizerMode, type VisualizerMode } from "../lib/visualizer-storage";
+import { getSavedVisualizerMode, type VisualizerMode } from "../lib/visualizer-storage";
 import { cn } from "../lib/utils";
 
 export type { VisualizerMode };
@@ -29,17 +29,11 @@ export function Visualizer({
   className = "",
   height = 64,
   mode: propMode,
-  showModeControls = false,
-  onModeChange,
+  showModeControls: _showModeControls = false,
+  onModeChange: _onModeChange,
 }: VisualizerProps) {
-  const [currentMode, setCurrentMode] = useState<VisualizerMode>(() => propMode ?? getSavedVisualizerMode());
+  const [currentMode] = useState<VisualizerMode>(() => propMode ?? getSavedVisualizerMode());
   const activeMode = propMode ?? currentMode;
-
-  const handleSelectMode = (newMode: VisualizerMode) => {
-    setCurrentMode(newMode);
-    saveVisualizerMode(newMode);
-    onModeChange?.(newMode);
-  };
 
   const ref = useRef<HTMLCanvasElement | null>(null);
   const levels = useRef<number[]>(Array.from({ length: bars }, () => 0.04));

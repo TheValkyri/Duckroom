@@ -2,7 +2,6 @@ import { AnimatePresence, motion, type PanInfo } from "motion/react";
 import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { springSnappy, springSmooth, tapScale } from "../lib/motion";
-import { cn } from "../lib/utils";
 import { useScrollLock } from "../hooks/use-scroll-lock";
 import { ModalPortal } from "./ui/modal-portal";
 

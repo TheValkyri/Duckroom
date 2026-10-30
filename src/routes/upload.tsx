@@ -5,21 +5,19 @@ import {
   FileText,
   Image,
   Loader2,
-  Mic,
   Scissors,
-  Sparkles,
   UploadCloud,
   XCircle,
   RefreshCw,
   Layers,
 } from "lucide-react";
 import { toast } from "sonner";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { ArtworkCropModal } from "../components/ArtworkCropModal";
 import { LrcLiveSyncModal } from "../components/LrcLiveSyncModal";
 import { LyricsSearchModal } from "../components/LyricsSearchModal";
-import { compressAndResizeImageFile, cropBlackLetterbox, dataURLtoFile } from "../lib/image-crop";
+import { parseLrc, beautifyLrcString, shiftLrcTime } from "../lib/lyrics-formatter";
 import {
   enqueueFilesForIngestion,
   getIngestionStoreState,
@@ -32,13 +30,9 @@ import {
   cancelIngestionItem,
   clearCompletedIngestionItems,
   applyBulkMetadataEdit,
-  type IngestionItem,
   type IngestionStoreState,
 } from "../lib/upload-store";
-import { beautifyLrcString, parseLrc, shiftLrcTime } from "../lib/lyrics-formatter";
-import { springPill, springSnappy, tapScale } from "../lib/motion";
 import { cn } from "../lib/utils";
-import { useLibrary } from "../lib/useLibrary";
 import { useAuth } from "../lib/useAuth";
 import { useDuckroomRole } from "../lib/useRole";
 
@@ -65,7 +59,6 @@ function UploadPage() {
   const navigate = useNavigate();
   const { isLoggedIn, isLoading: isAuthLoading } = useAuth();
   const { isOwner, loading: isRoleLoading } = useDuckroomRole();
-  const { albums } = useLibrary();
   const [storeState, setStoreState] = useState<IngestionStoreState>(getIngestionStoreState());
   const [over, setOver] = useState(false);
   const [activeItemId, setActiveItemId] = useState<string | null>(null);

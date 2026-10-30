@@ -49,7 +49,6 @@ export function FriendActivity({ userId, className, compact = false }: FriendAct
   const presence = useFriendPresence(userId);
   const status = presence?.status || "offline";
   const activity = presence?.activity;
-  const isListening = status === "listening" || status === "paused";
 
   if (!presence || status === "offline") {
     return (

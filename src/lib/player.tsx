@@ -1021,28 +1021,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setIsBuffering(true);
       stallInfo.lastProgressTime = el.currentTime;
       stallInfo.timer = setTimeout(() => {
-        if (el.paused || el.readyState > 0) return;
-        const remaining = (el.duration || current.duration) - timeRef.current;
-        if (remaining < 30) return;
-        stalledReloadedRef.current.add(current.id);
-        const savedPosition = timeRef.current;
-        const src = el.src;
-        console.warn("[Duckroom Audio] Real stall detected; reloading stream at position", savedPosition);
-        el.src = src;
-        el.addEventListener(
-          "loadedmetadata",
-          () => {
-            try {
-              el.currentTime = savedPosition;
-              void el.play().catch(() => undefined);
-            } catch {
-              // ignore
-            }
-          },
-          { once: true },
-        );
-        el.load();
-      }, 14000);
+        if (el.paused) return;
+        const progress = el.currentTime - (stallInfo.lastProgressTime ?? el.currentTime);
+        if (progress < 0.1) {
+          const remaining = (el.duration || current.duration) - timeRef.current;
+          if (remaining < 30) return;
+          stalledReloadedRef.current.add(current.id);
+          const savedPosition = timeRef.current;
+          const src = el.src;
+          console.warn("[Duckroom Audio] Real stall detected; reloading stream at position", savedPosition);
+          el.src = src;
+          el.addEventListener(
+            "loadedmetadata",
+            () => {
+              try {
+                el.currentTime = savedPosition;
+                void el.play().catch(() => undefined);
+              } catch {
+                // ignore
+              }
+            },
+            { once: true },
+          );
+          el.load();
+        }
+      }, 4000);
     };
     const onPlaying = () => {
       if (stallInfo.timer) {

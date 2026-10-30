@@ -1,5 +1,5 @@
 import { AlertTriangle, Disc, Disc3, Loader2, Music2, Trash2, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { useState } from "react";
 import type { Album } from "../data/library";
 import { ModalPortal } from "./ui/modal-portal";

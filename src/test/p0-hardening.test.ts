@@ -195,15 +195,6 @@ describe("WP-3 - Fail-closed verification (ingestion.ts)", () => {
     });
     vi.spyOn(supabaseModule, "getSupabaseAdmin").mockReturnValue(db as any);
 
-    // Server hash path fails with a network error on GetObject (not HeadObject)
-    const s3 = makeS3({
-      get: () => {
-        const err: any = new Error("fetch failed");
-        err.name = "NetworkingError";
-        // get() must throw for the download path
-        return { body: null, shouldThrow: true };
-      },
-    });
     // Override send to throw on GetObject (network error path) but succeed on HeadObject
     const s3Throwing = {
       send: vi.fn(async (cmd: any) => {

@@ -2,7 +2,6 @@ import { memo, useMemo, useState } from "react";
 import {
   Maximize2,
   Mic2,
-  Minimize2,
   Music2,
   Pause,
   Play,
@@ -20,27 +19,34 @@ import { computeWordTimings } from "../../lib/lyrics-formatter";
 import { useTrackLyrics } from "../../lib/use-track-lyrics";
 import { cn } from "../../lib/utils";
 
-const STOP_CONSONANT_RE = /(?:[cptk]|ch|ck|pt|ct|ft|d|b|g)$/i;
+const STOP_CONSONANT_RE = /(?:[cptk]|ch|ck|pt|ct|ft|d|b|(?<!n)g)$/i;
 const PROLONGED_CHAR_RE = /(.)\1{2,}|[~]{1,}/i;
+const VOCAL_CHOP_RE = /^(?:ah|ha|oh|la|na|da|yo|uh|ba|ta|pa|hey|ay|eh)[.,!?;:~…\-–—]*$/i;
+const OPEN_MELISMA_VOWEL_RE =
+  /(?:[aeiouyàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹ]|oi|ơi|ôi|ai|ay|ao|au|âu|eo|êu|ui|ưi|ươi|uôi)$/i;
 
 function computeCadenceProgress(linear: number, text: string): number {
   if (linear <= 0) return 0;
   if (linear >= 1) return 1;
 
   const clean = text.replace(/[.,!?;:…"“”'’\-–—()[\]{}]/g, "");
-  const isHyphenChop = text.endsWith("-");
+  const isHyphenChop = text.endsWith("-") || VOCAL_CHOP_RE.test(clean);
   const isStopConsonant = STOP_CONSONANT_RE.test(clean);
-  const isProlonged = PROLONGED_CHAR_RE.test(clean) || /~/.test(text);
+  const isProlonged = PROLONGED_CHAR_RE.test(clean) || /~/.test(text) || OPEN_MELISMA_VOWEL_RE.test(clean);
 
   if (isStopConsonant && !isProlonged) {
-    return Math.min(1, linear / 0.82);
+    // Staccato (nhấp nhả): brisk musical attack, completes at ~78% and rests crisply
+    return Math.min(1, Math.pow(linear / 0.78, 0.85));
   }
   if (isHyphenChop) {
+    // Vocal chop runs ("ah-", "ah", "oh-", "la-"): energetic rhythmic pulse on beat
     return 1 - Math.pow(1 - linear, 1.8);
   }
   if (isProlonged) {
+    // Melisma / prolonged vowels (kéo hơi): silky smooth sine easing across the sustained note
     return Math.sin((linear * Math.PI) / 2);
   }
+  // Standard word singing cadence: natural ease
   return linear < 0.5 ? 2 * linear * linear : 1 - Math.pow(-2 * linear + 2, 2) / 2;
 }
 

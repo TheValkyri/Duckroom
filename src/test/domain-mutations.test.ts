@@ -55,7 +55,7 @@ describe("Phase 2 — Canonical Data Foundation & Concurrency Tests", () => {
           if (table === "tracks") {
             return {
               update: (updates: any) => ({
-                eq: (col1: string, _val1: any) => ({
+                eq: (_col1: string, _val1: any) => ({
                   eq: (col2: string, val2: any) => ({
                     select: () => ({
                       maybeSingle: vi.fn().mockResolvedValue({

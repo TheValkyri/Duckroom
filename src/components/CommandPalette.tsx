@@ -1,19 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
-import {
-  ArrowRight,
-  BarChart3,
-  Command,
-  Disc3,
-  Heart,
-  ListMusic,
-  Music2,
-  Pause,
-  Play,
-  Search,
-  Shuffle,
-} from "lucide-react";
+import { ArrowRight, BarChart3, Command, Disc3, Heart, Music2, Pause, Play, Search, Shuffle } from "lucide-react";
 import { albumById, formatTime, type Track } from "../data/library";
 import { useLibrary } from "../lib/useLibrary";
 import { usePlayerIsCurrent, usePlayer, usePlayerIsPlaying } from "../lib/player";

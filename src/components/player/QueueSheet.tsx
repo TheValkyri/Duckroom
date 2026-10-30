@@ -1,8 +1,8 @@
-import { ChevronDown, ChevronUp, X } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { motion } from "motion/react";
 import { albumById, formatTime } from "../../data/library";
 import { MobileSheet } from "../MobileSheet";
-import { springSnappy, tapScale } from "../../lib/motion";
+import { springSnappy } from "../../lib/motion";
 import { usePlayer } from "../../lib/player";
 import { cn } from "../../lib/utils";
 

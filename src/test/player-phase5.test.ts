@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  clearGuestSession,
   createPlaybackPersister,
   GUEST_QUEUE_ID_LIMIT,
   readGuestSession,

@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { getSavedVisualizerMode, saveVisualizerMode, type VisualizerMode } from "../lib/visualizer-storage";
+import { getSavedVisualizerMode, saveVisualizerMode } from "../lib/visualizer-storage";
 
 describe("Visualizer Modes & Persistence (Visuals & Lyrics 2.0)", () => {
   const store = new Map<string, string>();

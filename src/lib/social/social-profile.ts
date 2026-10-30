@@ -6,13 +6,7 @@ import {
   requireMemberMiddleware,
   serverSecurityMiddleware,
 } from "../auth-guard";
-import {
-  getProfileSchema,
-  updateProfileSchema,
-  type MemberProfileView,
-  type UpdateProfileInput,
-  type UserProfile,
-} from "./social-types";
+import { getProfileSchema, updateProfileSchema, type MemberProfileView, type UserProfile } from "./social-types";
 
 type MemberContext = { auth?: { userId?: string | null; email?: string | null; role?: string | null } | null };
 

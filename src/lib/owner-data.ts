@@ -4,12 +4,9 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSupabaseAdmin } from "./supabase";
 import {
   deleteS3ObjectInternal,
-  deleteS3ObjectServer,
   getS3ServerClient,
   listS3ObjectsInternal,
-  listS3ObjectsServer,
   saveLibraryManifestInternal,
-  saveLibraryManifestServer,
 } from "./s3-functions";
 import { BUCKET_NAME } from "./s3-constants";
 import { requireFreshOwnerMiddleware, requireOwnerMiddleware, serverSecurityMiddleware } from "./auth-guard";
@@ -117,7 +114,7 @@ export async function getOwnerHealthInternal(dbClient?: any) {
     favorites,
     history,
     trackFiles,
-    videoFiles,
+    _videoFiles,
     albumCovers,
     trackCovers,
   ] = await Promise.all([
@@ -553,7 +550,7 @@ export interface OwnerUserProfile {
 
 export async function getOwnerUsersInternal(dbClient?: any): Promise<{ users: OwnerUserProfile[] }> {
   const db = dbClient || getSupabaseAdmin();
-  const { authUsers, authUserMap, lastSignInMap } = await syncAndBackfillAuthProfilesInternal(db);
+  const { authUserMap, lastSignInMap } = await syncAndBackfillAuthProfilesInternal(db);
 
   const { data: profileRows, error } = await db
     .from("profiles")

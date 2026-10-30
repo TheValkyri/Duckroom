@@ -1,15 +1,4 @@
-import {
-  CheckCircle2,
-  Copy,
-  Filter,
-  Loader2,
-  RefreshCw,
-  Search,
-  Shield,
-  ShieldAlert,
-  User,
-  UserCog,
-} from "lucide-react";
+import { CheckCircle2, Copy, Loader2, RefreshCw, Search, Shield, UserCog } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../lib/useAuth";
 import { supabase } from "../../lib/supabase-client";

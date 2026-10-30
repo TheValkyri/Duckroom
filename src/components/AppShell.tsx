@@ -1,15 +1,12 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import {
   BarChart3,
-  CheckCircle2,
   Crown,
   Disc,
   Disc3,
-  Film,
   Heart,
   Home,
   ListMusic,
-  Loader2,
   LogIn,
   LogOut,
   MoreHorizontal,
@@ -19,7 +16,6 @@ import {
   Search,
   ShieldCheck,
   UploadCloud,
-  User,
   Users,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";

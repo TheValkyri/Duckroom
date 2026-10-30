@@ -1,4 +1,4 @@
-import { Heart, ListPlus, Pencil, Play, Plus, Share2, SkipForward, Trash2 } from "lucide-react";
+import { Heart, Pencil, Play, Plus, Share2, SkipForward, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { Link } from "@tanstack/react-router";
 import { albumById, formatTime, type Track } from "../data/library";
@@ -42,7 +42,7 @@ export function TrackActionsSheet({
   const { isLoggedIn } = useAuth();
   const { favorites, toggleFavorite } = useMemberLibraryContext();
   const { isOwner } = useDuckroomRole();
-  const { playQueue, insertNext } = usePlayerActions();
+  const { insertNext } = usePlayerActions();
   const isFavorite = favorites?.has ? favorites.has(track.id) : false;
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);

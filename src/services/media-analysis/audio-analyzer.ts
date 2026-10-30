@@ -5,7 +5,7 @@
  */
 
 import { BinaryReader, PARSER_VERSION, parseReplayGainDb } from "./common";
-import { type AudioAnalysisResult, type MetadataTags, type EmbeddedArtwork } from "./types";
+import { type AudioAnalysisResult, type MetadataTags } from "./types";
 
 export function analyzeAudioBuffer(buffer: ArrayBuffer | Uint8Array, totalFileSizeBytes?: number): AudioAnalysisResult {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
@@ -201,9 +201,8 @@ function parseVorbisComment(reader: BinaryReader, length: number, result: AudioA
   }
 }
 
-function parseFlacPicture(reader: BinaryReader, length: number, result: AudioAnalysisResult): void {
+function parseFlacPicture(reader: BinaryReader, _length: number, result: AudioAnalysisResult): void {
   try {
-    const start = reader.position;
     reader.skip(4); // Picture type
     const mimeLen = reader.readUint32BE();
     const mime = reader.readAscii(mimeLen) || "image/jpeg";
@@ -229,7 +228,7 @@ function parseFlacPicture(reader: BinaryReader, length: number, result: AudioAna
   }
 }
 
-function parseWav(reader: BinaryReader, result: AudioAnalysisResult, fileSize: number): AudioAnalysisResult {
+function parseWav(reader: BinaryReader, result: AudioAnalysisResult, _fileSize: number): AudioAnalysisResult {
   result.container = "WAV";
   result.codec = "PCM";
   reader.seek(12); // Skip RIFF (4) + size (4) + WAVE (4)
@@ -285,7 +284,7 @@ function parseMp3WithId3(reader: BinaryReader, result: AudioAnalysisResult, file
 
   // ID3v2 tag parsing
   reader.seek(3);
-  const majorVer = reader.readUint8();
+  reader.skip(1);
   reader.seek(6);
   const tagSize = reader.readSyncsafeUint32();
   const tagEnd = 10 + tagSize;
@@ -635,7 +634,7 @@ function parseStblBox(reader: BinaryReader, stblEnd: number, result: AudioAnalys
       reader.skip(4); // version + flags
       const entryCount = reader.readUint32BE();
       if (entryCount > 0 && reader.remaining >= 8) {
-        const entrySize = reader.readUint32BE();
+        reader.skip(4); // entrySize
         const format = reader.readAscii(4);
         if (format === "alac") {
           result.codec = "ALAC";
