@@ -1,13 +1,13 @@
 import { Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { formatTime } from "../../data/library";
 import { springSnappy, tapScale } from "../../lib/motion";
 import { usePlayer, usePlayerTime } from "../../lib/player";
 import { cn } from "../../lib/utils";
 
 export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
-  const { isPlaying, toggle, next, prev, shuffle, toggleShuffle, repeat, cycleRepeat } = usePlayer();
+  const { isPlaying, isBuffering, toggle, next, prev, shuffle, toggleShuffle, repeat, cycleRepeat } = usePlayer();
   const big = size === "lg";
 
   const iconBtn =
@@ -54,6 +54,12 @@ export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
           <span
             aria-hidden
             className="pointer-events-none absolute -inset-1 rounded-full bg-primary/25 blur-sm animate-pulse"
+          />
+        )}
+        {isBuffering && isPlaying && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground animate-spin z-20"
           />
         )}
         <AnimatePresence mode="popLayout" initial={false}>
@@ -119,30 +125,69 @@ export function SeekBar({ compact = false }: { compact?: boolean }) {
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragTime, setDragTime] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const displayTime = isDragging ? dragTime : time;
   const pct = Math.min(100, Math.max(0, (displayTime / (duration || 1)) * 100));
 
-  const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value);
-    if (!isNaN(val)) {
-      seek(val);
+  const updateTimeFromPointer = (clientX: number) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    setDragTime(ratio * (duration || 1));
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setIsDragging(true);
+    updateTimeFromPointer(e.clientX);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    updateTimeFromPointer(e.clientX);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      try {
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        }
+      } catch {
+        // ignore
+      }
+      seek(dragTime);
+      setIsDragging(false);
+    }
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      try {
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        }
+      } catch {
+        // ignore
+      }
+      setIsDragging(false);
     }
   };
 
   return (
     <div
+      ref={containerRef}
       className={cn(
-        "group relative flex w-full items-center select-none cursor-pointer",
+        "group relative flex w-full items-center select-none cursor-pointer touch-none",
         compact ? "h-8 py-2" : "h-11 py-3",
       )}
-      onPointerDown={() => setIsDragging(true)}
-      onPointerUp={() => {
-        if (isDragging) {
-          seek(dragTime);
-          setIsDragging(false);
-        }
-      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
     >
       {/* Background Track */}
       <div className="relative h-1.5 w-full rounded-full bg-muted/80">
@@ -166,14 +211,16 @@ export function SeekBar({ compact = false }: { compact?: boolean }) {
         style={{ left: `${pct}%` }}
       />
 
-      {/* Native Range Input overlay */}
+      {/* Native Range Input overlay with non-flooding commit */}
       <input
         type="range"
         min={0}
         max={duration || 1}
         step={0.1}
         value={displayTime}
-        onChange={handleSeekChange}
+        onChange={() => {
+          // pointer handlers commit seek on pointer release
+        }}
         onInput={(e) => {
           const val = parseFloat((e.target as HTMLInputElement).value);
           if (!isNaN(val)) setDragTime(val);

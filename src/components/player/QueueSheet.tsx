@@ -22,11 +22,11 @@ import { cn } from "../../lib/utils";
 const QUEUE_FALLBACK_COVER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Crect width='72' height='72' fill='%2318181b'/%3E%3C/svg%3E";
 
-export function QueueSheet() {
+export function QueueSheet({ open = true }: { open?: boolean }) {
   const { queue, index, jumpTo, setQueueOpen, moveInQueue } = usePlayer();
 
   return (
-    <MobileSheet open onClose={() => setQueueOpen(false)} title="Hàng đợi" maxHeightVh={72}>
+    <MobileSheet open={open} onClose={() => setQueueOpen(false)} title="Hàng đợi" maxHeightVh={72}>
       <p className="text-muted-foreground px-3 pb-2 text-xs">
         {queue.length} bài · chạm bài để phát, dùng mũi tên để sắp xếp lại
       </p>

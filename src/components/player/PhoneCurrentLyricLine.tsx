@@ -6,6 +6,30 @@ import { useTrackLyrics } from "../../lib/use-track-lyrics";
 import type { LyricLine } from "../../data/library";
 import { cn } from "../../lib/utils";
 
+const STOP_CONSONANT_RE = /(?:[cptk]|ch|ck|pt|ct|ft|d|b|g)$/i;
+const PROLONGED_CHAR_RE = /(.)\1{2,}|[~]{1,}/i;
+
+function computeCadenceProgress(linear: number, text: string): number {
+  if (linear <= 0) return 0;
+  if (linear >= 1) return 1;
+
+  const clean = text.replace(/[.,!?;:…"“”'’\-–—()[\]{}]/g, "");
+  const isHyphenChop = text.endsWith("-");
+  const isStopConsonant = STOP_CONSONANT_RE.test(clean);
+  const isProlonged = PROLONGED_CHAR_RE.test(clean) || /~/.test(text);
+
+  if (isStopConsonant && !isProlonged) {
+    return Math.min(1, linear / 0.82);
+  }
+  if (isHyphenChop) {
+    return 1 - Math.pow(1 - linear, 1.8);
+  }
+  if (isProlonged) {
+    return Math.sin((linear * Math.PI) / 2);
+  }
+  return linear < 0.5 ? 2 * linear * linear : 1 - Math.pow(-2 * linear + 2, 2) / 2;
+}
+
 /**
  * Word-by-word Syllable Karaoke Flow for Phone Current Lyric
  */
@@ -25,24 +49,32 @@ const PhoneActiveWordFlow = memo(function PhoneActiveWordFlow({
   }
 
   return (
-    <span className="inline-flex flex-wrap justify-center gap-x-1.5 gap-y-0.5">
+    <span className="inline-flex flex-wrap justify-center gap-y-0.5">
       {words.map((w, idx) => {
         const isPast = time >= w.endTime;
         const isFuture = time < w.startTime;
         const isSinging = !isPast && !isFuture;
 
-        const progress = isPast
+        const linearProgress = isPast
           ? 1
           : isFuture
             ? 0
             : Math.min(1, Math.max(0, (time - w.startTime) / Math.max(0.01, w.endTime - w.startTime)));
+
+        const progress = isPast || isFuture ? linearProgress : computeCadenceProgress(linearProgress, w.text);
 
         const pct = (progress * 100).toFixed(1);
         const feather = Math.min(12, Math.max(0, (1 - progress) * 24));
         const leadStart = Math.max(0, Number(pct) - feather).toFixed(1);
 
         return (
-          <span key={`${idx}-${w.text}`} className="relative inline-block font-semibold">
+          <span
+            key={`${idx}-${w.text}`}
+            className={cn(
+              "relative inline-block font-semibold",
+              !w.text.endsWith("-") && idx < words.length - 1 && "mr-1.5",
+            )}
+          >
             {/* Base text: real font glyphs, visible in all environments */}
             <span className={cn("inline-block", isPast ? "text-white font-semibold" : "text-white/45")}>{w.text}</span>
 

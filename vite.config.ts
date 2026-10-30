@@ -20,6 +20,19 @@ export default defineConfig({
     viteReact(),
     tailwindcss(),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("lucide-react")) return "vendor-icons";
+          if (id.includes("motion") || id.includes("framer-motion")) return "vendor-motion";
+          if (id.includes("@tanstack")) return "vendor-tanstack";
+          if (id.includes("@supabase")) return "vendor-supabase";
+          return undefined;
+        },
+      },
+    },
+  },
   server: {
     // Dev-server hygiene: never expose infrastructure artifacts through the
     // static file path. Verified Stage 2: supabase/*.sql, *.md and lockfiles

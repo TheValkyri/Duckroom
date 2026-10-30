@@ -38,6 +38,7 @@ import { HotkeysOverlay } from "./HotkeysOverlay";
 import { ThemePicker } from "./ThemePicker";
 import { CommandPalette } from "./CommandPalette";
 import { ensureThemeApplied } from "../lib/theme";
+import { usePlayer } from "../lib/player";
 import { NowPlaying } from "./player/NowPlaying";
 import { PlayerBar } from "./player/PlayerBar";
 import { ModernDuckLogo, GlobalUploadBanner, UploadNavDot, MobileMoreSheet, NavigationProgressBar } from "./shell";
@@ -96,9 +97,22 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [themeOpen, setThemeOpen] = useState(false);
   const [themeOrigin, setThemeOrigin] = useState<{ x: number; y: number } | null>(null);
   // F4: Command Palette — Ctrl+K (desktop) / nút tìm kiếm (mobile header).
+  const { current } = usePlayer();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [friendsOpen, setFriendsOpen] = useState(false);
-  const [discordSidebarOpen, setDiscordSidebarOpen] = useState(true);
+  const [discordSidebarOpen, setDiscordSidebarOpen] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth >= 1440 : false,
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1440) {
+        setDiscordSidebarOpen(false);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Ctrl+K / Cmd+K — mở palette từ bất kỳ đâu (không đụng input đang gõ:
   // browser default của Ctrl+K là search bar — preventDefault chiếm lại).
@@ -585,6 +599,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       <FriendsSheet open={friendsOpen} onClose={() => setFriendsOpen(false)} />
       {/* Social presence & multi-tab adapter (§27, §28) */}
       <SocialPresenceAdapter />
+      {/* Screen Reader ARIA Live Regions (P1-16) */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {current ? `Đang phát: ${current.title} của ${current.artist}` : ""}
+      </div>
     </div>
   );
 }

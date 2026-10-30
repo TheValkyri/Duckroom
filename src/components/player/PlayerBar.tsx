@@ -20,7 +20,7 @@ import { cn } from "../../lib/utils";
 import { SeekBar, TransportControls } from "./Controls";
 import { QueuePanel } from "./QueuePanel";
 import { QueueSheet } from "./QueueSheet";
-import { useIsPhoneLayout } from "../../hooks/use-media-query";
+import { useIsPhoneLayout, useMediaQuery } from "../../hooks/use-media-query";
 import { useDocumentPip } from "../../hooks/use-document-pip";
 import { FloatingPipPortal } from "./FloatingPipPortal";
 
@@ -50,6 +50,7 @@ export function PlayerBar() {
 
   const [coverLoaded, setCoverLoaded] = useState(false);
   const isPhone = useIsPhoneLayout();
+  const isCompactDock = useMediaQuery("(max-width: 1023px)");
   const pipState = useDocumentPip();
   const [inAppFloatingOpen, setInAppFloatingOpen] = useState(false);
 
@@ -76,10 +77,10 @@ export function PlayerBar() {
         inAppFloatingOpen={inAppFloatingOpen}
         onCloseInAppFloating={() => setInAppFloatingOpen(false)}
       />
-      {/* Queue surface: bottom sheet trên phone (touch-first), drawer giữ
-          nguyên cho >=md. Cùng một usePlayer API — không nhân bản logic. */}
-      <AnimatePresence>{queueOpen && isPhone && <QueueSheet />}</AnimatePresence>
-      <AnimatePresence>{queueOpen && !isPhone && <QueuePanel />}</AnimatePresence>
+      {/* Queue surface: bottom sheet trên mobile/tablet (<lg), drawer cho desktop (>=lg).
+          Giữ mount để MobileSheet AnimatePresence thực thi exit transition mượt mà. */}
+      {isCompactDock && <QueueSheet open={queueOpen} />}
+      <AnimatePresence>{queueOpen && !isCompactDock && <QueuePanel />}</AnimatePresence>
       {/* Continue-Listening chip — PHONE (<lg): neo phía trên mini-player */}
       <AnimatePresence>
         {resumeHint && !isPlaying && (

@@ -9,6 +9,8 @@ import { cropBlackLetterbox } from "./image-crop";
 export const croppedCoverCache = new Map<string, string>();
 export const cropPromiseCache = new Map<string, Promise<string>>();
 
+const MAX_CROP_ENTRIES = 15;
+
 export function getCroppedCover(url: string): Promise<string> {
   const cached = croppedCoverCache.get(url);
   if (cached) return Promise.resolve(cached);
@@ -17,11 +19,29 @@ export function getCroppedCover(url: string): Promise<string> {
     p = cropBlackLetterbox(url)
       .then((cropped) => {
         const finalUrl = cropped || url;
-        if (croppedCoverCache.size > 60) {
-          croppedCoverCache.clear();
-          cropPromiseCache.clear();
+        if (finalUrl !== url) {
+          if (croppedCoverCache.size >= MAX_CROP_ENTRIES) {
+            const oldestKey = croppedCoverCache.keys().next().value;
+            if (oldestKey) {
+              const oldVal = croppedCoverCache.get(oldestKey);
+              if (
+                oldVal &&
+                oldVal.startsWith("blob:") &&
+                typeof URL !== "undefined" &&
+                typeof URL.revokeObjectURL === "function"
+              ) {
+                try {
+                  URL.revokeObjectURL(oldVal);
+                } catch {
+                  // ignore
+                }
+              }
+              croppedCoverCache.delete(oldestKey);
+              cropPromiseCache.delete(oldestKey);
+            }
+          }
+          croppedCoverCache.set(url, finalUrl);
         }
-        if (finalUrl !== url) croppedCoverCache.set(url, finalUrl);
         return finalUrl;
       })
       .catch(() => url);

@@ -117,6 +117,24 @@ export function cropBlackLetterbox(fileOrUrl: File | string): Promise<string> {
           const outCtx = outCanvas.getContext("2d");
           if (outCtx) {
             outCtx.drawImage(img, left, top, croppedWidth, croppedHeight, 0, 0, croppedWidth, croppedHeight);
+            if (
+              typeof outCanvas.toBlob === "function" &&
+              typeof URL !== "undefined" &&
+              typeof URL.createObjectURL === "function"
+            ) {
+              outCanvas.toBlob(
+                (blob) => {
+                  if (blob) {
+                    resolve(URL.createObjectURL(blob));
+                  } else {
+                    resolve(outCanvas.toDataURL("image/jpeg", 0.95));
+                  }
+                },
+                "image/jpeg",
+                0.95,
+              );
+              return;
+            }
             return resolve(outCanvas.toDataURL("image/jpeg", 0.95));
           }
         }

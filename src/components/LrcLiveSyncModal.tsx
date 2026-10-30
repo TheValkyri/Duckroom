@@ -134,10 +134,26 @@ export function LrcLiveSyncModal({ isOpen, onClose, audioFile, initialLyrics, on
       try {
         setIsWaveformGenerating(true);
         const arrayBuffer = await audioFile!.arrayBuffer();
-        const AudioCtx =
-          window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        const audioCtx = new AudioCtx();
-        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        const OfflineCtx =
+          window.OfflineAudioContext ||
+          (window as unknown as { webkitOfflineAudioContext: typeof OfflineAudioContext }).webkitOfflineAudioContext;
+        let audioBuffer: AudioBuffer;
+        if (OfflineCtx) {
+          const offlineCtx = new OfflineCtx(1, 1000, 44100);
+          audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer.slice(0));
+        } else {
+          const AudioCtx =
+            window.AudioContext ||
+            (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          const liveCtx = new AudioCtx();
+          try {
+            audioBuffer = await liveCtx.decodeAudioData(arrayBuffer.slice(0));
+          } finally {
+            if (liveCtx.state !== "closed") {
+              await liveCtx.close().catch(() => {});
+            }
+          }
+        }
         const rawData = audioBuffer.getChannelData(0);
         const samples = 180; // Number of waveform bars
         const blockSize = Math.floor(rawData.length / samples);
@@ -159,7 +175,6 @@ export function LrcLiveSyncModal({ isOpen, onClose, audioFile, initialLyrics, on
         if (!isCancelled) {
           setWaveformPeaks(normalized);
         }
-        await audioCtx.close();
       } catch (err) {
         console.warn("Waveform extraction fallback to default", err);
         // Fallback synthetic wave

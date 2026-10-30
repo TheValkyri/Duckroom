@@ -306,7 +306,8 @@ const STOP_CONSONANT_RE = /(?:[cptk]|ch|ck|pt|ct|ft|d|b|g)$/i;
 const PROLONGED_CHAR_RE = /(.)\1{2,}|[~]{1,}/i;
 
 function getAcousticWeight(cleanWord: string, isLastWord: boolean): number {
-  const lower = cleanWord.toLowerCase();
+  const baseWord = cleanWord.replace(/-+$/, "");
+  const lower = baseWord.toLowerCase();
   if (QUICK_INTERJECTIONS.has(lower)) {
     return isLastWord ? 0.75 : 0.55;
   }
@@ -322,17 +323,17 @@ function getAcousticWeight(cleanWord: string, isLastWord: boolean): number {
   if (syllables > 1) {
     weight = Math.max(1.0, syllables * 0.82);
   } else {
-    if (cleanWord.length <= 2) {
+    if (baseWord.length <= 2) {
       weight = 0.82;
-    } else if (cleanWord.length >= 6) {
+    } else if (baseWord.length >= 6) {
       weight = 1.18;
     } else {
       weight = 1.0;
     }
   }
 
-  const isStopConsonant = STOP_CONSONANT_RE.test(cleanWord);
-  const isProlonged = PROLONGED_CHAR_RE.test(cleanWord) || /~/.test(cleanWord);
+  const isStopConsonant = STOP_CONSONANT_RE.test(baseWord);
+  const isProlonged = PROLONGED_CHAR_RE.test(baseWord) || /~/.test(cleanWord);
 
   // Staccato stop consonants (nhấp nhả): tokens ending in stop consonants cut off sharply
   if (isStopConsonant && !isProlonged) {
@@ -344,7 +345,7 @@ function getAcousticWeight(cleanWord: string, isLastWord: boolean): number {
     weight *= 1.85;
   }
 
-  if (cleanWord.length >= 3 && cleanWord === cleanWord.toUpperCase()) {
+  if (baseWord.length >= 3 && baseWord === baseWord.toUpperCase()) {
     weight *= 1.1; // Emphasis / All caps
   }
 
@@ -354,7 +355,7 @@ function getAcousticWeight(cleanWord: string, isLastWord: boolean): number {
       weight *= 0.95;
     } else {
       // Final open/resonant vowel: natural cadence release
-      weight *= 1.25;
+      weight *= 1.35;
     }
   }
   return weight;
@@ -372,18 +373,37 @@ function getPunctuationPause(rawWord: string): number {
  * Computes or retrieves word-by-word syllable timings for Apple Music-style smooth karaoke flow.
  * - If line already contains exact Enhanced LRC words, uses them directly.
  * - If line is standard line-synced, generates acoustic-weighted syllable durations factoring in:
- *   1. Punctuation cadence dwell (commas, periods, question marks extend dwell time naturally).
- *   2. Monosyllabic interjection cadence (quick onset for words like "yeah", "yo", "ah", "bitch").
- *   3. Multi-syllable & vowel weighting for natural musical singing cadence.
- *   4. Final-word phrase elongation & crisp stop consonant cutoff.
- *   5. Adaptive delivery detection (Rap rapid flow vs Pop/Ballad/R&B sustained phrase and trailing rest).
+ *   1. Sub-syllable segmentation for repeated hyphenated vocal chop runs ("ah-ah-ah-ah" -> "ah-", "ah-", "ah-", "ah").
+ *   2. Punctuation cadence dwell (commas, periods, question marks extend dwell time naturally).
+ *   3. Monosyllabic interjection cadence (quick onset for words like "yeah", "yo", "ah", "bitch").
+ *   4. Multi-syllable & vowel weighting for natural musical singing cadence.
+ *   5. Final-word phrase elongation & crisp stop consonant cutoff (nhấp nhả vs kéo hơi).
+ *   6. Adaptive delivery detection (Rap rapid flow vs Pop/Ballad/R&B sustained phrase and trailing rest).
  */
 export function computeWordTimings(line: LyricLine, nextLineTime?: number): LyricWord[] {
   if (line.words && line.words.length > 0) {
     return line.words;
   }
-  const rawWords = line.text.trim().split(/\s+/).filter(Boolean);
-  if (!rawWords.length) return [];
+  const rawTokens = line.text.trim().split(/\s+/).filter(Boolean);
+  if (!rawTokens.length) return [];
+
+  // Segment hyphenated syllable runs into individual sub-syllable LyricWords with trailing hyphens
+  const rawWords: string[] = [];
+  for (const token of rawTokens) {
+    if (
+      /^[a-zA-Z0-9\u00C0-\u024F\u1EA0-\u1EF9]+(?:-[a-zA-Z0-9\u00C0-\u024F\u1EA0-\u1EF9]+)+[.,!?;:~…]*$/u.test(token)
+    ) {
+      const parts = token.split("-");
+      for (let s = 0; s < parts.length; s++) {
+        const part = parts[s]!;
+        if (!part) continue;
+        const isLastPart = s === parts.length - 1;
+        rawWords.push(isLastPart ? part : `${part}-`);
+      }
+    } else {
+      rawWords.push(token);
+    }
+  }
 
   const rawWeights: number[] = [];
   let prolongedCount = 0;
@@ -426,9 +446,22 @@ export function computeWordTimings(line: LyricLine, nextLineTime?: number): Lyri
         // Pop / Ballad / R&B delivery:
         // Respects natural vocal duration and stops crisply when the artist finishes singing,
         // leaving an instrumental breath/accompaniment rest before the next bar.
-        const minRest = Math.max(0.65, Math.min(2.0, gap * 0.25));
-        const maxAllowed = Math.max(0.6, gap - minRest);
-        lineDuration = Math.min(maxAllowed, naturalAcousticDuration);
+        const lastWordClean = (rawWords[rawWords.length - 1] ?? "").replace(/[.,!?;:…"“”'’\-–—()[\]{}]/g, "");
+        const endsInStopConsonant = STOP_CONSONANT_RE.test(lastWordClean);
+        const hasProlongedOrTilde = prolongedCount > 0 || /~/.test(rawWords[rawWords.length - 1] ?? "");
+
+        if (endsInStopConsonant && !hasProlongedOrTilde) {
+          // Staccato (nhấp nhả): finishes crisply at natural duration and leaves rest
+          const minRest = Math.max(0.8, gap * 0.35);
+          const maxAllowed = Math.max(0.6, gap - minRest);
+          lineDuration = Math.min(maxAllowed, naturalAcousticDuration);
+        } else {
+          // Melisma / open vowel / prolonged vocal (kéo hơi):
+          const minRest = Math.max(0.65, Math.min(2.0, gap * 0.28));
+          const maxAllowed = Math.max(0.6, gap - minRest);
+          // In standard gaps, allow vocal to sustain naturally up to 3.2s or intrinsic duration
+          lineDuration = Math.min(maxAllowed, Math.max(naturalAcousticDuration, Math.min(3.2, gap * 0.65)));
+        }
       }
     }
   } else {

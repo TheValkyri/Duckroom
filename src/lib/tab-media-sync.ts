@@ -221,6 +221,12 @@ function processArtwork(track: SyncTrackInfo, coverUrl: string) {
     const roundedDataUrl = renderArtworkFavicon(img);
     const dominantColor = extractDominantDarkColor(img);
 
+    const MAX_ARTWORK_ENTRIES = 25;
+    if (artworkCache.size >= MAX_ARTWORK_ENTRIES) {
+      const oldestKey = artworkCache.keys().next().value;
+      if (oldestKey) artworkCache.delete(oldestKey);
+    }
+
     artworkCache.set(coverUrl, {
       iconUrl: roundedDataUrl,
       themeColor: dominantColor,

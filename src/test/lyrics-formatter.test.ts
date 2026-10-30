@@ -372,5 +372,37 @@ describe("Lyrics Formatter V2 — Zero Content Mutation & Precise Timing", () =>
       // Leaves at least 1.5s of peaceful rest before next line arrives (no sluggish crawling)
       expect(15.5 - vocalEndTime).toBeGreaterThan(1.5);
     });
+
+    it("segments hyphenated vocal chop runs ('ah-ah-ah-ah') into individual rhythmic sub-syllables", () => {
+      const line = { time: 12.0, text: "Và em là người ca sĩ hát ah-ah-ah-ah" };
+      const words = computeWordTimings(line, 16.0);
+      // 7 base words + 4 sub-syllables from "ah-ah-ah-ah" = 11 LyricWords
+      expect(words).toHaveLength(11);
+      expect(words[0]!.text).toBe("Và");
+      expect(words[6]!.text).toBe("hát");
+      expect(words[7]!.text).toBe("ah-");
+      expect(words[8]!.text).toBe("ah-");
+      expect(words[9]!.text).toBe("ah-");
+      expect(words[10]!.text).toBe("ah");
+
+      // Verify continuous monotonic timing
+      for (let i = 0; i < words.length - 1; i++) {
+        expect(words[i]!.startTime).toBeLessThan(words[i + 1]!.startTime);
+        expect(words[i]!.endTime).toBeCloseTo(words[i + 1]!.startTime, 4);
+      }
+      expect(words[10]!.endTime).toBeLessThanOrEqual(16.0);
+    });
+
+    it("sustains final open resonant vowels ('ca') naturally without premature line termination", () => {
+      const line = { time: 8.0, text: "Anh hãy là nguồn cảm hứng cho từng câu ca" };
+      const words = computeWordTimings(line, 12.0); // 4s gap
+      expect(words).toHaveLength(10);
+      const caWord = words[9]!;
+      expect(caWord.text).toBe("ca");
+      // "ca" ends in resonant open vowel and receives full acoustic phrase release
+      const caDuration = caWord.endTime - caWord.startTime;
+      expect(caDuration).toBeGreaterThan(0.35);
+      expect(caWord.endTime).toBeLessThanOrEqual(12.0);
+    });
   });
 });

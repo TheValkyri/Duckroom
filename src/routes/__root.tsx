@@ -16,6 +16,7 @@ import { PlayerProvider } from "../lib/player";
 import { MemberLibraryProvider } from "../lib/member-library-context";
 import { RoleProvider } from "../lib/role-context";
 import { ProfileProvider } from "../lib/social";
+import { DocumentPipProvider } from "../hooks/use-document-pip";
 import { AppShell } from "../components/AppShell";
 import { Toaster } from "../components/ui/sonner";
 
@@ -207,10 +208,12 @@ function RootComponent() {
             <ProfileProvider>
               <MemberLibraryProvider>
                 <PlayerProvider>
-                  <AppShell>
-                    {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-                    <Outlet />
-                  </AppShell>
+                  <DocumentPipProvider>
+                    <AppShell>
+                      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+                      <Outlet />
+                    </AppShell>
+                  </DocumentPipProvider>
                   {/* QoL 2026-09-01: toast thay alert() cho mọi lỗi/hành
                       động xong — mount MỘT lần ở root. */}
                   <Toaster position="top-center" richColors closeButton />

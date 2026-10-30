@@ -95,7 +95,7 @@ function animateScrollTo(el: HTMLElement, target: number, maxDuration = 520) {
  * easeDuck app-wide + duration 340ms khớp nhịp scroll mới.
  * ------------------------------------------------------------------------ */
 const LINE_BASE =
-  "text-left font-sans font-bold tracking-tight leading-snug md:leading-normal [transition:filter_380ms_cubic-bezier(0.16,1,0.3,1),opacity_380ms_cubic-bezier(0.16,1,0.3,1),transform_380ms_cubic-bezier(0.16,1,0.3,1),color_280ms_ease] transform-gpu [will-change:transform] cursor-pointer group block w-full outline-none antialiased [text-wrap:balance] break-words";
+  "text-left font-sans font-bold tracking-tight leading-snug md:leading-normal [transition:filter_380ms_cubic-bezier(0.16,1,0.3,1),opacity_380ms_cubic-bezier(0.16,1,0.3,1),transform_380ms_cubic-bezier(0.16,1,0.3,1),color_280ms_ease] transform-gpu [will-change:transform] cursor-pointer group block w-full outline-none antialiased [text-wrap:pretty] break-words";
 const LINE_ACTIVE =
   "text-white opacity-100 translate-y-0 scale-[1.03] origin-left font-bold blur-none drop-shadow-[0_2px_14px_rgba(255,255,255,0.22)]";
 const LINE_PASSED =
@@ -411,7 +411,13 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
         activeIndexRef={activeIndexRef}
         isUserScrollingRef={isUserScrollingRef}
         isPlainLyrics={isPlainLyrics}
-        onActiveChange={(idx) => {
+        onActiveChange={(idx, isScrollOnly) => {
+          if (isScrollOnly) {
+            if (!isUserScrollingRef.current && idx >= 0) {
+              scrollActiveIntoView(idx);
+            }
+            return;
+          }
           setActiveLineState(idx);
           if (isUserScrollingRef.current) return;
           if (idx < 0) {
@@ -568,13 +574,27 @@ function LyricsTicker({
   activeIndexRef: React.RefObject<number>;
   isUserScrollingRef: React.RefObject<boolean>;
   isPlainLyrics: boolean;
-  onActiveChange: (idx: number) => void;
+  onActiveChange: (idx: number, isScrollOnly?: boolean) => void;
 }) {
   const fallbackTime = usePlayerTime();
   const time = useSmoothLyricTime(fallbackTime);
+  const scrollTargetIdxRef = useRef(-1);
+
   useEffect(() => {
     if (isPlainLyrics || lines.length === 0) return;
-    const next = activeFromTime(lines, time, SCROLL_LEAD_SECONDS);
+
+    // 1. Scroll anticipation: begins 0.32s ahead of vocal onset so viewport glides smoothly into place
+    const scrollIdx = activeFromTime(lines, time, SCROLL_LEAD_SECONDS);
+    if (scrollIdx !== scrollTargetIdxRef.current) {
+      scrollTargetIdxRef.current = scrollIdx;
+      if (!isUserScrollingRef.current && scrollIdx >= 0) {
+        onActiveChange(scrollIdx, true /* isScrollOnly */);
+      }
+    }
+
+    // 2. Active singing highlight: switches right at vocal onset (~40ms lead for visual-auditory sync)
+    // NEVER cut off active line 320ms early while singer is still singing the final word!
+    const next = activeFromTime(lines, time, 0.04);
     const prev = activeIndexRef.current ?? -1;
     const items = getOrHydrateItems(itemRefs, containerRef, trackId);
     if (!items || items.length === 0) return;
@@ -588,9 +608,40 @@ function LyricsTicker({
 
     applyActiveClasses(items, prev, next, false);
     activeIndexRef.current = next;
-    onActiveChange(next);
+    onActiveChange(next, false /* isScrollOnly */);
   }, [time, lines, itemRefs, containerRef, trackId, activeIndexRef, isUserScrollingRef, isPlainLyrics, onActiveChange]);
   return null;
+}
+
+const STOP_CONSONANT_RE = /(?:[cptk]|ch|ck|pt|ct|ft|d|b|g)$/i;
+const PROLONGED_CHAR_RE = /(.)\1{2,}|[~]{1,}/i;
+
+function computeCadenceProgress(linear: number, text: string): number {
+  if (linear <= 0) return 0;
+  if (linear >= 1) return 1;
+
+  const clean = text.replace(/[.,!?;:…"“”'’\-–—()[\]{}]/g, "");
+  const isHyphenChop = text.endsWith("-");
+  const isStopConsonant = STOP_CONSONANT_RE.test(clean);
+  const isProlonged = PROLONGED_CHAR_RE.test(clean) || /~/.test(text);
+
+  if (isStopConsonant && !isProlonged) {
+    // Staccato (nhấp nhả): reach 100% active fill at ~80% of syllable window and hold for crisp micro-rest
+    return Math.min(1, linear / 0.82);
+  }
+
+  if (isHyphenChop) {
+    // Vocal chop runs ("ah-", "oh-", "la-"): energetic ease-out pulse on each syllable beat
+    return 1 - Math.pow(1 - linear, 1.8);
+  }
+
+  if (isProlonged) {
+    // Melisma / prolonged vowels (kéo hơi): silky smooth sine easing across the sustained note
+    return Math.sin((linear * Math.PI) / 2);
+  }
+
+  // Standard word singing cadence: smooth natural ease
+  return linear < 0.5 ? 2 * linear * linear : 1 - Math.pow(-2 * linear + 2, 2) / 2;
 }
 
 /**
@@ -620,11 +671,13 @@ const WordByWordActiveLine = memo(function WordByWordActiveLine({
         const isFuture = time < w.startTime;
         const isSinging = !isPast && !isFuture;
 
-        const progress = isPast
+        const linearProgress = isPast
           ? 1
           : isFuture
             ? 0
             : Math.min(1, Math.max(0, (time - w.startTime) / Math.max(0.01, w.endTime - w.startTime)));
+
+        const progress = isPast || isFuture ? linearProgress : computeCadenceProgress(linearProgress, w.text);
 
         const pct = (progress * 100).toFixed(1);
         const feather = Math.min(12, Math.max(0, (1 - progress) * 24));
@@ -632,7 +685,7 @@ const WordByWordActiveLine = memo(function WordByWordActiveLine({
 
         return (
           <span key={`${idx}-${w.text}`} className="inline">
-            <span className="relative inline-block font-bold">
+            <span className="relative inline-block font-bold align-baseline">
               {/* Base text: 100% visible font glyphs, immune to CSS text background clipping glitches */}
               <span className={cn("inline-block", isPast ? "text-white" : "text-white/40")}>{w.text}</span>
 
@@ -653,7 +706,7 @@ const WordByWordActiveLine = memo(function WordByWordActiveLine({
                 </span>
               )}
             </span>
-            {idx < words.length - 1 ? " " : ""}
+            {idx < words.length - 1 && !w.text.endsWith("-") ? " " : ""}
           </span>
         );
       })}

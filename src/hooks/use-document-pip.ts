@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   copyStylesToPipWindow,
   isDocumentPipSupported,
@@ -15,7 +24,9 @@ export interface UseDocumentPipReturn {
   togglePip: (options?: DocumentPictureInPictureOptions) => Promise<void>;
 }
 
-export function useDocumentPip(): UseDocumentPipReturn {
+const DocumentPipContext = createContext<UseDocumentPipReturn | null>(null);
+
+function useDocumentPipInternal(): UseDocumentPipReturn {
   const [isPipActive, setIsPipActive] = useState(false);
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
   const pipWindowRef = useRef<Window | null>(null);
@@ -96,7 +107,7 @@ export function useDocumentPip(): UseDocumentPipReturn {
     [isPipActive, closePip, openPip],
   );
 
-  // Close PiP window when tab unloads
+  // Close PiP window strictly when tab unloads, NOT when a component unmounts
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (pipWindowRef.current && !pipWindowRef.current.closed) {
@@ -106,9 +117,6 @@ export function useDocumentPip(): UseDocumentPipReturn {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      if (pipWindowRef.current && !pipWindowRef.current.closed) {
-        pipWindowRef.current.close();
-      }
     };
   }, []);
 
@@ -120,4 +128,23 @@ export function useDocumentPip(): UseDocumentPipReturn {
     closePip,
     togglePip,
   };
+}
+
+export function DocumentPipProvider({ children }: { children: ReactNode }) {
+  const pip = useDocumentPipInternal();
+  return createElement(DocumentPipContext.Provider, { value: pip }, children);
+}
+
+const fallbackPip: UseDocumentPipReturn = {
+  isSupported: false,
+  isPipActive: false,
+  pipWindow: null,
+  openPip: async () => null,
+  closePip: () => {},
+  togglePip: async () => {},
+};
+
+export function useDocumentPip(): UseDocumentPipReturn {
+  const ctx = useContext(DocumentPipContext);
+  return ctx ?? fallbackPip;
 }

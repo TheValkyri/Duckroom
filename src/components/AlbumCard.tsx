@@ -88,9 +88,15 @@ export const AlbumCard = memo(function AlbumCard({
           </div>
         )}
 
-        <Link to="/albums/$albumId" params={{ albumId: album.id }} className="block">
+        <div className="block">
           <div className="card-lift relative overflow-hidden rounded-xl bg-card/60">
-            {!imgLoaded && <div className="skeleton-bone absolute inset-0" />}
+            <Link
+              to="/albums/$albumId"
+              params={{ albumId: album.id }}
+              className="absolute inset-0 z-0"
+              aria-label={`Xem album ${album.title}`}
+            />
+            {!imgLoaded && <div className="skeleton-bone absolute inset-0 pointer-events-none" />}
             {/* WP5 2026-09-04: bỏ layoutId={cover-...} — layoutId bắt framer
              * đo layout của MỌI ảnh cùng id mỗi frame + hold ProjectionNode
              * cho shared-element transition không tồn tại (không có trang
@@ -137,28 +143,35 @@ export const AlbumCard = memo(function AlbumCard({
               width={512}
               height={512}
               className={cn(
-                "aspect-square w-full object-cover transition-all duration-500 group-hover:scale-105",
+                "aspect-square w-full object-cover transition-all duration-500 group-hover:scale-105 pointer-events-none",
                 imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-[2px]",
               )}
             />
-            <div className="from-background/90 absolute inset-0 bg-gradient-to-t to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+            <div className="from-background/90 absolute inset-0 bg-gradient-to-t to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
             <motion.button
               onClick={handlePlayClick}
               whileTap={tapScale}
               aria-label={`Phát ${album.title}`}
-              className="bg-primary text-primary-foreground absolute right-3 bottom-3 grid size-11 translate-y-3 place-items-center rounded-full opacity-0 shadow-lg transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 cursor-pointer"
+              className="bg-primary text-primary-foreground absolute right-3 bottom-3 z-10 grid size-11 translate-y-3 place-items-center rounded-full opacity-0 shadow-lg transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 cursor-pointer"
             >
               <Play className="size-4 translate-x-px" fill="currentColor" />
             </motion.button>
           </div>
           <div className="mt-3 flex items-start justify-between gap-1">
-            <div className="min-w-0 flex-1">
-              <h3 className="font-display text-lg leading-tight truncate">{album.title}</h3>
+            <Link
+              to="/albums/$albumId"
+              params={{ albumId: album.id }}
+              className="min-w-0 flex-1 hover:underline"
+              aria-label={`Xem album ${album.title}`}
+            >
+              <h3 className="font-display text-lg leading-tight truncate hover:text-primary transition-colors">
+                {album.title}
+              </h3>
               <p className="text-muted-foreground text-xs truncate mt-0.5">
                 {album.artist ? `${album.artist} · ` : ""}
                 {album.year} · {albumTracks(album.id).length} bài
               </p>
-            </div>
+            </Link>
             {isOwner && (
               <motion.button
                 type="button"
@@ -166,13 +179,13 @@ export const AlbumCard = memo(function AlbumCard({
                 whileTap={tapScale}
                 transition={springSnappy}
                 title="Sửa album"
-                className="text-muted-foreground hover:text-primary p-1 rounded-md transition-colors cursor-pointer shrink-0 mt-0.5"
+                className="text-muted-foreground hover:text-primary p-1 rounded-md transition-colors cursor-pointer shrink-0 mt-0.5 z-10"
               >
                 <Pencil className="size-3.5" />
               </motion.button>
             )}
           </div>
-        </Link>
+        </div>
       </motion.div>
 
       <AnimatePresence>

@@ -49,6 +49,7 @@ import { fetchTrackPlaybackUrl } from "./s3";
 import { useAuth } from "./useAuth";
 import { useLibrary } from "./useLibrary";
 import { syncBrowserTabMedia } from "./tab-media-sync";
+import { toast } from "sonner";
 
 export type { RepeatMode } from "./player-queue";
 export type { ReplayGainMode } from "./player-queue";
@@ -151,6 +152,7 @@ type PlayerState = {
   index: number;
   current: Track | undefined;
   isPlaying: boolean;
+  isBuffering: boolean;
   volume: number;
   isMuted: boolean;
   shuffle: boolean;
@@ -294,6 +296,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [expanded, setExpanded] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
 
   // ---- Fine-grained time store (unchanged perf isolation) ---------------
   const timeRef = useRef(0);
@@ -668,14 +671,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // ---- Secondary channel preload (gapless best-effort) --------------------
   useEffect(() => {
     const secEl = secondaryAudioRef.current;
-    if (
-      !secEl ||
-      !nextTrack ||
-      engineState.queue.length <= 1 ||
-      engineState.crossfade <= 0 ||
-      engineState.repeat === "one"
-    )
-      return;
+    if (!secEl || !nextTrack || engineState.queue.length <= 1 || engineState.repeat === "one") return;
 
     const currentSecTrackId = activeChannel === "A" ? channelTrackIdB.current : channelTrackIdA.current;
     if (currentSecTrackId === nextTrack.id && secEl.src) return;
@@ -974,7 +970,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       if (isHandingOverRef.current) return;
 
-      if (secEl && !secEl.paused && nextTrack && engineState.queue.length > 1 && engineState.repeat !== "one") {
+      const canHandoverGapless =
+        secEl &&
+        nextTrack &&
+        engineState.queue.length > 1 &&
+        engineState.repeat !== "one" &&
+        (!secEl.paused || (secEl.src && secEl.readyState >= 2));
+
+      if (canHandoverGapless) {
+        if (secEl.paused) {
+          void secEl.play().catch(() => undefined);
+        }
         secEl.volume = Math.min(1, effectiveVolume);
         setActiveChannel((ch) => {
           const nextCh = ch === "A" ? "B" : "A";
@@ -1004,24 +1010,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    // P5.5: stalled >14s while playing → one soft reload at same position.
-    // FIX (feedback "tiếng rè/ngắt trên mobile"): ngưỡng 8s cũ quá thấp —
-    // mobile 3G/4G nhấp nháy stalled/readiness liên tục trong khi buffer
-    // vẫn còn; soft-reload lúc đó cắt âm thanh giữa chừng TẠO ra tiếng
-    // ngắt. 14s + điều kiện readyState===0 (thật sự không có data) và
-    // cách cuối bài >30s (không reload khi sắp crossfade tự nhiên).
-    const stallInfo = { timer: 0 as ReturnType<typeof setTimeout> | 0 };
+    // P1-01: stall recovery guard verifying forward progress delta < 0.1s after 4s
+    const stallInfo = {
+      timer: 0 as ReturnType<typeof setTimeout> | 0,
+      lastProgressTime: el.currentTime,
+    };
     const onStalled = () => {
       if (!engineState.isPlaying || !current?.id) return;
       if (stalledReloadedRef.current.has(current.id)) return;
+      setIsBuffering(true);
+      stallInfo.lastProgressTime = el.currentTime;
       stallInfo.timer = setTimeout(() => {
-        if (el.paused || el.readyState > 0) return; // có data → không phải stall thật
+        if (el.paused || el.readyState > 0) return;
         const remaining = (el.duration || current.duration) - timeRef.current;
-        if (remaining < 30) return; // sắp hết → để tự nhiên kết thúc
+        if (remaining < 30) return;
         stalledReloadedRef.current.add(current.id);
         const savedPosition = timeRef.current;
         const src = el.src;
-        console.info("[Duckroom Audio] Soft-reload after stall:", current.title);
+        console.warn("[Duckroom Audio] Real stall detected; reloading stream at position", savedPosition);
         el.src = src;
         el.addEventListener(
           "loadedmetadata",
@@ -1043,6 +1049,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         clearTimeout(stallInfo.timer);
         stallInfo.timer = 0;
       }
+      setIsBuffering(false);
+    };
+    const onWaiting = () => {
+      if (engineState.isPlaying) {
+        setIsBuffering(true);
+      }
+    };
+    const onCanPlay = () => {
+      setIsBuffering(false);
     };
 
     el.addEventListener("loadedmetadata", onMetadata);
@@ -1050,6 +1065,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     el.addEventListener("ended", onEnded);
     el.addEventListener("stalled", onStalled);
     el.addEventListener("playing", onPlaying);
+    el.addEventListener("waiting", onWaiting);
+    el.addEventListener("canplay", onCanPlay);
 
     if (el.duration && Number.isFinite(el.duration) && el.duration > 0) {
       onMetadata();
@@ -1061,6 +1078,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       el.removeEventListener("ended", onEnded);
       el.removeEventListener("stalled", onStalled);
       el.removeEventListener("playing", onPlaying);
+      el.removeEventListener("waiting", onWaiting);
+      el.removeEventListener("canplay", onCanPlay);
       if (stallInfo.timer) clearTimeout(stallInfo.timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1090,6 +1109,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const retries = retriedTracksRef.current.get(trackId) || 0;
       if (retries >= 2) {
         console.warn(`[Duckroom Audio] Max self-healing retries reached for: "${current.title}"`);
+        toast.error("Không thể tải file âm thanh. Vui lòng kiểm tra kết nối mạng.");
+        setIsBuffering(false);
         return;
       }
       retriedTracksRef.current.set(trackId, retries + 1);
@@ -1576,6 +1597,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       index: viewIndex,
       current: viewCurrent,
       isPlaying: isFollower ? !!remoteView?.isPlaying : engineState.isPlaying,
+      isBuffering,
       volume: engineState.volume,
       isMuted: engineState.muted,
       shuffle: engineState.shuffle,
@@ -1597,6 +1619,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     isFollower,
     remoteView,
     engineState,
+    isBuffering,
     expanded,
     lyricsOpen,
     queueOpen,

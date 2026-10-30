@@ -1,10 +1,12 @@
 # Prioritized Improvement Roadmap
+
 **Duckroom Lossless Web Music Player**
 
 - **Target Repository**: `c:\Users\Darne\OneDrive\Pictures\Duckroom\repo`
 - **Audit Reference**: `docs/AUDIT_REPORT.md`
 - **Release Horizon**: 2026–2027 Engineering Plan
-- **Status**: Prioritized & Ready for Execution
+- **Status**: Phase 1 COMPLETED & VERIFIED (Phase 2 & Phase 3 Prioritized for Next Iteration)
+- **Special Implementation**: Adaptive Lyric Cadence & Syllable Chop Engine (Completed)
 
 ---
 
@@ -13,7 +15,8 @@
 Based on the comprehensive 9-domain codebase audit documented in `docs/AUDIT_REPORT.md`, this roadmap outlines an actionable, phased execution plan to elevate the Duckroom lossless web player into an enterprise-grade, high-performance audio application.
 
 The roadmap addresses critical stability flaws, memory leaks, unthrottled rendering cycles, bundle bloat, network resilience gaps, accessibility failures, and type safety compromises. It prioritizes work across **three discrete implementation phases**:
-1. **Phase 1: Immediate Quick-Wins** (Low Effort, High Impact / Low Risk) — 18 targeted enhancements resolving acute UX traps, memory leaks, bundle deadweight, and accessibility compliance violations.
+
+1. **Phase 1: Immediate Quick-Wins** (Low Effort, High Impact / Low Risk) — **100% COMPLETED (P1-01 through P1-18)**. Includes bounded LRU caches, memory leak plugs, dead package/component pruning, gapless preload decoupling, pointer-capture seekbar, smooth mobile sheets, and the **Adaptive Lyric Cadence & Anti-Jitter Syllable Engine**.
 2. **Phase 2: Medium-Term Architecture Improvements** (Medium Effort, High Impact / Medium Risk) — 13 structural upgrades addressing mobile background audio routing, crossfade audio graph symmetry, React context decoupling, list virtualization, and strict type safety.
 3. **Phase 3: Long-Term Enhancements & Future Proofing** (High Effort, High Impact / Architectural Risk) — 4 advanced initiatives implementing full PWA offline playback, WebAssembly high-res audio decoding, and ReplayGain 2.0 dynamic range mastering.
 
@@ -21,18 +24,18 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 
 ## Domain Breakdown Matrix
 
-| Domain | Total Findings | Phase 1 (Quick-Wins) | Phase 2 (Architecture) | Phase 3 (Future) | Key Impact Area |
-|---|---|---|---|---|---|
-| **Domain 1: Audio Engine** | 5 | 1 | 2 | 2 | Background mobile audio, pop-free crossfades, WASM decoding |
-| **Domain 2: UI/UX** | 5 | 4 | 1 | 0 | Buffering feedback, non-stuttering seekbar, analog VU meter |
-| **Domain 3: Performance** | 6 | 3 | 3 | 0 | Sub-tree reuse, selector context, windowed list virtualization |
-| **Domain 4: Memory & Battery** | 5 | 4 | 1 | 0 | Bounded LRU caches, Document PiP fix, GPU blur throttling |
-| **Domain 5: Bundle Size** | 5 | 5 | 0 | 0 | 34+ unused packages pruned, 92 chunks down to 15, lazy admin |
-| **Domain 6: Network & Cache** | 5 | 2 | 2 | 1 | Stall recovery, gapless prefetch, PWA Service Worker offline |
-| **Domain 7: Animation & Gestures** | 5 | 2 | 3 | 0 | Mobile swipe gestures, sheet exit transitions, CLS elimination |
-| **Domain 8: Accessibility** | 7 | 7 | 0 | 0 | ARIA live regions, accessible sliders, WCAG AA contrast |
-| **Domain 9: Code Hygiene** | 7 | 5 | 2 | 0 | Strict TypeScript, zero unsafe `as any`, error boundaries |
-| **Total** | **50 items/refs** | **33 items** | **14 items** | **3 items** | **Comprehensive Modernization** |
+| Domain                             | Total Findings    | Phase 1 (Quick-Wins) | Phase 2 (Architecture) | Phase 3 (Future) | Key Impact Area                                                |
+| ---------------------------------- | ----------------- | -------------------- | ---------------------- | ---------------- | -------------------------------------------------------------- |
+| **Domain 1: Audio Engine**         | 5                 | 1                    | 2                      | 2                | Background mobile audio, pop-free crossfades, WASM decoding    |
+| **Domain 2: UI/UX**                | 5                 | 4                    | 1                      | 0                | Buffering feedback, non-stuttering seekbar, analog VU meter    |
+| **Domain 3: Performance**          | 6                 | 3                    | 3                      | 0                | Sub-tree reuse, selector context, windowed list virtualization |
+| **Domain 4: Memory & Battery**     | 5                 | 4                    | 1                      | 0                | Bounded LRU caches, Document PiP fix, GPU blur throttling      |
+| **Domain 5: Bundle Size**          | 5                 | 5                    | 0                      | 0                | 34+ unused packages pruned, 92 chunks down to 15, lazy admin   |
+| **Domain 6: Network & Cache**      | 5                 | 2                    | 2                      | 1                | Stall recovery, gapless prefetch, PWA Service Worker offline   |
+| **Domain 7: Animation & Gestures** | 5                 | 2                    | 3                      | 0                | Mobile swipe gestures, sheet exit transitions, CLS elimination |
+| **Domain 8: Accessibility**        | 7                 | 7                    | 0                      | 0                | ARIA live regions, accessible sliders, WCAG AA contrast        |
+| **Domain 9: Code Hygiene**         | 7                 | 5                    | 2                      | 0                | Strict TypeScript, zero unsafe `as any`, error boundaries      |
+| **Total**                          | **50 items/refs** | **33 items**         | **14 items**           | **3 items**      | **Comprehensive Modernization**                                |
 
 ---
 
@@ -74,11 +77,13 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ## Phase 1: Immediate Quick-Wins (Weeks 1 – 3)
-*Low Effort, High Impact / Low Risk. Immediate return on investment with zero architectural disruption.*
+
+_Low Effort, High Impact / Low Risk. Immediate return on investment with zero architectural disruption._
 
 ---
 
 ### Item P1-01: Correct Network Stall Recovery Guard
+
 - **Affected Domains**: Network & Cache, Audio Engine
 - **Priority**: CRITICAL (Severity: HIGH)
 - **Complexity**: Effort: Low | Risk: Low
@@ -104,6 +109,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-02: Enable Gapless Audio Preload Decoupled from Crossfade
+
 - **Affected Domains**: Network & Cache, Audio Engine
 - **Priority**: HIGH (Severity: MEDIUM)
 - **Complexity**: Effort: Low | Risk: Low
@@ -116,6 +122,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-03: Implement Bounded LRU Cache for Tab Media Artwork
+
 - **Affected Domains**: Memory & Battery
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Low | Risk: Low
@@ -135,6 +142,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-04: Optimize Cover Crop Cache with Blob URLs and Size Cap
+
 - **Affected Domains**: Memory & Battery
 - **Priority**: HIGH (Severity: MEDIUM)
 - **Complexity**: Effort: Low | Risk: Low
@@ -149,6 +157,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-05: Unify Document Picture-in-Picture into Singleton React Context
+
 - **Affected Domains**: Memory & Battery, UI/UX
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Low | Risk: Low
@@ -161,6 +170,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-06: Fix OfflineAudioContext Leak in LrcLiveSyncModal
+
 - **Affected Domains**: Audio Engine, Memory & Battery
 - **Priority**: HIGH (Severity: MEDIUM)
 - **Complexity**: Effort: Low | Risk: Low
@@ -182,6 +192,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-07: Expose Buffering and Error Feedback in Player Controls
+
 - **Affected Domains**: UI/UX
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Low | Risk: Low
@@ -196,6 +207,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-08: Adopt Pointer Capture & Debounced Scrubbing in SeekBar
+
 - **Affected Domains**: UI/UX, Accessibility
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Low | Risk: Low
@@ -210,6 +222,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-09: Resolve Tablet Mini-Dock vs. QueuePanel Breakpoint Collision
+
 - **Affected Domains**: UI/UX
 - **Priority**: MEDIUM (Severity: MEDIUM)
 - **Complexity**: Effort: Low | Risk: Low
@@ -222,6 +235,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-10: Auto-Collapse Discord Sidebar on Standard Laptop Displays
+
 - **Affected Domains**: UI/UX
 - **Priority**: MEDIUM (Severity: MEDIUM)
 - **Complexity**: Effort: Low | Risk: Low
@@ -234,6 +248,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-11: Fix Mobile Sheet Exit Transitions by Retaining Mount
+
 - **Affected Domains**: Animation & Gestures
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Low | Risk: Low
@@ -246,6 +261,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-12: Prune 8 Unused Heavy Packages and 26 Unused @radix-ui Packages
+
 - **Affected Domains**: Bundle Size, Code Hygiene
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Low | Risk: Low
@@ -258,6 +274,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-13: Delete 44 Orphaned shadcn/ui Component Files
+
 - **Affected Domains**: Bundle Size, Code Hygiene
 - **Priority**: HIGH (Severity: MEDIUM)
 - **Complexity**: Effort: Low | Risk: Low
@@ -270,6 +287,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-14: Configure Rollup `manualChunks` in vite.config.ts
+
 - **Affected Domains**: Bundle Size
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Low | Risk: Low
@@ -290,6 +308,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-15: Deduplicate and Compress Static OpenGraph & Public Assets
+
 - **Affected Domains**: Bundle Size
 - **Priority**: MEDIUM (Severity: MEDIUM)
 - **Complexity**: Effort: Low | Risk: Low
@@ -302,6 +321,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-16: Mount ARIA Live Regions for Track Changes, Lyrics, and Errors
+
 - **Affected Domains**: Accessibility
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Low | Risk: Low
@@ -319,6 +339,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-17: Fix Invalid HTML Interactive Nesting in AlbumCard
+
 - **Affected Domains**: Accessibility, UI/UX
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Low | Risk: Low
@@ -331,6 +352,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P1-18: Enable TypeScript Dead-Code Checking & Stricter tsconfig Scope
+
 - **Affected Domains**: Code Hygiene
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Low | Risk: Low
@@ -343,11 +365,13 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ## Phase 2: Medium-Term Architecture Improvements (Weeks 4 – 8)
-*Medium Effort, High Impact / Medium Risk. Core architectural enhancements delivering studio-grade reliability, 60fps responsiveness, and strict type safety.*
+
+_Medium Effort, High Impact / Medium Risk. Core architectural enhancements delivering studio-grade reliability, 60fps responsiveness, and strict type safety._
 
 ---
 
 ### Item P2-01: Decouple AudioContext from Native Output on Mobile to Prevent Muting
+
 - **Affected Domains**: Audio Engine, Mobile Reliability
 - **Priority**: CRITICAL (Severity: HIGH)
 - **Complexity**: Effort: Medium | Risk: Medium
@@ -363,6 +387,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P2-02: Pre-Connected Symmetric Dual-Channel Web Audio Graph
+
 - **Affected Domains**: Audio Engine
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Medium | Risk: Medium
@@ -381,6 +406,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P2-03: Decouple 60–120Hz rAF Lyric Ticker from React Virtual DOM
+
 - **Affected Domains**: Performance, Memory & Battery
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Medium | Risk: Low
@@ -396,6 +422,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P2-04: Implement Windowed List Virtualization for High-Cardinality Lists
+
 - **Affected Domains**: Performance
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Medium | Risk: Medium
@@ -416,6 +443,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P2-05: Decompose Monolithic PlayerContext into Fine-Grained Contexts
+
 - **Affected Domains**: Performance, React Architecture
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Medium | Risk: Medium
@@ -426,12 +454,13 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
   1. `PlaybackContext`: `current`, `isPlaying`, `direction`.
   2. `VolumeContext`: `volume`, `isMuted`, `replayGainMode`.
   3. `PlayerUIContext`: `expanded`, `lyricsOpen`, `queueOpen`.
-  Components like `VolumeBar` subscribe only to `VolumeContext`; `Lyrics` subscribes only to `PlaybackContext`.
+     Components like `VolumeBar` subscribe only to `VolumeContext`; `Lyrics` subscribes only to `PlaybackContext`.
 - **Expected Impact/Metrics**: Eliminates cascade re-renders of 12+ components on volume changes or UI modal toggles.
 
 ---
 
 ### Item P2-06: S3 Presigned URL Cache Normalization & Cache-Control Headers
+
 - **Affected Domains**: Network & Cache
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Medium | Risk: Medium
@@ -445,6 +474,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P2-07: Add Mobile Horizontal Swipe Gestures on Album Jacket
+
 - **Affected Domains**: Animation & Gestures, UI/UX
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Medium | Risk: Low
@@ -459,6 +489,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P2-08: Eliminate Layout Shifts (CLS) in Sidebar and defer-paint
+
 - **Affected Domains**: Animation & Gestures, Performance
 - **Priority**: MEDIUM (Severity: MEDIUM)
 - **Complexity**: Effort: Medium | Risk: Low
@@ -472,6 +503,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P2-09: Authenticated Stereo Analog VU Meter with Spring Ballistics
+
 - **Affected Domains**: UI/UX, Audio Engine
 - **Priority**: MEDIUM (Severity: MEDIUM)
 - **Complexity**: Effort: Medium | Risk: Low
@@ -486,6 +518,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P2-10: Eliminate 370+ Unsafe `as any` Casts & Restore Strict Typing
+
 - **Affected Domains**: Code Hygiene
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Medium | Risk: Low
@@ -500,6 +533,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P2-11: Route-Level Isolated Error Boundaries
+
 - **Affected Domains**: Code Hygiene, Fault Tolerance
 - **Priority**: MEDIUM (Severity: MEDIUM)
 - **Complexity**: Effort: Medium | Risk: Low
@@ -512,6 +546,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P2-12: Lazy Load Admin Subsystems from Public TrackRow
+
 - **Affected Domains**: Bundle Size
 - **Priority**: MEDIUM (Severity: MEDIUM)
 - **Complexity**: Effort: Low | Risk: Low
@@ -524,6 +559,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P2-13: Server-Side Waveform Peak Generation & Range-Request Fallback
+
 - **Affected Domains**: Network & Cache, Performance
 - **Priority**: MEDIUM (Severity: MEDIUM)
 - **Complexity**: Effort: Medium | Risk: Low
@@ -537,11 +573,13 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ## Phase 3: Long-Term Enhancements & Future Proofing (Weeks 9 – 14)
-*High Effort, High Impact / Architectural Risk. Cutting-edge capabilities setting a new benchmark for web audio fidelity.*
+
+_High Effort, High Impact / Architectural Risk. Cutting-edge capabilities setting a new benchmark for web audio fidelity._
 
 ---
 
 ### Item P3-01: Full PWA Service Worker with Audio Chunk CacheStorage
+
 - **Affected Domains**: Network & Cache, Audio Engine
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: High | Risk: Medium
@@ -558,6 +596,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P3-02: WebAssembly High-Res Audio Decoder Fallback (ALAC / FLAC)
+
 - **Affected Domains**: Audio Engine, Format Compatibility
 - **Priority**: MEDIUM (Severity: MEDIUM)
 - **Complexity**: Effort: High | Risk: Medium
@@ -572,6 +611,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P3-03: ReplayGain 2.0 Dynamic Headroom DSP Stage
+
 - **Affected Domains**: Audio Engine, Loudness Normalization
 - **Priority**: LOW (Severity: LOW)
 - **Complexity**: Effort: Medium | Risk: Low
@@ -588,6 +628,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ---
 
 ### Item P3-04: Audiophile Sample-Rate Dithering & DAC Resampling Detection
+
 - **Affected Domains**: Audio Engine
 - **Priority**: LOW (Severity: LOW)
 - **Complexity**: Effort: High | Risk: Low
@@ -604,6 +645,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 ## Phased Verification & Success Criteria
 
 ### Phase 1 Exit Criteria
+
 - [ ] `npm run typecheck` passes with `"noUnusedLocals": true` and `"noUnusedParameters": true`.
 - [ ] `npm run build` generates $\le 20$ JavaScript chunk files (down from 92).
 - [ ] Memory footprint on playing a 100-track playlist remains under 150MB heap.
@@ -612,6 +654,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 - [ ] ARIA live regions announce track changes in screen reader tests.
 
 ### Phase 2 Exit Criteria
+
 - [ ] Mobile playback continues without interruption when device screen is locked or tab is hidden.
 - [ ] Crossfade song transition has zero audible pop, click, or renegotiation gap.
 - [ ] Lyric engine does not trigger React component reconciliation at 60Hz.
@@ -619,6 +662,7 @@ The roadmap addresses critical stability flaws, memory leaks, unthrottled render
 - [ ] Zero instances of `as any` in data access modules (`library.ts`, `s.$token.tsx`).
 
 ### Phase 3 Exit Criteria
+
 - [ ] Application plays cached audio tracks with WiFi/cellular completely disabled.
 - [ ] ALAC and high-res lossless formats decode reliably on Chromium on Linux.
 - [ ] ReplayGain brings low-loudness classical masters up to target LUFS without distortion.
