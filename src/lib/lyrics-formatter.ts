@@ -302,41 +302,56 @@ const WEAK_PARTICLES = new Set([
   "my",
 ]);
 
-const STOP_CONSONANT_RE = /(?:[cptk]|ch|ck|pt|ct|ft)$/i;
+const STOP_CONSONANT_RE = /(?:[cptk]|ch|ck|pt|ct|ft|d|b|g)$/i;
 const PROLONGED_CHAR_RE = /(.)\1{2,}|[~]{1,}/i;
 
 function getAcousticWeight(cleanWord: string, isLastWord: boolean): number {
   const lower = cleanWord.toLowerCase();
   if (QUICK_INTERJECTIONS.has(lower)) {
-    return isLastWord ? 0.85 : 0.65;
+    return isLastWord ? 0.75 : 0.55;
   }
   if (WEAK_PARTICLES.has(lower)) {
-    return isLastWord ? 0.95 : 0.78;
+    return isLastWord ? 0.85 : 0.7;
   }
 
   // Count vowel clusters for multi-syllable Latin/English words vs monosyllabic Vietnamese tokens
-  const vowelClusters = lower.match(/[aeiouyàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]+/gi);
+  const vowelClusters = lower.match(/[aeiouyàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹ]+/gi);
   const syllables = vowelClusters ? vowelClusters.length : 1;
-  let weight = syllables > 1 ? Math.max(1.0, syllables * 0.88) : cleanWord.length >= 6 ? 1.15 : 1.0;
+
+  let weight: number;
+  if (syllables > 1) {
+    weight = Math.max(1.0, syllables * 0.82);
+  } else {
+    if (cleanWord.length <= 2) {
+      weight = 0.82;
+    } else if (cleanWord.length >= 6) {
+      weight = 1.18;
+    } else {
+      weight = 1.0;
+    }
+  }
+
+  const isStopConsonant = STOP_CONSONANT_RE.test(cleanWord);
+  const isProlonged = PROLONGED_CHAR_RE.test(cleanWord) || /~/.test(cleanWord);
 
   // Staccato stop consonants (nhấp nhả): tokens ending in stop consonants cut off sharply
-  if (STOP_CONSONANT_RE.test(cleanWord) && !PROLONGED_CHAR_RE.test(cleanWord)) {
-    weight *= 0.82;
+  if (isStopConsonant && !isProlonged) {
+    weight *= 0.78;
   }
 
   // Melisma / prolonged vocal extension (kéo dài chữ, kéo hơi):
-  if (PROLONGED_CHAR_RE.test(cleanWord) || /~/.test(cleanWord)) {
-    weight *= 1.55;
+  if (isProlonged) {
+    weight *= 1.85;
   }
 
   if (cleanWord.length >= 3 && cleanWord === cleanWord.toUpperCase()) {
-    weight *= 1.12; // Emphasis / All caps
+    weight *= 1.1; // Emphasis / All caps
   }
 
   if (isLastWord) {
-    if (STOP_CONSONANT_RE.test(cleanWord) && !PROLONGED_CHAR_RE.test(cleanWord)) {
+    if (isStopConsonant && !isProlonged) {
       // Final stop consonant: crisp dứt câu, no trailing sluggishness
-      weight *= 1.02;
+      weight *= 0.95;
     } else {
       // Final open/resonant vowel: natural cadence release
       weight *= 1.25;
@@ -349,7 +364,7 @@ function getPunctuationPause(rawWord: string): number {
   if (/\.{3}|…/.test(rawWord)) return 0.28; // Ellipsis
   if (/[.!?]/.test(rawWord)) return 0.22; // Terminal punctuation
   if (/[,;:\-–—]/.test(rawWord)) return 0.14; // Breath pause / comma
-  if (/~/.test(rawWord)) return 0.2; // Vocal extension / melisma
+  if (/~/.test(rawWord)) return 0.22; // Vocal extension / melisma
   return 0;
 }
 
@@ -361,7 +376,7 @@ function getPunctuationPause(rawWord: string): number {
  *   2. Monosyllabic interjection cadence (quick onset for words like "yeah", "yo", "ah", "bitch").
  *   3. Multi-syllable & vowel weighting for natural musical singing cadence.
  *   4. Final-word phrase elongation & crisp stop consonant cutoff.
- *   5. Adaptive delivery detection (Rap high-density vs Pop/Ballad/R&B sustained phrase and trailing rest).
+ *   5. Adaptive delivery detection (Rap rapid flow vs Pop/Ballad/R&B sustained phrase and trailing rest).
  */
 export function computeWordTimings(line: LyricLine, nextLineTime?: number): LyricWord[] {
   if (line.words && line.words.length > 0) {
@@ -371,51 +386,54 @@ export function computeWordTimings(line: LyricLine, nextLineTime?: number): Lyri
   if (!rawWords.length) return [];
 
   const rawWeights: number[] = [];
+  let prolongedCount = 0;
+  let stopConsonantCount = 0;
+
   for (let i = 0; i < rawWords.length; i++) {
     const word = rawWords[i]!;
     const clean = word.replace(/[.,!?;:…"“”'’\-–—()[\]{}]/g, "");
     const isLast = i === rawWords.length - 1;
     let w = getAcousticWeight(clean, isLast);
     const p = getPunctuationPause(word);
-    w += p * 0.65; // Balanced cadence dwell for punctuation
+    w += p * 0.55; // Balanced cadence dwell for punctuation
     rawWeights.push(w);
+
+    if (PROLONGED_CHAR_RE.test(clean) || /~/.test(word)) prolongedCount++;
+    if (STOP_CONSONANT_RE.test(clean)) stopConsonantCount++;
   }
 
   const totalWeight = rawWeights.reduce((a, b) => a + b, 0);
-  // Natural acoustic duration estimate (~360ms per acoustic syllable unit)
-  const naturalAcousticDuration = totalWeight * 0.36;
+  // Natural acoustic duration estimate (~350ms per standard acoustic syllable unit)
+  const naturalAcousticDuration = totalWeight * 0.35;
 
   const lineStart = line.time;
   let lineDuration: number;
+
   if (typeof nextLineTime === "number" && nextLineTime > lineStart) {
     const gap = nextLineTime - lineStart;
-    if (gap <= 1.6) {
-      // Shortest gap (continuous singing): fit snugly before next line
-      lineDuration = Math.max(0.65, Math.min(gap - 0.08, naturalAcousticDuration));
-    } else if (gap <= 4.2) {
-      // Moderate gap:
-      // Adaptive pacing distinguishes rapid flow (rap) from emotional phrasing (ballad / pop / R&B).
-      const wordDensity = rawWords.length / gap;
-      if (wordDensity >= 2.2 || rawWords.length >= 7) {
-        // Rap / rapid delivery: vocal spans most of the gap with a brief breath pause
-        const maxAllowed = gap - 0.22;
-        lineDuration = Math.min(maxAllowed, Math.max(naturalAcousticDuration, gap * 0.85));
-      } else if (rawWords.length <= 3) {
-        // Short phrase / exclamation: protects held notes (> 2.0s when gap allows) while cutting off cleanly
-        const maxAllowed = gap - 0.75;
-        lineDuration = Math.min(maxAllowed, Math.max(2.15, Math.min(gap * 0.68, naturalAcousticDuration)));
-      } else {
-        // Pop / ballad / R&B phrase: singer completes naturally, leaving clear rest before the next bar
-        const maxAllowed = Math.min(gap - 0.55, gap * 0.78);
-        lineDuration = Math.min(maxAllowed, Math.max(1.9, naturalAcousticDuration));
-      }
+    if (gap <= 1.4) {
+      // Shortest gap (continuous singing / tight pickup): fit snugly before next line
+      lineDuration = Math.max(0.45, Math.min(gap - 0.08, naturalAcousticDuration));
     } else {
-      // Long gap (interlude / guitar solo / beat drop): vocal completes at natural cadence without dragging
-      const maxAllowed = Math.min(gap - 1.0, Math.max(2.2, naturalAcousticDuration * 1.15));
-      lineDuration = Math.min(maxAllowed, Math.max(1.9, naturalAcousticDuration));
+      const wordDensity = rawWords.length / gap;
+      const isRapFlow = wordDensity >= 2.0 || (rawWords.length >= 7 && gap <= 3.8);
+
+      if (isRapFlow) {
+        // Rap / rapid delivery: vocal spans most of the measure with a quick breath pause
+        const maxAllowed = gap - 0.2;
+        lineDuration = Math.min(maxAllowed, Math.max(naturalAcousticDuration, gap * 0.82));
+      } else {
+        // Pop / Ballad / R&B delivery:
+        // Respects natural vocal duration and stops crisply when the artist finishes singing,
+        // leaving an instrumental breath/accompaniment rest before the next bar.
+        const minRest = Math.max(0.65, Math.min(2.0, gap * 0.25));
+        const maxAllowed = Math.max(0.6, gap - minRest);
+        lineDuration = Math.min(maxAllowed, naturalAcousticDuration);
+      }
     }
   } else {
-    lineDuration = Math.max(2.15, naturalAcousticDuration);
+    // Unbounded / final song line: completes at intrinsic acoustic duration
+    lineDuration = Math.max(0.65, naturalAcousticDuration);
   }
 
   const activeDuration = lineDuration;

@@ -496,7 +496,6 @@ export function NowPlaying() {
                       playing={isPlaying}
                       bars={isPhone ? 28 : 42}
                       height={isPhone ? 28 : 52}
-                      showModeControls={!isPhone}
                       className={isPhone ? "mt-2 opacity-80" : "mt-3"}
                     />
                   )}

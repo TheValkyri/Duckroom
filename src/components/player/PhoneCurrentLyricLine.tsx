@@ -81,6 +81,8 @@ const LyricDisplay = memo(function LyricDisplay({ activeIdx, text }: { activeIdx
   const line = lines?.[activeIdx];
   const nextLineTime = lines?.[activeIdx + 1]?.time;
 
+  if (activeIdx < 0 || !line) return null;
+
   return (
     <div
       className="relative mx-auto mt-2 flex h-10 max-w-[88%] items-center justify-center overflow-hidden"
@@ -99,13 +101,7 @@ const LyricDisplay = memo(function LyricDisplay({ activeIdx, text }: { activeIdx
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           className="line-clamp-2 px-3 text-center text-[13px] font-medium leading-4 tracking-tight text-foreground/85"
         >
-          {activeIdx >= 0 && line ? (
-            <PhoneActiveWordFlow line={line} nextLineTime={nextLineTime} />
-          ) : activeIdx >= 0 && text ? (
-            text
-          ) : (
-            "· · ·"
-          )}
+          <PhoneActiveWordFlow line={line} nextLineTime={nextLineTime} />
         </motion.p>
       </AnimatePresence>
     </div>
@@ -125,7 +121,9 @@ export function PhoneCurrentLyricLine() {
     if (l && time >= l.time) activeIdx = i;
   }
 
-  const line = lines[Math.max(0, activeIdx)];
+  if (activeIdx < 0) return null;
+
+  const line = lines[activeIdx];
   if (!line) return null;
 
   return <LyricDisplay activeIdx={activeIdx} text={line.text ?? ""} />;

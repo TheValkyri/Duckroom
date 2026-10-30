@@ -257,7 +257,7 @@ export function DocumentPipPlayer({ onClose, isFloatingOverlay = false }: Docume
                 <KaraokeLine line={currentLine} nextLineTime={nextLine?.time} time={time} />
               ) : (
                 <span className="text-muted-foreground/60 italic text-[11px]">
-                  {lines.length > 0 ? "· · ·" : "Bản thu không có tệp lời"}
+                  {lines.length > 0 ? "" : "Bản thu không có tệp lời"}
                 </span>
               )}
             </div>

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { BarChart3 } from "lucide-react";
 import { getAudioAnalyser } from "../lib/audio-analyser";
 import { usePlayer } from "../lib/player";
 import { subscribeTheme, accentCssVars, getThemeState } from "../lib/theme";
@@ -265,20 +264,6 @@ export function Visualizer({
       <div className="w-full overflow-hidden shrink-0 pointer-events-none">
         <canvas ref={ref} style={{ height, width: "100%", display: "block" }} />
       </div>
-
-      {showModeControls && (
-        <div className="mt-2 flex items-center justify-center gap-1.5 rounded-full bg-white/[0.04] p-1 border border-white/5 backdrop-blur-md">
-          <button
-            type="button"
-            title="Cột sóng VU Analog"
-            onClick={() => handleSelectMode("bars")}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer bg-primary text-primary-foreground shadow-sm"
-          >
-            <BarChart3 className="size-3" />
-            <span className="hidden sm:inline">Cột sóng</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 }

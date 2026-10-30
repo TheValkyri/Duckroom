@@ -320,15 +320,25 @@ describe("Lyrics Formatter V2 — Zero Content Mutation & Precise Timing", () =>
       }
     });
 
-    it("protects natural duration for short held phrases instead of prematurely cutting them off", () => {
+    it("protects natural duration for short held phrases with melisma or sustained vowels", () => {
+      const line = { time: 5.0, text: "Người ơi em ở đâu~~~~" };
+      // Next line is at 8.5s (gap 3.5s)
+      const words = computeWordTimings(line, 8.5);
+      expect(words).toHaveLength(5);
+      const totalDuration = words[words.length - 1]!.endTime - words[0]!.startTime;
+      expect(totalDuration).toBeGreaterThan(2.0);
+      expect(words[words.length - 1]!.endTime).toBeLessThanOrEqual(8.5);
+    });
+
+    it("stops staccato phrases (nhấp nhả) crisply when singer finishes without dragging", () => {
       const line = { time: 5.0, text: "Tao không thích" };
       // Next line is at 8.5s (gap 3.5s)
       const words = computeWordTimings(line, 8.5);
       expect(words).toHaveLength(3);
       const totalDuration = words[words.length - 1]!.endTime - words[0]!.startTime;
-      // Singing spans natural duration (> 2.0s) rather than being crushed to 1.5s
-      expect(totalDuration).toBeGreaterThan(2.0);
-      expect(words[words.length - 1]!.endTime).toBeLessThanOrEqual(8.5);
+      // Staccato stops naturally around 1.0 - 1.4s, leaving > 1.8s peaceful rest
+      expect(totalDuration).toBeLessThan(1.6);
+      expect(8.5 - words[words.length - 1]!.endTime).toBeGreaterThan(1.8);
     });
 
     it("allocates sustained melisma duration to prolonged vowels and tilde extensions", () => {
