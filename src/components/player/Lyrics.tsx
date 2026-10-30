@@ -347,70 +347,46 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
               compact ? "pt-[30vh] pb-[40vh]" : "pt-[35vh] pb-[45vh]",
             )}
           >
-            {lines.map((line, i) => {
-              const nextLine = lines[i + 1];
-              const isLongGap = nextLine && typeof nextLine.time === "number" && nextLine.time - line.time >= 4.0;
-              return (
-                <div key={`${line.time}-${i}`} className="w-full flex flex-col">
-                  <button
-                    ref={(el) => {
-                      if (el) {
-                        itemRefs.current[i] = el;
-                        el.dataset["base"] = cn(
-                          LINE_BASE,
-                          compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
-                        );
-                      }
-                    }}
-                    onClick={() => {
-                      if (isPlainLyrics) return;
-                      isUserScrollingRef.current = false;
-                      setActiveLineState(i);
-                      seek(line.time);
-                    }}
-                    className={cn(
+            {lines.map((line, i) => (
+              <button
+                key={`${line.time}-${i}`}
+                ref={(el) => {
+                  if (el) {
+                    itemRefs.current[i] = el;
+                    el.dataset["base"] = cn(
                       LINE_BASE,
-                      // -2 = danh sách render lần sau (state settled) — giữ ref
-                      // value (đã đúng); giá trị 0..n từ initialActive chỉ dùng ở
-                      // frame đầu để tránh "flash FUTURE".
-                      lineClass(i, initialActive === -2 ? activeIndexRef.current : initialActive, isPlainLyrics),
                       compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
-                    )}
-                  >
-                    {/* Active line with Word-by-Word syllable fluid fill (Apple Music style) */}
-                    {i ===
-                      (activeLineState >= 0
-                        ? activeLineState
-                        : initialActive >= 0
-                          ? initialActive
-                          : activeIndexRef.current) && !isPlainLyrics ? (
-                      <WordByWordActiveLine line={line} nextLineTime={lines[i + 1]?.time} />
-                    ) : (
-                      <span className="inline">{line.text}</span>
-                    )}
-                  </button>
-
-                  {/* Instrumental Metronome indicator (Apple Music style) */}
-                  {isLongGap && !isPlainLyrics && (
-                    <InstrumentalBreakIndicator
-                      isActiveInterlude={
-                        (activeLineState >= 0
-                          ? activeLineState
-                          : initialActive >= 0
-                            ? initialActive
-                            : activeIndexRef.current) === i
-                      }
-                      vocalEndTime={
-                        line.words && line.words.length > 0
-                          ? line.words[line.words.length - 1]!.endTime
-                          : line.time + 2.5
-                      }
-                      nextLineTime={nextLine.time}
-                    />
-                  )}
-                </div>
-              );
-            })}
+                    );
+                  }
+                }}
+                onClick={() => {
+                  if (isPlainLyrics) return;
+                  isUserScrollingRef.current = false;
+                  setActiveLineState(i);
+                  seek(line.time);
+                }}
+                className={cn(
+                  LINE_BASE,
+                  // -2 = danh sách render lần sau (state settled) — giữ ref
+                  // value (đã đúng); giá trị 0..n từ initialActive chỉ dùng ở
+                  // frame đầu để tránh "flash FUTURE".
+                  lineClass(i, initialActive === -2 ? activeIndexRef.current : initialActive, isPlainLyrics),
+                  compact ? "text-lg sm:text-xl" : "text-xl sm:text-2xl md:text-[1.75rem] lg:text-[1.95rem]",
+                )}
+              >
+                {/* Active line with Word-by-Word syllable fluid fill (Apple Music style) */}
+                {i ===
+                  (activeLineState >= 0
+                    ? activeLineState
+                    : initialActive >= 0
+                      ? initialActive
+                      : activeIndexRef.current) && !isPlainLyrics ? (
+                  <WordByWordActiveLine line={line} nextLineTime={lines[i + 1]?.time} />
+                ) : (
+                  <span className="inline">{line.text}</span>
+                )}
+              </button>
+            ))}
           </div>
           <LyricsMountSync
             lines={lines}
@@ -616,46 +592,6 @@ function LyricsTicker({
   }, [time, lines, itemRefs, containerRef, trackId, activeIndexRef, isUserScrollingRef, isPlainLyrics, onActiveChange]);
   return null;
 }
-
-/**
- * InstrumentalBreakIndicator — 3 chấm nhịp điệu phong cách Apple Music
- * cho các đoạn nhạc dạo / guitar solo / drop beat dài (gap >= 4.0s).
- * - Giữ layout height cố định h-8 để Zero Cumulative Layout Shift (Zero CLS).
- * - Tự động fade in khi ca sĩ dứt lời câu hiện tại và mờ dần khi sắp sang câu mới.
- */
-const InstrumentalBreakIndicator = memo(function InstrumentalBreakIndicator({
-  isActiveInterlude,
-  vocalEndTime,
-  nextLineTime,
-}: {
-  isActiveInterlude: boolean;
-  vocalEndTime: number;
-  nextLineTime: number;
-}) {
-  const fallbackTime = usePlayerTime();
-  const time = useSmoothLyricTime(fallbackTime);
-
-  // Active during the interlude gap after vocals finish until 0.35s before next line
-  const isInterludeActive = isActiveInterlude && time >= vocalEndTime + 0.3 && time < nextLineTime - 0.35;
-
-  return (
-    <div
-      className={cn(
-        "h-8 flex items-center gap-2 px-1 text-white/50 select-none transition-opacity duration-300 pointer-events-none",
-        isInterludeActive ? "opacity-100" : "opacity-0",
-      )}
-      aria-label="Nhạc dạo"
-      aria-hidden={!isInterludeActive}
-    >
-      <span className="size-2 rounded-full bg-white/70 animate-ping [animation-duration:1.4s]" />
-      <span className="size-2 rounded-full bg-white/60 animate-pulse [animation-delay:200ms]" />
-      <span className="size-2 rounded-full bg-white/50 animate-pulse [animation-delay:400ms]" />
-      <span className="text-[11px] font-mono tracking-widest text-white/45 uppercase ml-1.5 font-semibold">
-        Nhạc dạo
-      </span>
-    </div>
-  );
-});
 
 /**
  * WordByWordActiveLine — dòng lời đang phát tô chữ theo từng âm tiết (Visuals & Lyrics 2.0).

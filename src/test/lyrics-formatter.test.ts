@@ -330,5 +330,37 @@ describe("Lyrics Formatter V2 — Zero Content Mutation & Precise Timing", () =>
       expect(totalDuration).toBeGreaterThan(2.0);
       expect(words[words.length - 1]!.endTime).toBeLessThanOrEqual(8.5);
     });
+
+    it("allocates sustained melisma duration to prolonged vowels and tilde extensions", () => {
+      const line = { time: 0.0, text: "Người hơiiii dẫu biết mai" };
+      const words = computeWordTimings(line, 4.0);
+      expect(words).toHaveLength(5);
+      const hoiiDur = words[1]!.endTime - words[1]!.startTime;
+      const dauDur = words[2]!.endTime - words[2]!.startTime;
+      // "hơiiii" has prolonged vowels so it receives significantly more duration than regular word
+      expect(hoiiDur).toBeGreaterThan(dauDur * 1.2);
+    });
+
+    it("clips staccato stop consonants (nhấp nhả) crisply without sluggish drag", () => {
+      const line = { time: 0.0, text: "nhấp nhạt bước đi" };
+      const words = computeWordTimings(line, 4.0);
+      expect(words).toHaveLength(4);
+      const nhapDur = words[0]!.endTime - words[0]!.startTime;
+      const diDur = words[3]!.endTime - words[3]!.startTime;
+      // "nhấp" ends in stop consonant -p and should be crisp
+      expect(nhapDur).toBeLessThanOrEqual(diDur);
+    });
+
+    it("ensures ballad lines finish decisively when artist stops, leaving trailing rest before next line", () => {
+      const line = { time: 10.0, text: "Dẫu biết mai này xa nhau" };
+      // 5.5s gap to next line (ballad interlude / pause)
+      const words = computeWordTimings(line, 15.5);
+      expect(words).toHaveLength(6);
+      const vocalEndTime = words[words.length - 1]!.endTime;
+      // Vocal ends naturally at around 2.2 - 2.8s
+      expect(vocalEndTime - 10.0).toBeLessThan(3.5);
+      // Leaves at least 1.5s of peaceful rest before next line arrives (no sluggish crawling)
+      expect(15.5 - vocalEndTime).toBeGreaterThan(1.5);
+    });
   });
 });

@@ -21,16 +21,18 @@ describe("Visualizer Modes & Persistence (Visuals & Lyrics 2.0)", () => {
     expect(getSavedVisualizerMode()).toBe("bars");
   });
 
-  it("persists and reads all 4 visualizer modes correctly", () => {
-    const modes: VisualizerMode[] = ["bars", "wave", "kinetic-3d", "particles"];
-
-    for (const m of modes) {
-      saveVisualizerMode(m);
-      expect(getSavedVisualizerMode()).toBe(m);
-    }
+  it("persists and reads 'bars' visualizer mode correctly", () => {
+    saveVisualizerMode("bars");
+    expect(getSavedVisualizerMode()).toBe("bars");
   });
 
-  it("safely falls back to 'bars' mode if localStorage has an invalid value", () => {
+  it("safely falls back to 'bars' mode if localStorage has an invalid or deprecated value", () => {
+    mockLocalStorage.setItem("duckroom.visualizer.mode", "wave");
+    expect(getSavedVisualizerMode()).toBe("bars");
+    mockLocalStorage.setItem("duckroom.visualizer.mode", "kinetic-3d");
+    expect(getSavedVisualizerMode()).toBe("bars");
+    mockLocalStorage.setItem("duckroom.visualizer.mode", "particles");
+    expect(getSavedVisualizerMode()).toBe("bars");
     mockLocalStorage.setItem("duckroom.visualizer.mode", "invalid-mode-value");
     expect(getSavedVisualizerMode()).toBe("bars");
   });
