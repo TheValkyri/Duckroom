@@ -654,13 +654,18 @@ _High Effort, High Impact / Architectural Risk. Cutting-edge capabilities settin
 - [x] ARIA live regions announce track and playback status transitions cleanly for screen readers.
 - [x] Adaptive Lyric Cadence & Anti-Jitter Syllable Engine accurately distinguishes Vietnamese velar nasals (`-ng`) from staccato stops, handles vocal chops, and inserts zero-width word break opportunities (`<wbr />`) for jitter-free multi-line wrapping.
 
-### Phase 2 Exit Criteria (Upcoming Sprint Priorities)
+### Phase 2 Exit Criteria (In Progress — Recommended Core Package Completed)
 
-- [ ] Mobile playback continues without interruption when device screen is locked or tab is hidden (P2-01: Native Audio Element routing bypass).
+- [x] Mobile playback continues without interruption when device screen is locked or tab is hidden (P2-01: Native Audio Element routing bypass & MediaSession auto-sync).
 - [ ] Symmetric dual-channel Web Audio graph for pop-free crossfade transitions without audio renegotiation gaps (P2-02).
-- [ ] Decouple 60–120Hz rAF lyric ticker from React Virtual DOM to native DOM / Canvas transforms for zero-jank lyric scrolling (P2-03).
+- [x] Decouple 60–120Hz rAF lyric ticker from React Virtual DOM to native DOM / `--lyric-pct` CSS custom properties, and idle ticker on tab hidden with Document PiP exemption (P2-03).
 - [ ] Library view with 500+ tracks scrolls at locked 60fps via `@tanstack/react-virtual` list windowing (P2-04).
-- [ ] Systematic removal of `as any` type assertions in favor of Zod schemas and strict Discriminated Unions across data layer (P2-06).
+- [ ] Decompose monolithic PlayerState into fine-grained contexts (Playback, Volume, UI) (P2-05).
+- [ ] S3 Presigned URL Cache Normalization & Cache-Control Headers (P2-06).
+- [x] Mobile horizontal swipe gestures on album jacket with directional velocity/displacement agreement and 45-degree vertical rejection (P2-07).
+- [ ] Eliminate Layout Shifts (CLS) in Sidebar and defer-paint (P2-08).
+- [ ] Authenticated Stereo Analog VU Meter with Spring Ballistics (P2-09).
+- [ ] Systematic removal of 370+ unsafe `as any` type assertions in favor of Zod schemas and strict Discriminated Unions across data layer (P2-10).
 
 ### Phase 3 Exit Criteria (Future Horizons)
 
