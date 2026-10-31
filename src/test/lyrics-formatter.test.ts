@@ -439,5 +439,31 @@ describe("Lyrics Formatter V2 — Zero Content Mutation & Precise Timing", () =>
       expect(words[2]!.text).toBe("em -");
       expect(words[3]!.text).toBe("nhiều");
     });
+
+    it("eliminates artificial 3.2s dead crawl on short lines followed by long instrumental gaps", () => {
+      // 7-word phrase followed by a 6.0-second gap
+      const line = { time: 10.0, text: "Khiến em muốn đâm đầu vô tường" };
+      const words = computeWordTimings(line, 16.0); // 6s gap
+      expect(words).toHaveLength(7);
+      const lastWord = words[6]!;
+      expect(lastWord.text).toBe("tường");
+
+      // The line should complete within its natural acoustic decay (~2.5s - 2.9s)
+      // and NOT crawl across 3.2s+ into the instrumental gap.
+      const lineActiveSpan = lastWord.endTime - line.time;
+      expect(lineActiveSpan).toBeLessThan(3.0);
+      expect(lastWord.endTime).toBeLessThan(13.0);
+    });
+
+    it("treats Vietnamese acute/heavy staccato syllables ('hát', 'thét', 'biết') with crisper attack", () => {
+      const line = { time: 0.0, text: "cứ hát cho người nghe" };
+      const words = computeWordTimings(line, 4.0);
+      expect(words).toHaveLength(5);
+      const hatDur = words[1]!.endTime - words[1]!.startTime;
+      const nguoiDur = words[3]!.endTime - words[3]!.startTime;
+
+      // "hát" has acute staccato tone (-t) and should be crisper than the resonant "người"
+      expect(hatDur).toBeLessThan(nguoiDur);
+    });
   });
 });

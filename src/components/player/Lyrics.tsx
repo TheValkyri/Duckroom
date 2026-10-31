@@ -158,6 +158,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
   const isInitialMountRef = useRef(true);
   /** Vị trí active HIỆN TẠI trên DOM — để ticker chỉ đụng 2 node đổi trạng thái. */
   const activeIndexRef = useRef(-1);
+  const lastScrolledIdxRef = useRef(-1);
 
   // §10.4 — global offset: display-time shift only, per-track persistence.
   // Fix 2026-08-25: pill UI chỉnh offset (− / giá trị / +) đã bị XÓA SẠCH theo
@@ -169,6 +170,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
     isUserScrollingRef.current = false;
     isInitialMountRef.current = true;
     activeIndexRef.current = -1;
+    lastScrolledIdxRef.current = -1;
     itemRefs.current = [];
   }
 
@@ -414,6 +416,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
         onActiveChange={(idx, isScrollOnly) => {
           if (isScrollOnly) {
             if (!isUserScrollingRef.current && idx >= 0) {
+              lastScrolledIdxRef.current = idx;
               scrollActiveIntoView(idx);
             }
             return;
@@ -423,6 +426,7 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
           if (idx < 0) {
             const c = containerRef.current;
             if (!c) return;
+            lastScrolledIdxRef.current = -1;
             if (isInitialMountRef.current) {
               c.scrollTop = 0;
               isInitialMountRef.current = false;
@@ -430,7 +434,11 @@ export function LyricsPane({ compact = false }: { compact?: boolean }) {
               cancelScrollRef.current = animateScrollTo(c, 0);
             }
           } else {
-            scrollActiveIntoView(idx);
+            // Guard: avoid re-triggering and aborting anticipation scroll in flight
+            if (lastScrolledIdxRef.current !== idx) {
+              lastScrolledIdxRef.current = idx;
+              scrollActiveIntoView(idx);
+            }
           }
         }}
       />
@@ -618,28 +626,46 @@ const PROLONGED_CHAR_RE = /(.)\1{2,}|[~]{1,}/i;
 const VOCAL_CHOP_RE = /^(?:ah|ha|oh|la|na|da|yo|uh|ba|ta|pa|hey|ay|eh)[.,!?;:~…\-–—]*$/i;
 const OPEN_MELISMA_VOWEL_RE =
   /(?:[aeiouyàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹ]|oi|ơi|ôi|ai|ay|ao|au|âu|eo|êu|ui|ưi|ươi|uôi)$/i;
+const VIET_STACCATO_CADENCE_RE =
+  /(?:[áắấéếíóốớúứý][ptck]|(?:[áắấéếíóốớúứý]ch)|[ạặậẹệịọộợụựỵ][ptck]?|(?:[ạặậẹệịọộợụựỵ]ch))$/i;
 
 function computeCadenceProgress(linear: number, text: string): number {
   if (linear <= 0) return 0;
   if (linear >= 1) return 1;
 
-  const clean = text.replace(/[.,!?;:…"“”'’\-–—()[\]{}]/g, "");
-  const isHyphenChop = text.endsWith("-") || VOCAL_CHOP_RE.test(clean);
+  const trimmed = text.trim();
+  const clean = trimmed.replace(/[.,!?;:…"“”'’\-–—()[\]{}]/g, "");
+  const isHyphenChop = trimmed.endsWith("-") || VOCAL_CHOP_RE.test(clean);
+  const isVietStaccato = VIET_STACCATO_CADENCE_RE.test(clean);
   const isStopConsonant = STOP_CONSONANT_RE.test(clean);
   const isProlonged = PROLONGED_CHAR_RE.test(clean) || /~/.test(text) || OPEN_MELISMA_VOWEL_RE.test(clean);
 
+  // 1. Natural Breath Pause / Caesura on trailing punctuation:
+  // Completes the word singing sweep early and tranquilizes into solid white while artist breathes
+  if (/[.!?…]$/.test(trimmed)) {
+    return Math.min(1, Math.pow(linear / 0.6, 0.9));
+  }
+  if (/[,;:\-–—]$/.test(trimmed)) {
+    return Math.min(1, Math.pow(linear / 0.68, 0.92));
+  }
+
+  // 2. Vietnamese acute/heavy tone staccato (dấu sắc / nặng ngắt dứt điểm):
+  if (isVietStaccato && !isProlonged) {
+    return Math.min(1, Math.pow(linear / 0.72, 0.85));
+  }
+
+  // 3. Standard stop consonant staccato (nhấp nhả):
   if (isStopConsonant && !isProlonged) {
-    // Staccato (nhấp nhả): brisk musical attack, completes at ~78% and rests crisply
     return Math.min(1, Math.pow(linear / 0.78, 0.85));
   }
 
+  // 4. Vocal chop runs ("ah-", "ah", "oh-", "la-"): energetic rhythmic pulse on beat
   if (isHyphenChop) {
-    // Vocal chop runs ("ah-", "ah", "oh-", "la-"): energetic rhythmic pulse on beat
     return 1 - Math.pow(1 - linear, 1.8);
   }
 
+  // 5. Melisma / prolonged vowels (kéo hơi): silky smooth sine easing across the sustained note
   if (isProlonged) {
-    // Melisma / prolonged vowels (kéo hơi): silky smooth sine easing across the sustained note
     return Math.sin((linear * Math.PI) / 2);
   }
 

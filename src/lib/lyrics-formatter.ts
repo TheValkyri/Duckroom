@@ -304,6 +304,7 @@ const WEAK_PARTICLES = new Set([
 
 const STOP_CONSONANT_RE = /(?:[cptk]|ch|ck|pt|ct|ft|d|b|(?<!n)g)$/i;
 const PROLONGED_CHAR_RE = /(.)\1{2,}|[~]{1,}/i;
+const VIET_STACCATO_RE = /(?:[áắấéếíóốớúứý][ptck]|(?:[áắấéếíóốớúứý]ch)|[ạặậẹệịọộợụựỵ][ptck]?|(?:[ạặậẹệịọộợụựỵ]ch))$/i;
 
 function getAcousticWeight(cleanWord: string, isLastWord: boolean): number {
   const baseWord = cleanWord.replace(/-+$/, "");
@@ -333,10 +334,13 @@ function getAcousticWeight(cleanWord: string, isLastWord: boolean): number {
   }
 
   const isStopConsonant = STOP_CONSONANT_RE.test(baseWord);
+  const isVietStaccato = VIET_STACCATO_RE.test(baseWord);
   const isProlonged = PROLONGED_CHAR_RE.test(baseWord) || /~/.test(cleanWord);
 
   // Staccato stop consonants (nhấp nhả): tokens ending in stop consonants cut off sharply
-  if (isStopConsonant && !isProlonged) {
+  if (isVietStaccato && !isProlonged) {
+    weight *= 0.74; // Sharp acute/heavy Vietnamese stop tone
+  } else if (isStopConsonant && !isProlonged) {
     weight *= 0.78;
   }
 
@@ -464,12 +468,18 @@ export function computeWordTimings(line: LyricLine, nextLineTime?: number): Lyri
           const minRest = Math.max(0.8, gap * 0.35);
           const maxAllowed = Math.max(0.6, gap - minRest);
           lineDuration = Math.min(maxAllowed, naturalAcousticDuration);
-        } else {
-          // Melisma / open vowel / prolonged vocal (kéo hơi):
-          const minRest = Math.max(0.65, Math.min(2.0, gap * 0.28));
+        } else if (hasProlongedOrTilde) {
+          // Explicitly prolonged vocal / melisma (ngân dài: "ah-ah-ah", "ơiiii", "~"):
+          const minRest = Math.max(0.65, Math.min(2.0, gap * 0.25));
           const maxAllowed = Math.max(0.6, gap - minRest);
-          // In standard gaps, allow vocal to sustain naturally up to 3.2s or intrinsic duration
-          lineDuration = Math.min(maxAllowed, Math.max(naturalAcousticDuration, Math.min(3.2, gap * 0.65)));
+          lineDuration = Math.min(maxAllowed, Math.max(naturalAcousticDuration * 1.35, Math.min(3.5, gap * 0.72)));
+        } else {
+          // Standard Pop / Ballad phrasing:
+          // Sustains naturally with organic musical release (~1.15x),
+          // completely eliminating dead crawl when followed by a long musical rest.
+          const minRest = Math.max(0.85, gap * 0.3);
+          const maxAllowed = Math.max(0.6, gap - minRest);
+          lineDuration = Math.min(maxAllowed, naturalAcousticDuration * 1.15);
         }
       }
     }
