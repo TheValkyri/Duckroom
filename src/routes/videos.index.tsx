@@ -3,12 +3,14 @@ import { Film } from "lucide-react";
 import { motion } from "motion/react";
 import { springSnappy, tapScale } from "../lib/motion";
 import { VideosSkeleton } from "../components/LibrarySkeleton";
+import { RouteErrorFallback } from "../components/RouteErrorFallback";
 import { getPublicLibrarySummaryServer } from "../lib/ssr-loaders";
 
 export const Route = createFileRoute("/videos/")({
   staleTime: 60_000,
   gcTime: 1000 * 60 * 30,
   pendingComponent: VideosSkeleton,
+  errorComponent: RouteErrorFallback,
   loader: async () => {
     try {
       const summary = await getPublicLibrarySummaryServer();

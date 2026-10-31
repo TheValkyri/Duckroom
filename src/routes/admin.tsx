@@ -53,8 +53,10 @@ import {
   TracksManagerSection,
   getFileTypeInfo,
 } from "../components/admin";
+import { RouteErrorFallback } from "../components/RouteErrorFallback";
 
 export const Route = createFileRoute("/admin")({
+  errorComponent: RouteErrorFallback,
   head: () => ({
     meta: [
       { title: "Owner Control Room — Duckroom" },

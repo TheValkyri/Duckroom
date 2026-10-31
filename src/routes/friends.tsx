@@ -18,9 +18,11 @@ import { BlockedUserRow } from "../components/social/BlockedUserRow";
 import { ProfileCard } from "../components/social/ProfileCard";
 import { socialStore, useAllFriendsPresence } from "../lib/social/social-store";
 import { socialSubscriptions } from "../lib/social/social-subscriptions";
+import { RouteErrorFallback } from "../components/RouteErrorFallback";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/friends")({
+  errorComponent: RouteErrorFallback,
   head: () => ({
     meta: [
       { title: "Bạn bè — Duckroom" },

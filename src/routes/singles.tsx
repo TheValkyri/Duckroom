@@ -16,8 +16,8 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useMemo, useState } from "react";
-import { EditTrackModal } from "../components/EditTrackModal";
+import { lazy, Suspense, useCallback, useMemo, useState } from "react";
+import { RouteErrorFallback } from "../components/RouteErrorFallback";
 import { TrackRow } from "../components/TrackRow";
 import { deleteTrack, syncLibraryWithS3, type Track } from "../data/library";
 import { listContainerVariants, listItemVariants, springPill, springSnappy, tapScale } from "../lib/motion";
@@ -28,10 +28,13 @@ import { cn } from "../lib/utils";
 import { getPublicLibrarySummaryServer } from "../lib/ssr-loaders";
 import { AlbumsSkeleton } from "../components/LibrarySkeleton";
 
+const EditTrackModal = lazy(() => import("../components/EditTrackModal").then((m) => ({ default: m.EditTrackModal })));
+
 export const Route = createFileRoute("/singles")({
   staleTime: 60_000,
   gcTime: 1000 * 60 * 30,
   pendingComponent: AlbumsSkeleton,
+  errorComponent: RouteErrorFallback,
   loader: async () => {
     try {
       const summary = await getPublicLibrarySummaryServer();
@@ -562,11 +565,13 @@ function SinglesPage() {
       {/* Edit Track / Lyrics Modal */}
       <AnimatePresence>
         {editingTrack && (
-          <EditTrackModal
-            track={editingTrack}
-            onClose={() => setEditingTrack(null)}
-            onUpdated={() => setEditingTrack(null)}
-          />
+          <Suspense fallback={null}>
+            <EditTrackModal
+              track={editingTrack}
+              onClose={() => setEditingTrack(null)}
+              onUpdated={() => setEditingTrack(null)}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
     </div>

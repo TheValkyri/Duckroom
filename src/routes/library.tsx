@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Disc3, Music2, RefreshCw, Search, Trash2, UploadCloud, X } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { TrackRow } from "../components/TrackRow";
 import { LibrarySkeleton } from "../components/LibrarySkeleton";
@@ -149,12 +149,24 @@ function LibraryPage() {
   }, [tracks]);
 
   const listRef = useRef<HTMLDivElement | null>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const updateMargin = () => {
+      setScrollMargin(el.offsetTop);
+    };
+    updateMargin();
+    window.addEventListener("resize", updateMargin, { passive: true });
+    return () => window.removeEventListener("resize", updateMargin);
+  }, []);
 
   const rowVirtualizer = useWindowVirtualizer({
     count: list.length,
     estimateSize: () => 56,
     overscan: 8,
-    scrollMargin: listRef.current?.offsetTop ?? 0,
+    scrollMargin,
   });
 
   const filterTabs = useMemo(

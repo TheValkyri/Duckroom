@@ -25,20 +25,28 @@ describe("Phase 2 Architecture & Performance Hardening", () => {
   const s3Src = read("src/lib/s3.ts");
 
   describe("P2-04: Windowed List Virtualization (@tanstack/react-virtual)", () => {
-    it("virtualizes Library track listing with useWindowVirtualizer", () => {
+    it("virtualizes Library track listing with useWindowVirtualizer and dynamic useLayoutEffect scrollMargin", () => {
       expect(librarySrc).toContain('import { useWindowVirtualizer } from "@tanstack/react-virtual"');
       expect(librarySrc).toContain("useWindowVirtualizer({");
       expect(librarySrc).toContain("rowVirtualizer.getTotalSize()");
       expect(librarySrc).toContain("rowVirtualizer.getVirtualItems()");
-      expect(librarySrc).toContain("virtualRow.start - (rowVirtualizer.options.scrollMargin");
+      expect(librarySrc).toContain("scrollMargin,");
+      expect(librarySrc).toContain("useLayoutEffect");
+      expect(librarySrc).toContain("setScrollMargin(el.offsetTop)");
     });
 
-    it("virtualizes QueuePanel with useVirtualizer and maintains scroll parent ref", () => {
-      expect(queuePanelSrc).toContain('import { useVirtualizer } from "@tanstack/react-virtual"');
-      expect(queuePanelSrc).toContain("useVirtualizer({");
+    it("virtualizes QueuePanel with useVirtualizer, pins dragging row via rangeExtractor, and decouples contexts", () => {
+      expect(queuePanelSrc).toContain("defaultRangeExtractor");
+      expect(queuePanelSrc).toContain("useVirtualizer");
       expect(queuePanelSrc).toContain("virtualizer.getTotalSize()");
       expect(queuePanelSrc).toContain("virtualizer.getVirtualItems()");
       expect(queuePanelSrc).toContain("parentRef");
+      expect(queuePanelSrc).toContain("rangeExtractor");
+      expect(queuePanelSrc).toContain("draggingIndex");
+      expect(queuePanelSrc).toContain("usePlayerQueue()");
+      expect(queuePanelSrc).toContain("usePlayerUI()");
+      expect(queuePanelSrc).toContain("usePlayerActions()");
+      expect(queuePanelSrc).not.toContain("usePlayer()");
     });
   });
 
@@ -52,7 +60,8 @@ describe("Phase 2 Architecture & Performance Hardening", () => {
       expect(playerSrc).toContain("export const usePlayerActions =");
     });
 
-    it("nests granular context providers with memoized value projections", () => {
+    it("nests granular context providers with memoized value projections and CurrentTrackCtx", () => {
+      expect(playerSrc).toContain("<CurrentTrackCtx.Provider value={viewCurrent}>");
       expect(playerSrc).toContain("<PlaybackCtx.Provider value={playbackValue}>");
       expect(playerSrc).toContain("<VolumeCtx.Provider value={volumeValue}>");
       expect(playerSrc).toContain("<PlayerUICtx.Provider value={uiValue}>");
@@ -72,6 +81,11 @@ describe("Phase 2 Architecture & Performance Hardening", () => {
     it("PhoneCurrentLyricLine consumes usePlayerCurrentTrack() to isolate lyric line changes", () => {
       expect(phoneLyricSrc).toContain("usePlayerCurrentTrack()");
     });
+
+    it("LyricsPane in Lyrics.tsx consumes usePlayerCurrentTrack() & usePlayerActions()", () => {
+      expect(lyricsSrc).toContain("usePlayerCurrentTrack()");
+      expect(lyricsSrc).toContain("usePlayerActions()");
+    });
   });
 
   describe("P2-08: Sidebar Layout Thrashing & CLS Elimination", () => {
@@ -82,10 +96,15 @@ describe("Phase 2 Architecture & Performance Hardening", () => {
   });
 
   describe("P2-12: Admin Subsystem Code Splitting & Lazy Loading", () => {
-    it("dynamically imports EditTrackModal via React.lazy with Suspense boundary in TrackRow", () => {
+    it("dynamically imports EditTrackModal via React.lazy with Suspense boundary in TrackRow and singles route", () => {
       expect(trackRowSrc).toContain("lazy(");
       expect(trackRowSrc).toContain("EditTrackModal");
       expect(trackRowSrc).toContain("<Suspense fallback={null}>");
+
+      const singlesSrc = read("src/routes/singles.tsx");
+      expect(singlesSrc).toContain("lazy(");
+      expect(singlesSrc).toContain("EditTrackModal");
+      expect(singlesSrc).toContain("<Suspense fallback={null}>");
     });
   });
 
@@ -96,12 +115,23 @@ describe("Phase 2 Architecture & Performance Hardening", () => {
       expect(routeErrorFallbackSrc).toContain("reset");
     });
 
-    it("attaches RouteErrorFallback as errorComponent across major route definitions", () => {
+    it("attaches RouteErrorFallback as errorComponent across all child route definitions", () => {
       const routes = [
         { path: "src/routes/library.tsx", src: librarySrc },
         { path: "src/routes/albums.$albumId.tsx", src: read("src/routes/albums.$albumId.tsx") },
+        { path: "src/routes/albums.index.tsx", src: read("src/routes/albums.index.tsx") },
+        { path: "src/routes/admin.tsx", src: read("src/routes/admin.tsx") },
+        { path: "src/routes/friends.tsx", src: read("src/routes/friends.tsx") },
+        { path: "src/routes/index.tsx", src: read("src/routes/index.tsx") },
+        { path: "src/routes/login.tsx", src: read("src/routes/login.tsx") },
+        { path: "src/routes/my-library.tsx", src: read("src/routes/my-library.tsx") },
+        { path: "src/routes/profile.tsx", src: read("src/routes/profile.tsx") },
+        { path: "src/routes/s.$token.tsx", src: read("src/routes/s.$token.tsx") },
+        { path: "src/routes/singles.tsx", src: read("src/routes/singles.tsx") },
         { path: "src/routes/stats.tsx", src: read("src/routes/stats.tsx") },
+        { path: "src/routes/upload.tsx", src: read("src/routes/upload.tsx") },
         { path: "src/routes/videos.$videoId.tsx", src: read("src/routes/videos.$videoId.tsx") },
+        { path: "src/routes/videos.index.tsx", src: read("src/routes/videos.index.tsx") },
       ];
 
       for (const { path, src } of routes) {
@@ -121,12 +151,13 @@ describe("Phase 2 Architecture & Performance Hardening", () => {
       expect(occurrences).toBeGreaterThanOrEqual(4);
     });
 
-    it("implements bounded client-side artwork cache in s3.ts with TTL and FIFO eviction", () => {
+    it("implements bounded client-side artwork and thumbnail cache in s3.ts with TTL and FIFO eviction", () => {
       expect(s3Src).toContain("clientArtworkCache");
       expect(s3Src).toContain("MAX_CLIENT_CACHE = 100");
       expect(s3Src).toContain("CACHE_TTL_MS = 10 * 60 * 1000");
       expect(s3Src).toContain("getCachedArtwork");
       expect(s3Src).toContain("setCachedArtwork");
+      expect(s3Src).toContain("video:${videoId}");
     });
   });
 

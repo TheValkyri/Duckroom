@@ -5,19 +5,30 @@ import { toast } from "sonner";
 import { resolveShareLinkServer } from "../lib/sharing";
 import { springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { formatTime } from "../data/library";
+import { RouteErrorFallback } from "../components/RouteErrorFallback";
+
+interface SharedLoaderData {
+  __sharedError?: boolean;
+  resource_type?: "track" | "album" | "playlist" | "video";
+  resource?: Record<string, unknown>;
+  artworkUrl?: string | null;
+  mediaUrl?: string | null;
+  canonicalUrl?: string | null;
+}
 
 export const Route = createFileRoute("/s/$token")({
-  loader: async ({ params }: { params: { token: string } }) => {
+  errorComponent: RouteErrorFallback,
+  loader: async ({ params }: { params: { token: string } }): Promise<SharedLoaderData> => {
     // Server-function RPC errors (expired/revoked/unknown token) arrive as
     // generic errors over the wire. Catch here and render a friendly page
     // instead of leaking a 500 to the visitor.
     try {
       return await resolveShareLinkServer({ data: { token: params.token } });
     } catch {
-      return { __sharedError: true as const };
+      return { __sharedError: true };
     }
   },
-  head: ({ loaderData }: { loaderData?: any }) => {
+  head: ({ loaderData }: { loaderData?: SharedLoaderData }) => {
     if (!loaderData || loaderData.__sharedError) return { meta: [{ title: "Duckroom — Shared" }] };
     const resource = (loaderData.resource as Record<string, unknown>) || {};
     const isPlaylist = loaderData.resource_type === "playlist";
@@ -33,7 +44,7 @@ export const Route = createFileRoute("/s/$token")({
           property: "og:type",
           content: isPlaylist ? "music.playlist" : loaderData.resource_type === "video" ? "video.other" : "music.song",
         },
-        { property: "og:title", content: title },
+        { property: "og:title", title },
         { property: "og:description", content: description },
         { property: "og:image", content: artwork },
         { property: "og:url", content: (loaderData.canonicalUrl as string) || "" },
@@ -48,7 +59,7 @@ export const Route = createFileRoute("/s/$token")({
 });
 
 function SharedResourcePage() {
-  const data = Route.useLoaderData() as any;
+  const data = Route.useLoaderData() as SharedLoaderData;
   if (!data) return null;
 
   if (data.__sharedError) {

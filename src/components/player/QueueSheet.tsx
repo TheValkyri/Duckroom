@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import { albumById, formatTime } from "../../data/library";
 import { MobileSheet } from "../MobileSheet";
 import { springSnappy } from "../../lib/motion";
-import { usePlayer } from "../../lib/player";
+import { usePlayerActions, usePlayerQueue, usePlayerUI } from "../../lib/player";
 import { cn } from "../../lib/utils";
 
 /**
@@ -23,7 +23,9 @@ const QUEUE_FALLBACK_COVER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Crect width='72' height='72' fill='%2318181b'/%3E%3C/svg%3E";
 
 export function QueueSheet({ open = true }: { open?: boolean }) {
-  const { queue, index, jumpTo, setQueueOpen, moveInQueue } = usePlayer();
+  const { queue, index } = usePlayerQueue();
+  const { setQueueOpen } = usePlayerUI();
+  const { jumpTo, moveInQueue } = usePlayerActions();
 
   return (
     <MobileSheet open={open} onClose={() => setQueueOpen(false)} title="Hàng đợi" maxHeightVh={72}>

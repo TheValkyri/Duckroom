@@ -35,8 +35,10 @@ import {
 import { cn } from "../lib/utils";
 import { useAuth } from "../lib/useAuth";
 import { useDuckroomRole } from "../lib/useRole";
+import { RouteErrorFallback } from "../components/RouteErrorFallback";
 
 export const Route = createFileRoute("/upload")({
+  errorComponent: RouteErrorFallback,
   head: () => ({
     meta: [
       { title: "Tải lên & Trung tâm Tiếp nhận — Duckroom" },

@@ -6,8 +6,10 @@ import { ModernDuckLogo } from "../components/AppShell";
 import { springSmooth, springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { supabase } from "../lib/supabase-client";
 import { useAuth } from "../lib/useAuth";
+import { RouteErrorFallback } from "../components/RouteErrorFallback";
 
 export const Route = createFileRoute("/login")({
+  errorComponent: RouteErrorFallback,
   head: () => ({
     meta: [
       { title: "Đăng nhập — Duckroom" },

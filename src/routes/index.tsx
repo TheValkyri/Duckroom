@@ -16,11 +16,13 @@ import { useDuckroomRole } from "../lib/useRole";
 import { useMemberLibraryContext } from "../lib/member-library-context";
 import { cn } from "../lib/utils";
 import { getPublicLibrarySummaryServer } from "../lib/ssr-loaders";
+import { RouteErrorFallback } from "../components/RouteErrorFallback";
 
 export const Route = createFileRoute("/")({
   staleTime: 60_000,
   gcTime: 1000 * 60 * 30,
   pendingComponent: HomeSkeleton,
+  errorComponent: RouteErrorFallback,
   loader: async () => {
     try {
       const summary = await getPublicLibrarySummaryServer();

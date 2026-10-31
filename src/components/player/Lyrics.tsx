@@ -1,7 +1,8 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  usePlayer,
+  usePlayerActions,
+  usePlayerCurrentTrack,
   usePlayerTime,
   usePlayerTimeSnapshot,
   useGetPlayerTime,
@@ -148,7 +149,8 @@ function getOrHydrateItems(
 }
 
 export function LyricsPane({ compact = false }: { compact?: boolean }) {
-  const { current, seek } = usePlayer();
+  const current = usePlayerCurrentTrack();
+  const { seek } = usePlayerActions();
   const getPlayerTime = useGetPlayerTime();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);

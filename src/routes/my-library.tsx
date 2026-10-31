@@ -27,8 +27,10 @@ import { springSnappy, tapScale, tweenBase } from "../lib/motion";
 import { cn } from "../lib/utils";
 import type { MemberPlaylist } from "../lib/useMemberLibrary";
 import { formatTime, type Track } from "../data/library";
+import { RouteErrorFallback } from "../components/RouteErrorFallback";
 
 export const Route = createFileRoute("/my-library")({
+  errorComponent: RouteErrorFallback,
   head: () => ({
     meta: [
       { title: "Kho của tôi — Duckroom" },

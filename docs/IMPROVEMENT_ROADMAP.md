@@ -430,9 +430,9 @@ _Medium Effort, High Impact / Medium Risk. Core architectural enhancements deliv
 - **Target Files**: `src/routes/library.tsx:347-375`, `src/components/player/QueuePanel.tsx:46-75`, `src/routes/albums.$albumId.tsx:390-410`
 - **Concrete Solution Architecture**:
   Installed `@tanstack/react-virtual` and bundled under `vendor-tanstack` in `vite.config.ts`.
-  1. `src/routes/library.tsx`: implemented windowed virtualization with `useWindowVirtualizer({ count: list.length, estimateSize: () => 64, overscan: 8, scrollMargin })`. Total size container with `translateY(${virtualRow.start - scrollMargin}px)` ensures only visible elements exist in DOM.
-  2. `src/components/player/QueuePanel.tsx`: implemented container virtualization with `useVirtualizer({ count: queue.length, getScrollElement: () => parentRef.current, estimateSize: () => 52, overscan: 6 })` while retaining HTML5 drag-and-drop reordering.
-- **Expected Impact/Metrics**: Caps DOM element count to under 300 regardless of whether the library contains 100 or 1,000 tracks. Eliminates scroll stuttering completely.
+  1. `src/routes/library.tsx`: implemented windowed virtualization with `useWindowVirtualizer({ count: list.length, estimateSize: () => 56, overscan: 8, scrollMargin })`. Synchronized `scrollMargin` dynamically via `useLayoutEffect` and passive window `resize` listeners to eliminate initial offset drift.
+  2. `src/components/player/QueuePanel.tsx`: implemented container virtualization with `useVirtualizer({ count: queue.length, getScrollElement: () => parentRef.current, estimateSize: () => 52, overscan: 6 })`. Added custom `rangeExtractor` pinning active `draggingIndex` to ensure the HTML5 drag source element is never unmounted during rapid scrolling, preventing browser drag cancellation.
+- **Expected Impact/Metrics**: Caps DOM element count to under 300 regardless of whether the library contains 100 or 1,000 tracks. Eliminates scroll stuttering completely and guarantees unbreakable drag-and-drop.
 
 ---
 
@@ -442,15 +442,16 @@ _Medium Effort, High Impact / Medium Risk. Core architectural enhancements deliv
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Medium | Risk: Medium
 - **Prerequisites**: Phase 1 completed
-- **Target Files**: `src/lib/player.tsx:255-327, 1800-1835`, `src/components/player/PlayerBar.tsx:143-167`, `src/components/player/Controls.tsx:112-140`
+- **Target Files**: `src/lib/player.tsx:255-327, 1800-1835`, `src/components/player/PlayerBar.tsx:143-167`, `src/components/player/Controls.tsx:112-140`, `src/components/player/QueuePanel.tsx`, `src/components/player/QueueSheet.tsx`, `src/components/player/Lyrics.tsx`
 - **Concrete Solution Architecture**:
   Split monolithic `PlayerState` into specialized sub-contexts with memoized value projections:
-  1. `PlaybackCtx`: `current`, `isPlaying`, `direction` via `usePlaybackState()` and `usePlayerCurrentTrack()`.
-  2. `VolumeCtx`: `volume`, `isMuted`, `replayGainMode` via `usePlayerVolume()`.
-  3. `PlayerUICtx`: `expanded`, `lyricsOpen`, `queueOpen` via `usePlayerUI()`.
-  4. `QueueCtx`: `queue`, `index`, `jumpTo`, `moveInQueue` via `usePlayerQueue()`.
-  5. Decoupled consumers: `PlayerBar.tsx` (`VolumeBar`) now subscribes strictly to `usePlayerVolume()`; `Controls.tsx` (`SeekBar`) and `PhoneCurrentLyricLine.tsx` consume `usePlayerCurrentTrack()` and `usePlayerActions()`.
-- **Expected Impact/Metrics**: Eliminates cascade re-renders of 12+ components on volume changes or UI modal toggles.
+  1. `PlaybackCtx`: transport state (`current`, `isPlaying`, `isBuffering`, `direction`, `tabRole`, `audioRef`) memoized strictly on primitives, decoupled from volume, UI, and queue state.
+  2. `CurrentTrackCtx`: isolated selector context providing active track identity; `usePlayerCurrentTrack()` subscribes here so components (e.g. `SeekBar`, `LyricsPane`, `PhoneCurrentLyricLine`) do not re-render on play/pause, buffering, or volume changes.
+  3. `VolumeCtx`: `volume`, `isMuted`, `crossfade`, `replayGainMode` via `usePlayerVolume()`.
+  4. `PlayerUICtx`: `expanded`, `lyricsOpen`, `queueOpen` via `usePlayerUI()`.
+  5. `QueueCtx`: `queue`, `index`, `shuffle`, `repeat` via `usePlayerQueue()`.
+  6. Decoupled consumers: `VolumeBar` consumes `usePlayerVolume()`; `SeekBar` and `LyricsPane` consume `usePlayerCurrentTrack()` and `usePlayerActions()`; `QueuePanel` and `QueueSheet` consume `usePlayerQueue()`, `usePlayerUI()`, and `usePlayerActions()`.
+- **Expected Impact/Metrics**: Eliminates cascade re-renders across 12+ components on volume changes, UI sheet toggles, or playback state changes.
 
 ---
 
@@ -460,11 +461,11 @@ _Medium Effort, High Impact / Medium Risk. Core architectural enhancements deliv
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Medium | Risk: Medium
 - **Prerequisites**: Phase 1 completed
-- **Target Files**: `src/lib/s3-functions.ts:190-250`, `src/lib/s3.ts:42-106`
+- **Target Files**: `src/lib/s3-functions.ts:190-250`, `src/lib/s3.ts:42-120`
 - **Concrete Solution Architecture**:
   1. Attached `ResponseCacheControl: "private, max-age=86400"` to all S3 `GetObjectCommand` presigner calls across audio playback, video playback, track artwork, album artwork, and video thumbnails.
-  2. Implemented bounded in-memory client-side cache (`clientArtworkCache`) in `src/lib/s3.ts` with 100-entry capacity, 10-minute TTL, and FIFO eviction for `fetchTrackArtworkUrl` and `fetchAlbumArtworkUrl`.
-- **Expected Impact/Metrics**: Reduces S3 egress bandwidth costs by 40–60% on repeated playlist listens.
+  2. Implemented bounded in-memory client-side cache (`clientArtworkCache`) in `src/lib/s3.ts` with 100-entry capacity, 10-minute TTL, and FIFO eviction for `fetchTrackArtworkUrl`, `fetchAlbumArtworkUrl`, and `fetchVideoThumbnailUrl`.
+- **Expected Impact/Metrics**: Reduces S3 egress bandwidth costs by 40–60% on repeated playlist listens and video browses.
 
 ---
 
@@ -536,22 +537,22 @@ _Medium Effort, High Impact / Medium Risk. Core architectural enhancements deliv
 - **Target Files**: `src/components/RouteErrorFallback.tsx`, `src/routes/*.tsx`
 - **Concrete Solution Architecture**:
   1. Created `RouteErrorFallback.tsx` strictly conforming to TanStack Router `ErrorComponentProps ({ error, reset })`.
-  2. Attached `errorComponent: RouteErrorFallback` to child routes (`library.tsx`, `albums.$albumId.tsx`, `videos.$videoId.tsx`, `stats.tsx`).
-  3. Failures in child routes are trapped locally with a retry button without unmounting `PlayerProvider` or interrupting active audio streaming.
+  2. Attached `errorComponent: RouteErrorFallback` across ALL 15 child route definitions (`library.tsx`, `albums.$albumId.tsx`, `albums.index.tsx`, `admin.tsx`, `friends.tsx`, `index.tsx`, `login.tsx`, `my-library.tsx`, `profile.tsx`, `s.$token.tsx`, `singles.tsx`, `stats.tsx`, `upload.tsx`, `videos.$videoId.tsx`, `videos.index.tsx`).
+  3. Failures in any route are trapped locally with a retry button without unmounting `PlayerProvider` or interrupting active audio streaming.
 - **Expected Impact/Metrics**: Prevents individual route failures from crashing the entire application or stopping audio playback.
 
 ---
 
-### Item P2-12: Lazy Load Admin Subsystems from Public TrackRow (COMPLETED)
+### Item P2-12: Lazy Load Admin Subsystems from Public TrackRow & Singles (COMPLETED)
 
 - **Affected Domains**: Bundle Size
 - **Priority**: MEDIUM (Severity: MEDIUM)
 - **Complexity**: Effort: Low | Risk: Low
 - **Prerequisites**: Phase 1 completed
-- **Target Files**: `src/components/TrackRow.tsx:9, 370-380`
+- **Target Files**: `src/components/TrackRow.tsx:9, 370-380`, `src/routes/singles.tsx:31, 565-575`
 - **Concrete Solution Architecture**:
-  Dynamically import `EditTrackModal` via `lazy(() => import("./EditTrackModal").then(m => ({ default: m.EditTrackModal })))` wrapped inside `<Suspense fallback={null}>` in `TrackRow.tsx`.
-- **Expected Impact/Metrics**: Removes ~120KB of canvas crop and lyric editor code from the public initial bundle.
+  Dynamically import `EditTrackModal` via `lazy(() => import("../components/EditTrackModal").then(m => ({ default: m.EditTrackModal })))` wrapped inside `<Suspense fallback={null}>` across both `TrackRow.tsx` and `src/routes/singles.tsx`.
+- **Expected Impact/Metrics**: Removes ~120KB of canvas crop and lyric editor code from public route bundles.
 
 ---
 

@@ -1,15 +1,18 @@
 import { GripVertical, X } from "lucide-react";
 import { motion } from "motion/react";
-import { useRef, useState } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useCallback, useRef, useState } from "react";
+import { defaultRangeExtractor, useVirtualizer, type Range } from "@tanstack/react-virtual";
 import { albumById, formatTime } from "../../data/library";
 import { springGentle, springSnappy, tapScale } from "../../lib/motion";
-import { usePlayer } from "../../lib/player";
+import { usePlayerActions, usePlayerQueue, usePlayerUI } from "../../lib/player";
 import { cn } from "../../lib/utils";
 
 export function QueuePanel() {
-  const { queue, index, jumpTo, setQueueOpen, moveInQueue, shuffle } = usePlayer();
+  const { queue, index, shuffle } = usePlayerQueue();
+  const { setQueueOpen } = usePlayerUI();
+  const { jumpTo, moveInQueue } = usePlayerActions();
   const dragFrom = useRef<number | null>(null);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [over, setOver] = useState<number | null>(null);
   const parentRef = useRef<HTMLOListElement | null>(null);
 
@@ -18,6 +21,16 @@ export function QueuePanel() {
     getScrollElement: () => parentRef.current,
     estimateSize: () => 52,
     overscan: 6,
+    rangeExtractor: useCallback(
+      (range: Range) => {
+        const active = defaultRangeExtractor(range);
+        if (draggingIndex !== null && !active.includes(draggingIndex)) {
+          active.push(draggingIndex);
+        }
+        return active;
+      },
+      [draggingIndex],
+    ),
   });
 
   return (
@@ -80,7 +93,10 @@ export function QueuePanel() {
                   layout
                   transition={springSnappy}
                   draggable
-                  onDragStart={() => (dragFrom.current = i)}
+                  onDragStart={() => {
+                    dragFrom.current = i;
+                    setDraggingIndex(i);
+                  }}
                   onDragOver={(e) => {
                     e.preventDefault();
                     setOver(i);
@@ -88,9 +104,14 @@ export function QueuePanel() {
                   onDrop={() => {
                     if (dragFrom.current !== null) moveInQueue(dragFrom.current, i);
                     dragFrom.current = null;
+                    setDraggingIndex(null);
                     setOver(null);
                   }}
-                  onDragEnd={() => setOver(null)}
+                  onDragEnd={() => {
+                    dragFrom.current = null;
+                    setDraggingIndex(null);
+                    setOver(null);
+                  }}
                   className={cn(
                     "group hover:bg-accent/50 flex cursor-grab items-center gap-3 rounded-md px-3 py-2 active:cursor-grabbing",
                     i === index && "bg-accent/60",

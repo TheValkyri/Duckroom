@@ -246,6 +246,8 @@ export type PlayerUIState = {
 export type QueueState = {
   queue: Track[];
   index: number;
+  shuffle: boolean;
+  repeat: "off" | "all" | "one";
   jumpTo: (i: number) => void;
   moveInQueue: (from: number, to: number) => void;
   insertNext: (track: Track) => void;
@@ -254,6 +256,7 @@ export type QueueState = {
 
 const Ctx = createContext<PlayerState | null>(null);
 const PlayerActionsCtx = createContext<PlayerActions | null>(null);
+const CurrentTrackCtx = createContext<Track | undefined>(undefined);
 const PlaybackCtx = createContext<PlaybackState | null>(null);
 const VolumeCtx = createContext<VolumeState | null>(null);
 const PlayerUICtx = createContext<PlayerUIState | null>(null);
@@ -317,10 +320,14 @@ export const usePlayerQueue = (): QueueState => {
 
 /**
  * P2-05: Selector hook returning only the current active Track (or undefined).
+ * Subscribes to isolated CurrentTrackCtx to eliminate re-renders on volume,
+ * transport toggle, buffering, or UI state changes.
  */
 export function usePlayerCurrentTrack(): Track | undefined {
-  const ctx = useContext(PlaybackCtx);
-  if (ctx) return ctx.current;
+  const current = useContext(CurrentTrackCtx);
+  const playbackCtx = useContext(PlaybackCtx);
+  if (current !== undefined) return current;
+  if (playbackCtx) return playbackCtx.current;
   const s = playerEngine.getState();
   return s.queue[s.index];
 }
@@ -1701,24 +1708,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ],
   );
 
+  // Follower view: mirror leader projection onto the shared library queue.
+  let viewCurrent = current;
+  let viewIndex = safeIndex;
+  if (isFollower && remoteView) {
+    const idx = engineState.queue.findIndex((t) => t.id === remoteView.trackId);
+    if (idx >= 0) {
+      viewIndex = idx;
+      viewCurrent = engineState.queue[idx];
+    }
+  }
+
+  const isCurrentPlaying = isFollower ? !!remoteView?.isPlaying : engineState.isPlaying;
+
   // ---- Context projection (backward-compatible combined state) --------------
   const value = useMemo<PlayerState>(() => {
-    // Follower view: mirror leader projection onto the shared library queue.
-    let viewCurrent = current;
-    let viewIndex = safeIndex;
-    if (isFollower && remoteView) {
-      const idx = engineState.queue.findIndex((t) => t.id === remoteView.trackId);
-      if (idx >= 0) {
-        viewIndex = idx;
-        viewCurrent = engineState.queue[idx];
-      }
-    }
     return {
       ...actionsValue,
       queue: engineState.queue,
       index: viewIndex,
       current: viewCurrent,
-      isPlaying: isFollower ? !!remoteView?.isPlaying : engineState.isPlaying,
+      isPlaying: isCurrentPlaying,
       isBuffering,
       volume: engineState.volume,
       isMuted: engineState.muted,
@@ -1736,11 +1746,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [
     actionsValue,
-    current,
-    safeIndex,
-    isFollower,
-    remoteView,
     engineState,
+    viewIndex,
+    viewCurrent,
+    isCurrentPlaying,
     isBuffering,
     expanded,
     lyricsOpen,
@@ -1754,14 +1763,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // ---- Fine-Grained Sub-Tree Projections (P2-05) -------------------------
   const playbackValue = useMemo<PlaybackState>(
     () => ({
-      current: value.current,
-      isPlaying: value.isPlaying,
-      isBuffering: value.isBuffering,
-      direction: value.direction,
-      tabRole: value.tabRole,
+      current: viewCurrent,
+      isPlaying: isCurrentPlaying,
+      isBuffering,
+      direction: engineState.direction,
+      tabRole,
       audioRef: primaryAudioRef,
     }),
-    [value, primaryAudioRef],
+    [viewCurrent, isCurrentPlaying, isBuffering, engineState.direction, tabRole, primaryAudioRef],
   );
 
   const volumeValue = useMemo<VolumeState>(
@@ -1802,33 +1811,37 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const queueValue = useMemo<QueueState>(
     () => ({
       queue: engineState.queue,
-      index: value.index,
+      index: viewIndex,
+      shuffle: engineState.shuffle,
+      repeat: engineState.repeat,
       jumpTo,
       moveInQueue,
       insertNext,
       playQueue,
     }),
-    [engineState.queue, value.index, jumpTo, moveInQueue, insertNext, playQueue],
+    [engineState.queue, viewIndex, engineState.shuffle, engineState.repeat, jumpTo, moveInQueue, insertNext, playQueue],
   );
 
   return (
     <PlayerActionsCtx.Provider value={actionsValue}>
-      <PlaybackCtx.Provider value={playbackValue}>
-        <VolumeCtx.Provider value={volumeValue}>
-          <PlayerUICtx.Provider value={uiValue}>
-            <QueueCtx.Provider value={queueValue}>
-              <Ctx.Provider value={value}>
-                <PlayerTimeCtx.Provider value={timeStore}>
-                  {children}
-                  {/* Pure imperative dual audio elements for zero-latency seamless crossfade */}
-                  <audio ref={audioRefA} crossOrigin="anonymous" preload="auto" />
-                  <audio ref={audioRefB} crossOrigin="anonymous" preload="auto" />
-                </PlayerTimeCtx.Provider>
-              </Ctx.Provider>
-            </QueueCtx.Provider>
-          </PlayerUICtx.Provider>
-        </VolumeCtx.Provider>
-      </PlaybackCtx.Provider>
+      <CurrentTrackCtx.Provider value={viewCurrent}>
+        <PlaybackCtx.Provider value={playbackValue}>
+          <VolumeCtx.Provider value={volumeValue}>
+            <PlayerUICtx.Provider value={uiValue}>
+              <QueueCtx.Provider value={queueValue}>
+                <Ctx.Provider value={value}>
+                  <PlayerTimeCtx.Provider value={timeStore}>
+                    {children}
+                    {/* Pure imperative dual audio elements for zero-latency seamless crossfade */}
+                    <audio ref={audioRefA} crossOrigin="anonymous" preload="auto" />
+                    <audio ref={audioRefB} crossOrigin="anonymous" preload="auto" />
+                  </PlayerTimeCtx.Provider>
+                </Ctx.Provider>
+              </QueueCtx.Provider>
+            </PlayerUICtx.Provider>
+          </VolumeCtx.Provider>
+        </PlaybackCtx.Provider>
+      </CurrentTrackCtx.Provider>
     </PlayerActionsCtx.Provider>
   );
 }

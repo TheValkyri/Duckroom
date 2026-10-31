@@ -23,9 +23,11 @@ import { useDuckroomRole } from "../lib/useRole";
 import { useSocialProfile, normalizeHandle, isValidHandle } from "../lib/social";
 import { ProfileAvatar } from "../components/social/ProfileAvatar";
 import { springSnappy, tapScale } from "../lib/motion";
+import { RouteErrorFallback } from "../components/RouteErrorFallback";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/profile")({
+  errorComponent: RouteErrorFallback,
   head: () => ({
     meta: [
       { title: "Hồ sơ của tôi — Duckroom" },

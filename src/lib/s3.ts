@@ -111,9 +111,14 @@ export async function fetchAlbumArtworkUrl(albumId: string): Promise<string> {
  */
 export async function fetchVideoThumbnailUrl(videoId: string): Promise<string> {
   if (!videoId?.trim()) return "";
+  const cacheKey = `video:${videoId}`;
+  const hit = getCachedArtwork(cacheKey);
+  if (hit) return hit;
   try {
     const res = await getVideoThumbnailUrlServer({ data: { videoId } });
-    return res?.assetUrl || "";
+    const url = res?.assetUrl || "";
+    if (url) setCachedArtwork(cacheKey, url);
+    return url;
   } catch (err) {
     console.error("[Duckroom Video] Failed to resolve thumbnail URL for video:", videoId, err);
     return "";
