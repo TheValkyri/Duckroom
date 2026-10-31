@@ -5,7 +5,7 @@
 - **Target Repository**: `c:\Users\Darne\OneDrive\Pictures\Duckroom\repo`
 - **Audit Reference**: `docs/AUDIT_REPORT.md`
 - **Release Horizon**: 2026–2027 Engineering Plan
-- **Status**: Phase 1 COMPLETED & VERIFIED (Phase 2 & Phase 3 Prioritized for Next Iteration)
+- **Status**: Phase 1 COMPLETED & VERIFIED; Phase 2 High-Impact Package (P2-01, P2-03, P2-07) COMPLETED & VERIFIED
 - **Special Implementation**: Adaptive Lyric Cadence & Syllable Chop Engine (Completed)
 
 ---
@@ -370,7 +370,7 @@ _Medium Effort, High Impact / Medium Risk. Core architectural enhancements deliv
 
 ---
 
-### Item P2-01: Decouple AudioContext from Native Output on Mobile to Prevent Muting
+### Item P2-01: Decouple AudioContext from Native Output on Mobile to Prevent Muting (COMPLETED)
 
 - **Affected Domains**: Audio Engine, Mobile Reliability
 - **Priority**: CRITICAL (Severity: HIGH)
@@ -405,7 +405,7 @@ _Medium Effort, High Impact / Medium Risk. Core architectural enhancements deliv
 
 ---
 
-### Item P2-03: Decouple 60–120Hz rAF Lyric Ticker from React Virtual DOM
+### Item P2-03: Decouple 60–120Hz rAF Lyric Ticker from React Virtual DOM & Idle on Hidden (COMPLETED)
 
 - **Affected Domains**: Performance, Memory & Battery
 - **Priority**: HIGH (Severity: HIGH)
@@ -473,7 +473,7 @@ _Medium Effort, High Impact / Medium Risk. Core architectural enhancements deliv
 
 ---
 
-### Item P2-07: Add Mobile Horizontal Swipe Gestures on Album Jacket
+### Item P2-07: Add Mobile Horizontal Swipe Gestures on Album Jacket (COMPLETED)
 
 - **Affected Domains**: Animation & Gestures, UI/UX
 - **Priority**: HIGH (Severity: HIGH)

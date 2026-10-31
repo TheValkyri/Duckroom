@@ -53,8 +53,22 @@ export function useSmoothLyricTime(fallbackTime: number = 0): number {
 
     let isMounted = true;
 
+    const stopTicker = () => {
+      if (rafIdRef.current !== null && typeof cancelAnimationFrame !== "undefined") {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+    };
+
     const tick = () => {
       if (!isMounted) return;
+
+      // P2-03: Completely idle ticker when document is hidden (tab in background / screen locked)
+      // Zero unnecessary rendering or timer cycles occur.
+      if (typeof document !== "undefined" && document.hidden) {
+        rafIdRef.current = null;
+        return;
+      }
 
       const audio = audioRef?.current;
       const nowPerf = typeof performance !== "undefined" ? performance.now() : 0;
@@ -78,13 +92,34 @@ export function useSmoothLyricTime(fallbackTime: number = 0): number {
       rafIdRef.current = requestAnimationFrame(tick);
     };
 
-    rafIdRef.current = requestAnimationFrame(tick);
+    const handleVisibilityChange = () => {
+      if (typeof document === "undefined") return;
+      if (document.hidden) {
+        stopTicker();
+      } else if (isMounted && isPlaying && rafIdRef.current === null) {
+        // Tab restored or screen unlocked: re-sync immediately to real audio clock
+        const audio = audioRef?.current;
+        const currentAudioTime = audio && Number.isFinite(audio.currentTime) ? audio.currentTime : fallbackTime;
+        lastAudioTimeRef.current = currentAudioTime;
+        lastPerfTimeRef.current = typeof performance !== "undefined" ? performance.now() : 0;
+        setSmoothTime(currentAudioTime);
+        rafIdRef.current = requestAnimationFrame(tick);
+      }
+    };
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+    }
+
+    if (typeof document === "undefined" || !document.hidden) {
+      rafIdRef.current = requestAnimationFrame(tick);
+    }
 
     return () => {
       isMounted = false;
-      if (rafIdRef.current !== null && typeof cancelAnimationFrame !== "undefined") {
-        cancelAnimationFrame(rafIdRef.current);
-        rafIdRef.current = null;
+      stopTicker();
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
       }
     };
   }, [isPlaying, audioRef, fallbackTime]);

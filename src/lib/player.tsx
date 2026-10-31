@@ -98,6 +98,7 @@ export function usePlayerTime(): number {
 }
 
 export { useSmoothLyricTime } from "./use-smooth-lyric-time";
+export { isMobileAudioDevice } from "./audio-analyser";
 
 /* ---------------------------------------------------------------------------
  * SELECTOR HOOKS (perf 2026-09-01) — cho danh sách dài (TrackRow × 76+).
@@ -1483,6 +1484,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       navigator.mediaSession.playbackState = projectedIsPlaying ? "playing" : "paused";
     }
   }, [projectedTrackId, projectedIsPlaying, engineState.queue]);
+
+  // P2-01: Re-affirm MediaSession playbackState when screen locks or tab visibility toggles
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return undefined;
+    }
+    const syncVisibilityMediaSession = () => {
+      if (typeof navigator !== "undefined" && "mediaSession" in navigator) {
+        navigator.mediaSession.playbackState = projectedIsPlaying ? "playing" : "paused";
+      }
+    };
+    document.addEventListener("visibilitychange", syncVisibilityMediaSession);
+    return () => {
+      document.removeEventListener("visibilitychange", syncVisibilityMediaSession);
+    };
+  }, [projectedIsPlaying]);
 
   // ---- Hotkeys (unchanged contract) ----------------------------------------
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getAudioAnalyser } from "../lib/audio-analyser";
+import { getAudioAnalyser, disconnectAudioAnalyser } from "../lib/audio-analyser";
 import { usePlayer } from "../lib/player";
 import { subscribeTheme, accentCssVars, getThemeState } from "../lib/theme";
 import { getSavedVisualizerMode, type VisualizerMode } from "../lib/visualizer-storage";
@@ -42,6 +42,7 @@ export function Visualizer({
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
+    const currentAudio = audioRef?.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -250,6 +251,7 @@ export function Visualizer({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       observer?.disconnect();
       unsub();
+      disconnectAudioAnalyser(currentAudio);
     };
   }, [bars, playing, audioRef, activeMode]);
 

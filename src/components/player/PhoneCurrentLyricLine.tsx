@@ -108,14 +108,17 @@ const PhoneActiveWordFlow = memo(function PhoneActiveWordFlow({
             {/* Active syllable fluid fill overlay */}
             {isSinging && (
               <span
-                className="absolute inset-0 whitespace-nowrap text-white font-semibold select-none pointer-events-none"
-                style={{
-                  clipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
-                  WebkitClipPath: `inset(-15% ${(100 - Number(pct)).toFixed(1)}% -15% 0)`,
-                  maskImage: `linear-gradient(90deg, #000 0%, #000 ${leadStart}%, transparent ${pct}%, transparent 100%)`,
-                  WebkitMaskImage: `linear-gradient(90deg, #000 0%, #000 ${leadStart}%, transparent ${pct}%, transparent 100%)`,
-                  textShadow: "none",
-                }}
+                className="absolute inset-0 whitespace-nowrap text-white font-semibold select-none pointer-events-none transform-gpu will-change-[clip-path]"
+                style={
+                  {
+                    "--lyric-pct": `${pct}%`,
+                    clipPath: `inset(-15% calc(100% - var(--lyric-pct, ${pct}%)) -15% 0)`,
+                    WebkitClipPath: `inset(-15% calc(100% - var(--lyric-pct, ${pct}%)) -15% 0)`,
+                    maskImage: `linear-gradient(90deg, #000 0%, #000 ${leadStart}%, transparent var(--lyric-pct, ${pct}%), transparent 100%)`,
+                    WebkitMaskImage: `linear-gradient(90deg, #000 0%, #000 ${leadStart}%, transparent var(--lyric-pct, ${pct}%), transparent 100%)`,
+                    textShadow: "none",
+                  } as React.CSSProperties
+                }
                 aria-hidden="true"
               >
                 {w.text}

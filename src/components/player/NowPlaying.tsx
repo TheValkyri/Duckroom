@@ -17,6 +17,7 @@ import { NowPlayingTimeLabel } from "./NowPlayingTimeLabel";
 import { AmbientCrossfadeBackground } from "./AmbientCrossfadeBackground";
 import { PhoneCurrentLyricLine } from "./PhoneCurrentLyricLine";
 import { PhoneLyricsSheet } from "./PhoneLyricsSheet";
+import { calculateSwipeIntent } from "../../lib/swipe-gesture";
 
 export function NowPlaying() {
   const {
@@ -31,6 +32,7 @@ export function NowPlaying() {
     queueOpen,
     setQueueOpen,
     next,
+    prev,
     direction,
     // QoL: sleep timer cần pause + volume khi hết giờ.
     pause,
@@ -117,6 +119,16 @@ export function NowPlaying() {
     const { offset, velocity } = info;
     if (Math.abs(offset.x) > Math.abs(offset.y)) return; // horizontal intent
     if (offset.y > 72 || (velocity.y > 700 && offset.y > 24)) handleMinimize();
+  };
+
+  // P2-07: Mobile horizontal swipe gestures on album jacket (Framer Motion drag="x")
+  const handleArtworkDragEnd = (_e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    const intent = calculateSwipeIntent(info.offset, info.velocity);
+    if (intent === "next") {
+      next(true);
+    } else if (intent === "prev") {
+      prev();
+    }
   };
 
   return (
@@ -309,8 +321,6 @@ export function NowPlaying() {
               >
                 {/* Vinyl Record & Sleeve Container: Directional Glide & Tactile Disc */}
                 <div
-                  data-drag-dismiss
-                  onPointerDown={startDragDismiss}
                   style={{ perspective: 1000 }}
                   className={cn(
                     "relative flex items-center justify-center w-full",
@@ -320,6 +330,10 @@ export function NowPlaying() {
                   <AnimatePresence mode="popLayout" initial={false}>
                     <motion.div
                       key={current.id}
+                      drag="x"
+                      dragConstraints={{ left: 0, right: 0 }}
+                      dragElastic={0.2}
+                      onDragEnd={handleArtworkDragEnd}
                       initial={{
                         opacity: 0,
                         x: direction * 52,
@@ -344,8 +358,8 @@ export function NowPlaying() {
                         damping: 28,
                         mass: 0.85,
                       }}
-                      style={{ perspective: 1000, transformStyle: "preserve-3d" }}
-                      className="relative flex items-center justify-center w-full"
+                      style={{ perspective: 1000, transformStyle: "preserve-3d", touchAction: "pan-y" }}
+                      className="relative flex items-center justify-center w-full cursor-grab active:cursor-grabbing"
                     >
                       {/* Spinning Vinyl Record Disc - Slides out from behind the sleeve */}
                       <motion.div

@@ -10,7 +10,27 @@
 let audioCtx: AudioContext | null = null;
 let analyserNode: AnalyserNode | null = null;
 let userGestureSeen = false;
+let isMobileOverride: boolean | null = null;
 const mediaSourceMap = new WeakMap<HTMLAudioElement, MediaElementAudioSourceNode>();
+
+/**
+ * Detects mobile platforms (iOS / Android / touch iPad) where Web Audio API
+ * createMediaElementSource hijacks and mutes background audio on screen lock.
+ */
+export function isMobileAudioDevice(): boolean {
+  if (isMobileOverride !== null) return isMobileOverride;
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const isTouchMac =
+    typeof navigator.maxTouchPoints === "number" && navigator.maxTouchPoints > 1 && /Macintosh/i.test(ua);
+  return isMobileUA || isTouchMac;
+}
+
+/** Test hook for simulating mobile devices in tests */
+export function setMobileAudioDeviceForTesting(val: boolean | null): void {
+  isMobileOverride = val;
+}
 
 if (typeof window !== "undefined") {
   const unlockAudio = () => {
@@ -29,6 +49,13 @@ export function getAudioAnalyser(audioEl: HTMLAudioElement | null): AnalyserNode
   // Chưa có gesture → chưa được phép start context. Trả null (visualizer phẳng)
   // thay vì tạo suspended context và bắn warning mỗi render.
   if (!userGestureSeen) return null;
+
+  // P2-01: On mobile devices or when tab/screen is hidden, DO NOT attach
+  // createMediaElementSource(). Web Audio API permanently redirects native
+  // audio output away from browser hardware, which causes iOS Safari and
+  // Android Chrome to mute/suspend playback on screen lock.
+  if (isMobileAudioDevice()) return null;
+  if (typeof document !== "undefined" && document.hidden) return null;
 
   try {
     if (!audioCtx || audioCtx.state === "closed") {
@@ -135,6 +162,7 @@ export function resetAudioAnalyser(): void {
   audioCtx = null;
   analyserNode = null;
   userGestureSeen = false;
+  isMobileOverride = null;
 }
 
 /** Test hook để thiết lập userGestureSeen */
