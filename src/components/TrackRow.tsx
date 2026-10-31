@@ -1,11 +1,12 @@
 import { Ellipsis, Heart, Pencil, Play, Share2, Trash2, Volume2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { albumById, formatTime, type Track } from "../data/library";
 import { usePlayerIsCurrent, usePlayerIsPlaying } from "../lib/player";
 import { cn } from "../lib/utils";
-import { EditTrackModal } from "./EditTrackModal";
+
+const EditTrackModal = lazy(() => import("./EditTrackModal").then((m) => ({ default: m.EditTrackModal })));
 import { TrackActionsSheet } from "./TrackActionsSheet";
 import { useAuth } from "../lib/useAuth";
 import { useMemberLibraryContext } from "../lib/member-library-context";
@@ -365,13 +366,15 @@ export const TrackRow = memo(function TrackRow({
         )}
 
         {showEditModal && (
-          <EditTrackModal
-            track={track}
-            onClose={() => setShowEditModal(false)}
-            onUpdated={() => {
-              if (onUpdate) onUpdate();
-            }}
-          />
+          <Suspense fallback={null}>
+            <EditTrackModal
+              track={track}
+              onClose={() => setShowEditModal(false)}
+              onUpdated={() => {
+                if (onUpdate) onUpdate();
+              }}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
     </>

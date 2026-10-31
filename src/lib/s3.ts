@@ -39,15 +39,46 @@ export async function fetchVideoPlaybackUrl(videoId: string): Promise<string> {
   }
 }
 
+interface CachedAsset {
+  url: string;
+  expiresAt: number;
+}
+const clientArtworkCache = new Map<string, CachedAsset>();
+const MAX_CLIENT_CACHE = 100;
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+function getCachedArtwork(key: string): string | null {
+  const item = clientArtworkCache.get(key);
+  if (!item) return null;
+  if (Date.now() > item.expiresAt) {
+    clientArtworkCache.delete(key);
+    return null;
+  }
+  return item.url;
+}
+
+function setCachedArtwork(key: string, url: string): void {
+  if (clientArtworkCache.size >= MAX_CLIENT_CACHE) {
+    const oldest = clientArtworkCache.keys().next().value;
+    if (oldest) clientArtworkCache.delete(oldest);
+  }
+  clientArtworkCache.set(key, { url, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
 /**
  * Domain-authorized track artwork URL resolver:
  * Queries canonical database, verifies visibility against caller role, and retrieves signed cover URL.
  */
 export async function fetchTrackArtworkUrl(trackId: string): Promise<string> {
   if (!trackId?.trim()) return "";
+  const cacheKey = `track:${trackId}`;
+  const hit = getCachedArtwork(cacheKey);
+  if (hit) return hit;
   try {
     const res = await getTrackArtworkUrlServer({ data: { trackId } });
-    return res?.assetUrl || "";
+    const url = res?.assetUrl || "";
+    if (url) setCachedArtwork(cacheKey, url);
+    return url;
   } catch (err) {
     console.error("[Duckroom Artwork] Failed to resolve artwork URL for track:", trackId, err);
     return "";
@@ -60,9 +91,14 @@ export async function fetchTrackArtworkUrl(trackId: string): Promise<string> {
  */
 export async function fetchAlbumArtworkUrl(albumId: string): Promise<string> {
   if (!albumId?.trim()) return "";
+  const cacheKey = `album:${albumId}`;
+  const hit = getCachedArtwork(cacheKey);
+  if (hit) return hit;
   try {
     const res = await getAlbumArtworkUrlServer({ data: { albumId } });
-    return res?.assetUrl || "";
+    const url = res?.assetUrl || "";
+    if (url) setCachedArtwork(cacheKey, url);
+    return url;
   } catch (err) {
     console.error("[Duckroom Artwork] Failed to resolve artwork URL for album:", albumId, err);
     return "";

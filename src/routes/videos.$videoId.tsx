@@ -1,8 +1,10 @@
 import { createFileRoute, Link, notFound, isNotFound } from "@tanstack/react-router";
 import { Film } from "lucide-react";
 import { getVideoByIdSsrServer } from "../lib/ssr-loaders";
+import { RouteErrorFallback } from "../components/RouteErrorFallback";
 
 export const Route = createFileRoute("/videos/$videoId")({
+  errorComponent: RouteErrorFallback,
   staleTime: 60_000,
   gcTime: 1000 * 60 * 30,
   loader: async ({ params }) => {

@@ -214,8 +214,50 @@ export type PlayerActions = {
   clearResumeHint: () => void;
 };
 
+export type PlaybackState = {
+  current: Track | undefined;
+  isPlaying: boolean;
+  isBuffering: boolean;
+  direction: number;
+  tabRole: TabRole;
+  audioRef: React.RefObject<HTMLAudioElement | null>;
+};
+
+export type VolumeState = {
+  volume: number;
+  isMuted: boolean;
+  crossfade: number;
+  replayGainMode: ReplayGainMode;
+  setVolume: (v: number) => void;
+  toggleMute: () => void;
+  setCrossfade: (v: number) => void;
+  cycleReplayGain: () => void;
+};
+
+export type PlayerUIState = {
+  expanded: boolean;
+  setExpanded: (v: boolean) => void;
+  lyricsOpen: boolean;
+  setLyricsOpen: (v: boolean) => void;
+  queueOpen: boolean;
+  setQueueOpen: (v: boolean) => void;
+};
+
+export type QueueState = {
+  queue: Track[];
+  index: number;
+  jumpTo: (i: number) => void;
+  moveInQueue: (from: number, to: number) => void;
+  insertNext: (track: Track) => void;
+  playQueue: (list: Track[], startIndex?: number, shuffleNow?: boolean) => void;
+};
+
 const Ctx = createContext<PlayerState | null>(null);
 const PlayerActionsCtx = createContext<PlayerActions | null>(null);
+const PlaybackCtx = createContext<PlaybackState | null>(null);
+const VolumeCtx = createContext<VolumeState | null>(null);
+const PlayerUICtx = createContext<PlayerUIState | null>(null);
+const QueueCtx = createContext<QueueState | null>(null);
 
 export const usePlayer = () => {
   const ctx = useContext(Ctx);
@@ -234,6 +276,54 @@ export const usePlayerActions = (): PlayerActions => {
   if (!ctx) throw new Error("usePlayerActions must be used inside PlayerProvider");
   return ctx;
 };
+
+/**
+ * P2-05: Subscribes only to core playback transport state.
+ * Ignores volume, UI sheets, and queue reorders.
+ */
+export const usePlaybackState = (): PlaybackState => {
+  const ctx = useContext(PlaybackCtx);
+  if (!ctx) throw new Error("usePlaybackState must be used inside PlayerProvider");
+  return ctx;
+};
+
+/**
+ * P2-05: Subscribes only to volume, mute, and crossfade settings.
+ * Eliminates re-renders on track time ticks, lyrics, or queue changes.
+ */
+export const usePlayerVolume = (): VolumeState => {
+  const ctx = useContext(VolumeCtx);
+  if (!ctx) throw new Error("usePlayerVolume must be used inside PlayerProvider");
+  return ctx;
+};
+
+/**
+ * P2-05: Subscribes only to player UI modal open/close states (expanded, lyrics, queue).
+ */
+export const usePlayerUI = (): PlayerUIState => {
+  const ctx = useContext(PlayerUICtx);
+  if (!ctx) throw new Error("usePlayerUI must be used inside PlayerProvider");
+  return ctx;
+};
+
+/**
+ * P2-05: Subscribes only to track queue array and queue navigation.
+ */
+export const usePlayerQueue = (): QueueState => {
+  const ctx = useContext(QueueCtx);
+  if (!ctx) throw new Error("usePlayerQueue must be used inside PlayerProvider");
+  return ctx;
+};
+
+/**
+ * P2-05: Selector hook returning only the current active Track (or undefined).
+ */
+export function usePlayerCurrentTrack(): Track | undefined {
+  const ctx = useContext(PlaybackCtx);
+  if (ctx) return ctx.current;
+  const s = playerEngine.getState();
+  return s.queue[s.index];
+}
 
 /**
  * P2.4: Kiểm tra xem URL phát nhạc có phải là presigned S3 URL hợp lệ và còn
@@ -1661,16 +1751,84 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     primaryAudioRef,
   ]);
 
+  // ---- Fine-Grained Sub-Tree Projections (P2-05) -------------------------
+  const playbackValue = useMemo<PlaybackState>(
+    () => ({
+      current: value.current,
+      isPlaying: value.isPlaying,
+      isBuffering: value.isBuffering,
+      direction: value.direction,
+      tabRole: value.tabRole,
+      audioRef: primaryAudioRef,
+    }),
+    [value, primaryAudioRef],
+  );
+
+  const volumeValue = useMemo<VolumeState>(
+    () => ({
+      volume: engineState.volume,
+      isMuted: engineState.muted,
+      crossfade: engineState.crossfade,
+      replayGainMode,
+      setVolume,
+      toggleMute,
+      setCrossfade,
+      cycleReplayGain,
+    }),
+    [
+      engineState.volume,
+      engineState.muted,
+      engineState.crossfade,
+      replayGainMode,
+      setVolume,
+      toggleMute,
+      setCrossfade,
+      cycleReplayGain,
+    ],
+  );
+
+  const uiValue = useMemo<PlayerUIState>(
+    () => ({
+      expanded,
+      setExpanded,
+      lyricsOpen,
+      setLyricsOpen,
+      queueOpen,
+      setQueueOpen,
+    }),
+    [expanded, setExpanded, lyricsOpen, setLyricsOpen, queueOpen, setQueueOpen],
+  );
+
+  const queueValue = useMemo<QueueState>(
+    () => ({
+      queue: engineState.queue,
+      index: value.index,
+      jumpTo,
+      moveInQueue,
+      insertNext,
+      playQueue,
+    }),
+    [engineState.queue, value.index, jumpTo, moveInQueue, insertNext, playQueue],
+  );
+
   return (
     <PlayerActionsCtx.Provider value={actionsValue}>
-      <Ctx.Provider value={value}>
-        <PlayerTimeCtx.Provider value={timeStore}>
-          {children}
-          {/* Pure imperative dual audio elements for zero-latency seamless crossfade */}
-          <audio ref={audioRefA} crossOrigin="anonymous" preload="auto" />
-          <audio ref={audioRefB} crossOrigin="anonymous" preload="auto" />
-        </PlayerTimeCtx.Provider>
-      </Ctx.Provider>
+      <PlaybackCtx.Provider value={playbackValue}>
+        <VolumeCtx.Provider value={volumeValue}>
+          <PlayerUICtx.Provider value={uiValue}>
+            <QueueCtx.Provider value={queueValue}>
+              <Ctx.Provider value={value}>
+                <PlayerTimeCtx.Provider value={timeStore}>
+                  {children}
+                  {/* Pure imperative dual audio elements for zero-latency seamless crossfade */}
+                  <audio ref={audioRefA} crossOrigin="anonymous" preload="auto" />
+                  <audio ref={audioRefB} crossOrigin="anonymous" preload="auto" />
+                </PlayerTimeCtx.Provider>
+              </Ctx.Provider>
+            </QueueCtx.Provider>
+          </PlayerUICtx.Provider>
+        </VolumeCtx.Provider>
+      </PlaybackCtx.Provider>
     </PlayerActionsCtx.Provider>
   );
 }

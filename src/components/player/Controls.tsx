@@ -2,7 +2,7 @@ import { Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward } from "lu
 import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState } from "react";
 import { springSnappy, tapScale } from "../../lib/motion";
-import { usePlayer, usePlayerTime } from "../../lib/player";
+import { usePlayer, usePlayerActions, usePlayerCurrentTrack, usePlayerTime } from "../../lib/player";
 import { cn } from "../../lib/utils";
 
 export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
@@ -118,7 +118,8 @@ export function TransportControls({ size = "md" }: { size?: "md" | "lg" }) {
 }
 
 export function SeekBar({ compact = false }: { compact?: boolean }) {
-  const { current, seek } = usePlayer();
+  const current = usePlayerCurrentTrack();
+  const { seek } = usePlayerActions();
   const time = usePlayerTime();
   const duration = current?.duration ?? 1;
 

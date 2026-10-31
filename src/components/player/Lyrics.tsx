@@ -7,7 +7,7 @@ import {
   useGetPlayerTime,
   useSmoothLyricTime,
 } from "../../lib/player";
-import { computeWordTimings } from "../../lib/lyrics-formatter";
+import { computeCadenceProgress, computeWordTimings } from "../../lib/lyrics-formatter";
 import { useTrackLyrics } from "../../lib/use-track-lyrics";
 import { cn } from "../../lib/utils";
 import type { LyricLine } from "../../data/library";
@@ -619,58 +619,6 @@ function LyricsTicker({
     onActiveChange(next, false /* isScrollOnly */);
   }, [time, lines, itemRefs, containerRef, trackId, activeIndexRef, isUserScrollingRef, isPlainLyrics, onActiveChange]);
   return null;
-}
-
-const STOP_CONSONANT_RE = /(?:[cptk]|ch|ck|pt|ct|ft|d|b|(?<!n)g)$/i;
-const PROLONGED_CHAR_RE = /(.)\1{2,}|[~]{1,}/i;
-const VOCAL_CHOP_RE = /^(?:ah|ha|oh|la|na|da|yo|uh|ba|ta|pa|hey|ay|eh)[.,!?;:~…\-–—]*$/i;
-const OPEN_MELISMA_VOWEL_RE =
-  /(?:[aeiouyàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹ]|oi|ơi|ôi|ai|ay|ao|au|âu|eo|êu|ui|ưi|ươi|uôi)$/i;
-const VIET_STACCATO_CADENCE_RE =
-  /(?:[áắấéếíóốớúứý][ptck]|(?:[áắấéếíóốớúứý]ch)|[ạặậẹệịọộợụựỵ][ptck]?|(?:[ạặậẹệịọộợụựỵ]ch))$/i;
-
-function computeCadenceProgress(linear: number, text: string): number {
-  if (linear <= 0) return 0;
-  if (linear >= 1) return 1;
-
-  const trimmed = text.trim();
-  const clean = trimmed.replace(/[.,!?;:…"“”'’\-–—()[\]{}]/g, "");
-  const isHyphenChop = trimmed.endsWith("-") || VOCAL_CHOP_RE.test(clean);
-  const isVietStaccato = VIET_STACCATO_CADENCE_RE.test(clean);
-  const isStopConsonant = STOP_CONSONANT_RE.test(clean);
-  const isProlonged = PROLONGED_CHAR_RE.test(clean) || /~/.test(text) || OPEN_MELISMA_VOWEL_RE.test(clean);
-
-  // 1. Natural Breath Pause / Caesura on trailing punctuation:
-  // Completes the word singing sweep early and tranquilizes into solid white while artist breathes
-  if (/[.!?…]$/.test(trimmed)) {
-    return Math.min(1, Math.pow(linear / 0.6, 0.9));
-  }
-  if (/[,;:\-–—]$/.test(trimmed)) {
-    return Math.min(1, Math.pow(linear / 0.68, 0.92));
-  }
-
-  // 2. Vietnamese acute/heavy tone staccato (dấu sắc / nặng ngắt dứt điểm):
-  if (isVietStaccato && !isProlonged) {
-    return Math.min(1, Math.pow(linear / 0.72, 0.85));
-  }
-
-  // 3. Standard stop consonant staccato (nhấp nhả):
-  if (isStopConsonant && !isProlonged) {
-    return Math.min(1, Math.pow(linear / 0.78, 0.85));
-  }
-
-  // 4. Vocal chop runs ("ah-", "ah", "oh-", "la-"): energetic rhythmic pulse on beat
-  if (isHyphenChop) {
-    return 1 - Math.pow(1 - linear, 1.8);
-  }
-
-  // 5. Melisma / prolonged vowels (kéo hơi): silky smooth sine easing across the sustained note
-  if (isProlonged) {
-    return Math.sin((linear * Math.PI) / 2);
-  }
-
-  // Standard word singing cadence: smooth natural ease
-  return linear < 0.5 ? 2 * linear * linear : 1 - Math.pow(-2 * linear + 2, 2) / 2;
 }
 
 /**

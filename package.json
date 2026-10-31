@@ -30,6 +30,7 @@
     "@tanstack/react-query": "^5.101.1",
     "@tanstack/react-router": "^1.170.42",
     "@tanstack/react-start": "^1.168.61",
+    "@tanstack/react-virtual": "^3.14.24",
     "@tanstack/router-plugin": "^1.168.43",
     "clsx": "^2.1.1",
     "lucide-react": "^0.575.0",

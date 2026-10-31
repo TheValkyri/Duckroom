@@ -28,6 +28,7 @@ import {
 import { useDuckroomRole } from "../lib/useRole";
 import { ShareMenu } from "../components/ShareMenu";
 import { AlbumsSkeleton } from "../components/LibrarySkeleton";
+import { RouteErrorFallback } from "../components/RouteErrorFallback";
 import { getAlbumByIdSsrServer } from "../lib/ssr-loaders";
 import { useLibrary } from "../lib/useLibrary";
 import { usePlayerActions } from "../lib/player";
@@ -37,6 +38,7 @@ export const Route = createFileRoute("/albums/$albumId")({
   staleTime: 60_000,
   gcTime: 1000 * 60 * 30,
   pendingComponent: AlbumsSkeleton,
+  errorComponent: RouteErrorFallback,
   loader: async ({ params }) => {
     try {
       const data = await getAlbumByIdSsrServer({ data: { albumId: params.albumId } });

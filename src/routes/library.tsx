@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Disc3, Music2, RefreshCw, Search, Trash2, UploadCloud, X } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { TrackRow } from "../components/TrackRow";
 import { LibrarySkeleton } from "../components/LibrarySkeleton";
 import { viFold } from "../lib/vi-search";
@@ -22,9 +23,11 @@ import { springPill, springSnappy, tapScale } from "../lib/motion";
 import { useDuckroomRole } from "../lib/useRole";
 import { useLibrary } from "../lib/useLibrary";
 import { usePlayerActions } from "../lib/player";
+import { RouteErrorFallback } from "../components/RouteErrorFallback";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/library")({
+  errorComponent: RouteErrorFallback,
   head: () => ({
     meta: [
       { title: "Thư viện — Duckroom" },
@@ -144,6 +147,15 @@ function LibraryPage() {
   const totalSizeGB = useMemo(() => {
     return (tracks.reduce((a, t) => a + (t.sizeMB || 0), 0) / 1024).toFixed(1);
   }, [tracks]);
+
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  const rowVirtualizer = useWindowVirtualizer({
+    count: list.length,
+    estimateSize: () => 56,
+    overscan: 8,
+    scrollMargin: listRef.current?.offsetTop ?? 0,
+  });
 
   const filterTabs = useMemo(
     () => [
@@ -341,20 +353,37 @@ function LibraryPage() {
           - Giữ nguyên: empty-state / no-result (không phải danh sách).
           - Đã xác minh: 76 rows hiển thị hoàn toàn khi load trang (lần
             đầu) vẫn có page-fade của container. */}
-      {/* defer-paint: khối list 76+ hàng — browser chỉ layout/paint phần
-          trong viewport, cuộn tới đâu render tới đó (perf 2026-09-04).
-          contain-intrinsic-size giữ scrollbar ổn định. */}
-      <div className="defer-paint mt-6 space-y-1">
-        {list.map((t, i) => (
-          <TrackRow
-            key={t.id}
-            track={t}
-            n={i + 1}
-            index={i}
-            onPlayTrack={handlePlayTrack}
-            onDeleteTrack={isOwner ? handleDelete : undefined}
-          />
-        ))}
+      {/* P2-04: Windowed List Virtualization (@tanstack/react-virtual).
+          Capped DOM rendering (only visible rows mounted regardless of library size).
+          Eliminates layout shifts and unlocks locked 60fps scrolling. */}
+      <div ref={listRef} className="mt-6">
+        {list.length > 0 && (
+          <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const t = list[virtualRow.index];
+              if (!t) return null;
+              return (
+                <div
+                  key={t.id}
+                  data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
+                  className="absolute top-0 left-0 w-full"
+                  style={{
+                    transform: `translateY(${virtualRow.start - (rowVirtualizer.options.scrollMargin ?? 0)}px)`,
+                  }}
+                >
+                  <TrackRow
+                    track={t}
+                    n={virtualRow.index + 1}
+                    index={virtualRow.index}
+                    onPlayTrack={handlePlayTrack}
+                    onDeleteTrack={isOwner ? handleDelete : undefined}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
         {tracks.length === 0 ? (
           <div className="border-border bg-card/30 mt-10 flex flex-col items-center gap-4 rounded-xl border p-8 text-center sm:p-16">
             <Music2 className="text-muted-foreground size-12" />

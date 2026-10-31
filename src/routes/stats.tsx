@@ -6,9 +6,11 @@ import { useAuth } from "../lib/useAuth";
 import { useLibrary } from "../lib/useLibrary";
 import { useMemberLibraryContext } from "../lib/member-library-context";
 import { usePlayerActions, usePlayerIsCurrent, usePlayerIsPlaying } from "../lib/player";
+import { RouteErrorFallback } from "../components/RouteErrorFallback";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/stats")({
+  errorComponent: RouteErrorFallback,
   head: () => ({
     meta: [
       { title: "Thống kê nghe nhạc — Duckroom" },

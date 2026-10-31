@@ -152,7 +152,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           giữ transition width CSS thuần (perf 2026-08-25). */}
       <aside
         style={{ width: collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED }}
-        className="bg-sidebar/95 edge-shadow-r fixed inset-y-0 left-0 z-30 hidden flex-col px-3 py-6 lg:flex overflow-hidden select-none transition-[width] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
+        className="bg-sidebar/95 edge-shadow-r fixed inset-y-0 left-0 z-30 hidden flex-col px-3 py-6 lg:flex overflow-hidden select-none transition-[width] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width] transform-gpu"
       >
         <div className="flex items-center justify-between px-2 mb-8">
           <Link to="/" className="flex items-center gap-3 overflow-hidden">
@@ -570,7 +570,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             trang tinh tế. transform/opacity = GPU, 0 JS mỗi frame. */}
       <main
         className={cn(
-          "overflow-x-hidden min-h-screen transition-[padding] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "overflow-x-hidden min-h-screen transition-[padding] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[padding] transform-gpu",
           "pt-[calc(3.5rem+var(--safe-top))] pb-[calc(9.75rem+var(--safe-bottom))] lg:pt-0 lg:pb-32",
           collapsed ? "lg:pl-20" : "lg:pl-64",
           discordSidebarOpen && "lg:pr-[272px]",

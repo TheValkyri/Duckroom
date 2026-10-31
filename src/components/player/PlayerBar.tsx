@@ -15,7 +15,7 @@ import { useState } from "react";
 import { albumById, formatTime } from "../../data/library";
 import { fetchTrackArtworkUrl } from "../../lib/s3";
 import { springGentle, springSnappy, tapScale, tweenFast } from "../../lib/motion";
-import { usePlayer, usePlayerTime } from "../../lib/player";
+import { usePlayer, usePlayerTime, usePlayerVolume } from "../../lib/player";
 import { cn } from "../../lib/utils";
 import { SeekBar, TransportControls } from "./Controls";
 import { QueuePanel } from "./QueuePanel";
@@ -478,7 +478,7 @@ function PlayerBarElapsedLabel() {
 }
 
 function VolumeBar() {
-  const { volume, isMuted, setVolume, toggleMute } = usePlayer();
+  const { volume, isMuted, setVolume, toggleMute } = usePlayerVolume();
   const [isDragging, setIsDragging] = useState(false);
   const currentVol = isMuted ? 0 : volume;
   const pct = Math.min(100, Math.max(0, currentVol * 100));

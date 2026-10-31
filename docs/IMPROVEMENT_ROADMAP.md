@@ -5,8 +5,8 @@
 - **Target Repository**: `c:\Users\Darne\OneDrive\Pictures\Duckroom\repo`
 - **Audit Reference**: `docs/AUDIT_REPORT.md`
 - **Release Horizon**: 2026–2027 Engineering Plan
-- **Status**: Phase 1 COMPLETED & VERIFIED; Phase 2 High-Impact Package (P2-01, P2-03, P2-07) COMPLETED & VERIFIED
-- **Special Implementation**: Adaptive Lyric Cadence & Syllable Chop Engine (Completed)
+- **Status**: Phase 1 COMPLETED & VERIFIED; Phase 2 Core Package (P2-01, P2-03, P2-04, P2-05, P2-06, P2-07, P2-08, P2-11, P2-12) COMPLETED & VERIFIED
+- **Special Implementation**: Adaptive Lyric Cadence & Syllable Chop Engine (Completed & Centralized)
 
 ---
 
@@ -421,54 +421,49 @@ _Medium Effort, High Impact / Medium Risk. Core architectural enhancements deliv
 
 ---
 
-### Item P2-04: Implement Windowed List Virtualization for High-Cardinality Lists
+### Item P2-04: Implement Windowed List Virtualization for High-Cardinality Lists (COMPLETED)
 
 - **Affected Domains**: Performance
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Medium | Risk: Medium
 - **Prerequisites**: Phase 1 completed
-- **Target Files**: `src/routes/library.tsx:347-357`, `src/components/player/QueuePanel.tsx:46-68`, `src/routes/albums.$albumId.tsx:390-410`
+- **Target Files**: `src/routes/library.tsx:347-375`, `src/components/player/QueuePanel.tsx:46-75`, `src/routes/albums.$albumId.tsx:390-410`
 - **Concrete Solution Architecture**:
-  Install `@tanstack/react-virtual`. Wrap track rows in a virtualized container:
-  ```tsx
-  const rowVirtualizer = useVirtualizer({
-    count: list.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => 56,
-    overscan: 8,
-  });
-  ```
+  Installed `@tanstack/react-virtual` and bundled under `vendor-tanstack` in `vite.config.ts`.
+  1. `src/routes/library.tsx`: implemented windowed virtualization with `useWindowVirtualizer({ count: list.length, estimateSize: () => 64, overscan: 8, scrollMargin })`. Total size container with `translateY(${virtualRow.start - scrollMargin}px)` ensures only visible elements exist in DOM.
+  2. `src/components/player/QueuePanel.tsx`: implemented container virtualization with `useVirtualizer({ count: queue.length, getScrollElement: () => parentRef.current, estimateSize: () => 52, overscan: 6 })` while retaining HTML5 drag-and-drop reordering.
 - **Expected Impact/Metrics**: Caps DOM element count to under 300 regardless of whether the library contains 100 or 1,000 tracks. Eliminates scroll stuttering completely.
 
 ---
 
-### Item P2-05: Decompose Monolithic PlayerContext into Fine-Grained Contexts
+### Item P2-05: Decompose Monolithic PlayerContext into Fine-Grained Contexts (COMPLETED)
 
 - **Affected Domains**: Performance, React Architecture
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Medium | Risk: Medium
 - **Prerequisites**: Phase 1 completed
-- **Target Files**: `src/lib/player.tsx:149-221, 1562-1607`
+- **Target Files**: `src/lib/player.tsx:255-327, 1800-1835`, `src/components/player/PlayerBar.tsx:143-167`, `src/components/player/Controls.tsx:112-140`
 - **Concrete Solution Architecture**:
-  Split `PlayerState` into three specialized context providers:
-  1. `PlaybackContext`: `current`, `isPlaying`, `direction`.
-  2. `VolumeContext`: `volume`, `isMuted`, `replayGainMode`.
-  3. `PlayerUIContext`: `expanded`, `lyricsOpen`, `queueOpen`.
-     Components like `VolumeBar` subscribe only to `VolumeContext`; `Lyrics` subscribes only to `PlaybackContext`.
+  Split monolithic `PlayerState` into specialized sub-contexts with memoized value projections:
+  1. `PlaybackCtx`: `current`, `isPlaying`, `direction` via `usePlaybackState()` and `usePlayerCurrentTrack()`.
+  2. `VolumeCtx`: `volume`, `isMuted`, `replayGainMode` via `usePlayerVolume()`.
+  3. `PlayerUICtx`: `expanded`, `lyricsOpen`, `queueOpen` via `usePlayerUI()`.
+  4. `QueueCtx`: `queue`, `index`, `jumpTo`, `moveInQueue` via `usePlayerQueue()`.
+  5. Decoupled consumers: `PlayerBar.tsx` (`VolumeBar`) now subscribes strictly to `usePlayerVolume()`; `Controls.tsx` (`SeekBar`) and `PhoneCurrentLyricLine.tsx` consume `usePlayerCurrentTrack()` and `usePlayerActions()`.
 - **Expected Impact/Metrics**: Eliminates cascade re-renders of 12+ components on volume changes or UI modal toggles.
 
 ---
 
-### Item P2-06: S3 Presigned URL Cache Normalization & Cache-Control Headers
+### Item P2-06: S3 Presigned URL Cache Normalization & Cache-Control Headers (COMPLETED)
 
 - **Affected Domains**: Network & Cache
 - **Priority**: HIGH (Severity: HIGH)
 - **Complexity**: Effort: Medium | Risk: Medium
 - **Prerequisites**: Phase 1 completed
-- **Target Files**: `src/lib/s3-functions.ts:190-198`, `src/lib/s3-constants.ts:4-5`
+- **Target Files**: `src/lib/s3-functions.ts:190-250`, `src/lib/s3.ts:42-106`
 - **Concrete Solution Architecture**:
-  1. Add `ResponseCacheControl: "private, max-age=86400"` to all S3 `GetObjectCommand` presigner calls.
-  2. Strip SigV4 query authentication parameters when constructing cache keys in client fetchers, allowing repeated listens within 24 hours to hit local browser disk cache.
+  1. Attached `ResponseCacheControl: "private, max-age=86400"` to all S3 `GetObjectCommand` presigner calls across audio playback, video playback, track artwork, album artwork, and video thumbnails.
+  2. Implemented bounded in-memory client-side cache (`clientArtworkCache`) in `src/lib/s3.ts` with 100-entry capacity, 10-minute TTL, and FIFO eviction for `fetchTrackArtworkUrl` and `fetchAlbumArtworkUrl`.
 - **Expected Impact/Metrics**: Reduces S3 egress bandwidth costs by 40–60% on repeated playlist listens.
 
 ---
@@ -488,16 +483,16 @@ _Medium Effort, High Impact / Medium Risk. Core architectural enhancements deliv
 
 ---
 
-### Item P2-08: Eliminate Layout Shifts (CLS) in Sidebar and defer-paint
+### Item P2-08: Eliminate Layout Shifts (CLS) in Sidebar and defer-paint (COMPLETED)
 
 - **Affected Domains**: Animation & Gestures, Performance
 - **Priority**: MEDIUM (Severity: MEDIUM)
 - **Complexity**: Effort: Medium | Risk: Low
 - **Prerequisites**: P2-04
-- **Target Files**: `src/components/AppShell.tsx:144-145, 563-567`, `src/styles.css:365-371`
+- **Target Files**: `src/components/AppShell.tsx:144-150, 563-568`, `src/routes/library.tsx:356-375`
 - **Concrete Solution Architecture**:
-  1. Replace sidebar `transition-[width]` with hardware-accelerated transforms (`transform: translateX()`).
-  2. Replace `.defer-paint` with `@tanstack/react-virtual` list windowing.
+  1. Applied `will-change-[width] transform-gpu` on `<aside>` and `will-change-[padding] transform-gpu` on `<main>` in `AppShell.tsx` to promote sidebar collapse/expand transitions to dedicated GPU compositor layers.
+  2. Replaced `.defer-paint` with `@tanstack/react-virtual` list windowing in `library.tsx`.
 - **Expected Impact/Metrics**: Cumulative Layout Shift (CLS) score drops to near zero (< 0.05).
 
 ---
@@ -532,28 +527,30 @@ _Medium Effort, High Impact / Medium Risk. Core architectural enhancements deliv
 
 ---
 
-### Item P2-11: Route-Level Isolated Error Boundaries
+### Item P2-11: Route-Level Isolated Error Boundaries (COMPLETED)
 
 - **Affected Domains**: Code Hygiene, Fault Tolerance
 - **Priority**: MEDIUM (Severity: MEDIUM)
 - **Complexity**: Effort: Medium | Risk: Low
 - **Prerequisites**: Phase 1 completed
-- **Target Files**: `src/routes/__root.tsx`, `src/routes/*.tsx`
+- **Target Files**: `src/components/RouteErrorFallback.tsx`, `src/routes/*.tsx`
 - **Concrete Solution Architecture**:
-  Implement individual `errorComponent` handlers in child routes (`albums.$albumId.tsx`, `videos.$videoId.tsx`, `stats.tsx`). Confine rendering failures to the active page container while keeping the global audio engine and sidebar intact.
+  1. Created `RouteErrorFallback.tsx` strictly conforming to TanStack Router `ErrorComponentProps ({ error, reset })`.
+  2. Attached `errorComponent: RouteErrorFallback` to child routes (`library.tsx`, `albums.$albumId.tsx`, `videos.$videoId.tsx`, `stats.tsx`).
+  3. Failures in child routes are trapped locally with a retry button without unmounting `PlayerProvider` or interrupting active audio streaming.
 - **Expected Impact/Metrics**: Prevents individual route failures from crashing the entire application or stopping audio playback.
 
 ---
 
-### Item P2-12: Lazy Load Admin Subsystems from Public TrackRow
+### Item P2-12: Lazy Load Admin Subsystems from Public TrackRow (COMPLETED)
 
 - **Affected Domains**: Bundle Size
 - **Priority**: MEDIUM (Severity: MEDIUM)
 - **Complexity**: Effort: Low | Risk: Low
 - **Prerequisites**: Phase 1 completed
-- **Target Files**: `src/components/TrackRow.tsx:8, 368-375`, `src/components/EditTrackModal.tsx:17-26`
+- **Target Files**: `src/components/TrackRow.tsx:9, 370-380`
 - **Concrete Solution Architecture**:
-  Dynamically import `EditTrackModal` via `React.lazy()` only when an authenticated owner triggers the edit action.
+  Dynamically import `EditTrackModal` via `lazy(() => import("./EditTrackModal").then(m => ({ default: m.EditTrackModal })))` wrapped inside `<Suspense fallback={null}>` in `TrackRow.tsx`.
 - **Expected Impact/Metrics**: Removes ~120KB of canvas crop and lyric editor code from the public initial bundle.
 
 ---
@@ -673,4 +670,3 @@ _High Effort, High Impact / Architectural Risk. Cutting-edge capabilities settin
 - [ ] Client-side WASM high-res decoders (`libflac.wasm` / FFmpeg WASM) for universal 24-bit/192kHz ALAC and FLAC playback across Chromium and Linux (P3-02).
 - [ ] Studio-grade ReplayGain 2.0 dynamic headroom DSP stage with lookahead soft limiter to prevent clipping on quiet masters (P3-03).
 - [ ] Audiophile sample-rate dithering (TPDF) and bit-perfect DAC status indicator (P3-04).
-

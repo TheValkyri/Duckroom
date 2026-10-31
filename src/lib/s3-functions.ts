@@ -192,6 +192,7 @@ export async function getTrackPlaybackUrlInternal(
     Bucket: BUCKET_NAME,
     Key: track.storage_key,
     ResponseContentDisposition: "inline",
+    ResponseCacheControl: "private, max-age=86400",
   });
   const playbackUrl = await getSignedUrl(s3, command, { expiresIn: PRESIGNED_URL_TTL_SECONDS });
   return { playbackUrl, expiresIn: PRESIGNED_URL_TTL_SECONDS };
@@ -245,6 +246,7 @@ export async function getVideoPlaybackUrlInternal(
     Bucket: BUCKET_NAME,
     Key: video.storage_key,
     ResponseContentDisposition: "inline",
+    ResponseCacheControl: "private, max-age=86400",
   });
   const playbackUrl = await getSignedUrl(s3, command, { expiresIn: PRESIGNED_URL_TTL_SECONDS });
   return { playbackUrl, expiresIn: PRESIGNED_URL_TTL_SECONDS };
@@ -333,6 +335,7 @@ export async function getTrackArtworkUrlInternal(
     Bucket: BUCKET_NAME,
     Key: track.cover_storage_key,
     ResponseContentDisposition: "inline",
+    ResponseCacheControl: "private, max-age=86400",
   });
   const assetUrl = await getSignedUrl(s3, command, { expiresIn: ARTWORK_URL_TTL_SECONDS });
   return { assetUrl, expiresIn: ARTWORK_URL_TTL_SECONDS };
@@ -386,6 +389,7 @@ export async function getAlbumArtworkUrlInternal(
     Bucket: BUCKET_NAME,
     Key: album.cover_storage_key,
     ResponseContentDisposition: "inline",
+    ResponseCacheControl: "private, max-age=86400",
   });
   const assetUrl = await getSignedUrl(s3, command, { expiresIn: ARTWORK_URL_TTL_SECONDS });
   return { assetUrl, expiresIn: ARTWORK_URL_TTL_SECONDS };
@@ -439,6 +443,7 @@ export async function getVideoThumbnailUrlInternal(
     Bucket: BUCKET_NAME,
     Key: video.thumb_storage_key,
     ResponseContentDisposition: "inline",
+    ResponseCacheControl: "private, max-age=86400",
   });
   const assetUrl = await getSignedUrl(s3, command, { expiresIn: ARTWORK_URL_TTL_SECONDS });
   return { assetUrl, expiresIn: ARTWORK_URL_TTL_SECONDS };
