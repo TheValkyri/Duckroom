@@ -179,4 +179,49 @@ describe("P2-01: Mobile Background & Lock-Screen Audio Hardening", () => {
     // Source should NOT be disconnected while actively playing to avoid muting desktop audio
     expect(mockSource.disconnect).toHaveBeenCalledTimes(1); // Only the initial idempotent connect disconnect
   });
+
+  it("detects mobile devices via Chromium Client Hints (navigator.userAgentData.mobile)", () => {
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
+      maxTouchPoints: 0,
+      userAgentData: {
+        mobile: true,
+      },
+    });
+    expect(isMobileAudioDevice()).toBe(true);
+  });
+
+  it("returns null and NEVER creates MediaElementSource when audio is paused", () => {
+    const mockCreateSource = vi.fn();
+    class MockAudioContext {
+      state = "running";
+      destination = {};
+      createAnalyser = vi.fn().mockReturnValue({
+        fftSize: 128,
+        smoothingTimeConstant: 0.75,
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      });
+      createMediaElementSource = mockCreateSource;
+      resume = vi.fn().mockResolvedValue(undefined);
+      suspend = vi.fn().mockResolvedValue(undefined);
+      close = vi.fn().mockResolvedValue(undefined);
+    }
+
+    (globalThis as any).window = {
+      AudioContext: MockAudioContext,
+    };
+    (globalThis as any).document = {
+      hidden: false,
+    };
+
+    setUserGestureSeenForTesting(true);
+    setMobileAudioDeviceForTesting(false);
+
+    const pausedAudioEl = { paused: true } as HTMLAudioElement;
+    const result = getAudioAnalyser(pausedAudioEl);
+
+    expect(result).toBeNull();
+    expect(mockCreateSource).not.toHaveBeenCalled();
+  });
 });

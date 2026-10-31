@@ -53,6 +53,12 @@ export function useSmoothLyricTime(fallbackTime: number = 0): number {
 
     let isMounted = true;
 
+    const isDocumentPipActive = () =>
+      typeof window !== "undefined" &&
+      Boolean(
+        (window as any).documentPictureInPicture?.window && !(window as any).documentPictureInPicture.window.closed,
+      );
+
     const stopTicker = () => {
       if (rafIdRef.current !== null && typeof cancelAnimationFrame !== "undefined") {
         cancelAnimationFrame(rafIdRef.current);
@@ -65,7 +71,8 @@ export function useSmoothLyricTime(fallbackTime: number = 0): number {
 
       // P2-03: Completely idle ticker when document is hidden (tab in background / screen locked)
       // Zero unnecessary rendering or timer cycles occur.
-      if (typeof document !== "undefined" && document.hidden) {
+      // Exception: If Document Picture-in-Picture window is active, keep ticker alive for PiP lyrics.
+      if (typeof document !== "undefined" && document.hidden && !isDocumentPipActive()) {
         rafIdRef.current = null;
         return;
       }
@@ -94,7 +101,7 @@ export function useSmoothLyricTime(fallbackTime: number = 0): number {
 
     const handleVisibilityChange = () => {
       if (typeof document === "undefined") return;
-      if (document.hidden) {
+      if (document.hidden && !isDocumentPipActive()) {
         stopTicker();
       } else if (isMounted && isPlaying && rafIdRef.current === null) {
         // Tab restored or screen unlocked: re-sync immediately to real audio clock
@@ -111,7 +118,7 @@ export function useSmoothLyricTime(fallbackTime: number = 0): number {
       document.addEventListener("visibilitychange", handleVisibilityChange);
     }
 
-    if (typeof document === "undefined" || !document.hidden) {
+    if (typeof document === "undefined" || !document.hidden || isDocumentPipActive()) {
       rafIdRef.current = requestAnimationFrame(tick);
     }
 

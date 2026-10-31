@@ -34,10 +34,27 @@ describe("P2-07: Mobile Horizontal Swipe Gestures on Album Jacket", () => {
       expect(calculateSwipeIntent({ x: 0, y: 0 }, { x: 0, y: 0 })).toBeNull();
     });
 
-    it("returns null when drag is predominantly vertical to prevent skipping during scroll", () => {
+    it("returns null when drag is predominantly vertical or diagonal to prevent skipping during scroll", () => {
       // Swiping vertically down to dismiss or scroll -> ignore small horizontal jitter
       expect(calculateSwipeIntent({ x: -65, y: 120 }, { x: -100, y: 200 })).toBeNull();
       expect(calculateSwipeIntent({ x: 70, y: -90 }, { x: 100, y: -150 })).toBeNull();
+      // Exactly 45-degree diagonal gestures (|ox| === |oy|) must be rejected
+      expect(calculateSwipeIntent({ x: 75, y: 75 }, { x: 350, y: 350 })).toBeNull();
+      expect(calculateSwipeIntent({ x: -75, y: -75 }, { x: -350, y: -350 })).toBeNull();
+    });
+
+    it("prevents conflicting velocity from inverting displacement intent", () => {
+      // Right displacement past threshold (> 60px) with negative release velocity:
+      // Must NOT invert to 'next' track
+      expect(calculateSwipeIntent({ x: 75, y: 0 }, { x: -400, y: 0 })).toBe("prev");
+
+      // Left displacement past threshold (< -60px) with positive release velocity:
+      // Must NOT invert to 'prev' track
+      expect(calculateSwipeIntent({ x: -75, y: 0 }, { x: 400, y: 0 })).toBe("next");
+
+      // Sub-threshold drag with conflicting velocity must safely spring back (return null)
+      expect(calculateSwipeIntent({ x: 30, y: 0 }, { x: -400, y: 0 })).toBeNull();
+      expect(calculateSwipeIntent({ x: -30, y: 0 }, { x: 400, y: 0 })).toBeNull();
     });
   });
 
@@ -57,6 +74,10 @@ describe("P2-07: Mobile Horizontal Swipe Gestures on Album Jacket", () => {
 
     it("has cursor-grab and active:cursor-grabbing styling on artwork", () => {
       expect(nowPlayingSrc).toContain("cursor-grab active:cursor-grabbing");
+    });
+
+    it("prevents native HTML5 image drag on artwork container with draggable={false}", () => {
+      expect(nowPlayingSrc).toContain("draggable={false}");
     });
   });
 });

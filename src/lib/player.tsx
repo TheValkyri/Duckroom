@@ -1485,7 +1485,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [projectedTrackId, projectedIsPlaying, engineState.queue]);
 
-  // P2-01: Re-affirm MediaSession playbackState when screen locks or tab visibility toggles
+  // P2-01: Re-affirm MediaSession playbackState and position when screen locks or tab visibility toggles
   useEffect(() => {
     if (typeof document === "undefined") {
       return undefined;
@@ -1493,13 +1493,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const syncVisibilityMediaSession = () => {
       if (typeof navigator !== "undefined" && "mediaSession" in navigator) {
         navigator.mediaSession.playbackState = projectedIsPlaying ? "playing" : "paused";
+        if (projectedIsPlaying) {
+          const el = primaryAudioRef?.current;
+          const track =
+            projectedTrackId == null
+              ? undefined
+              : (engineState.queue.find((t) => t.id === projectedTrackId) ??
+                allTracks.find((t) => t.id === projectedTrackId) ??
+                undefined);
+          if (el && track) {
+            maybeSyncMediaSessionPosition(el, track);
+          }
+        }
       }
     };
     document.addEventListener("visibilitychange", syncVisibilityMediaSession);
     return () => {
       document.removeEventListener("visibilitychange", syncVisibilityMediaSession);
     };
-  }, [projectedIsPlaying]);
+  }, [projectedIsPlaying, projectedTrackId, primaryAudioRef, engineState.queue]);
 
   // ---- Hotkeys (unchanged contract) ----------------------------------------
   useEffect(() => {

@@ -74,7 +74,8 @@ export function Visualizer({
     let cachedAnalyserEl: HTMLAudioElement | null = null;
     let cachedAnalyser: AnalyserNode | null = null;
 
-    let isIntersecting = true;
+    let isIntersecting =
+      typeof canvas.offsetWidth === "number" ? canvas.offsetWidth > 0 && canvas.offsetHeight > 0 : true;
     const observer =
       typeof IntersectionObserver !== "undefined"
         ? new IntersectionObserver(
@@ -104,6 +105,9 @@ export function Visualizer({
       const dpr = window.devicePixelRatio || 1;
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
+      if (w === 0 || h === 0) {
+        return;
+      }
       if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
         canvas.width = w * dpr;
         canvas.height = h * dpr;
@@ -120,11 +124,16 @@ export function Visualizer({
       t += 0.035;
       isSettled = true;
 
-      // Audio data extraction
+      // Audio data extraction: ONLY query analyser when playing and actively rendering
       const el = audioRef?.current ?? null;
-      if (el !== cachedAnalyserEl) {
-        cachedAnalyserEl = el;
-        cachedAnalyser = el ? getAudioAnalyser(el) : null;
+      if (playing && isIntersecting && !document.hidden && w > 0 && h > 0) {
+        if (el !== cachedAnalyserEl) {
+          cachedAnalyserEl = el;
+          cachedAnalyser = el ? getAudioAnalyser(el) : null;
+        }
+      } else {
+        cachedAnalyser = null;
+        cachedAnalyserEl = null;
       }
       const analyser = cachedAnalyser;
       let hasRealAudioData = false;

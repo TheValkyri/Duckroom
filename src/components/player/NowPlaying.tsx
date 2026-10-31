@@ -422,12 +422,14 @@ export function NowPlaying() {
                           alt=""
                           aria-hidden
                           decoding="async"
-                          className="absolute inset-0 size-full scale-110 object-cover opacity-60 blur-xl"
+                          draggable={false}
+                          className="absolute inset-0 size-full scale-110 object-cover opacity-60 blur-xl pointer-events-none select-none"
                         />
                         <motion.img
                           src={cleanCoverUrl || rawCoverUrl}
                           alt={`Bìa ${current.title}`}
                           decoding="async"
+                          draggable={false}
                           onLoad={handleImageLoad}
                           onError={async (e) => {
                             const target = e.currentTarget;

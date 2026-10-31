@@ -8,12 +8,14 @@ describe("P2-03: Direct CSS Custom Property & Background Idle Lyric Optimization
   const smoothHookSrc = read("src/lib/use-smooth-lyric-time.ts");
   const lyricsSrc = read("src/components/player/Lyrics.tsx");
   const phoneSrc = read("src/components/player/PhoneCurrentLyricLine.tsx");
+  const pipSrc = read("src/components/player/DocumentPipPlayer.tsx");
 
   describe("Background Tab & Lock-Screen Idle (use-smooth-lyric-time.ts)", () => {
-    it("completely stops rAF ticker when document.hidden is true", () => {
+    it("completely stops rAF ticker when document.hidden is true unless PiP is active", () => {
       expect(smoothHookSrc).toContain("document.hidden");
       expect(smoothHookSrc).toContain("rafIdRef.current = null;");
       expect(smoothHookSrc).toContain("return;");
+      expect(smoothHookSrc).toContain("isDocumentPipActive");
     });
 
     it("registers visibilitychange listener to pause when hidden and resume on wake", () => {
@@ -22,8 +24,10 @@ describe("P2-03: Direct CSS Custom Property & Background Idle Lyric Optimization
       expect(smoothHookSrc).toContain("stopTicker()");
     });
 
-    it("only schedules rAF if document is not hidden", () => {
-      expect(smoothHookSrc).toMatch(/if\s*\(\s*typeof document === "undefined" \|\| !document\.hidden\s*\)/);
+    it("only schedules rAF if document is not hidden or PiP is active", () => {
+      expect(smoothHookSrc).toMatch(
+        /if\s*\(\s*typeof document === "undefined" \|\| !document\.hidden \|\| isDocumentPipActive\(\)\s*\)/,
+      );
     });
   });
 
@@ -38,9 +42,15 @@ describe("P2-03: Direct CSS Custom Property & Background Idle Lyric Optimization
       expect(phoneSrc).toContain("var(--lyric-pct,");
     });
 
-    it("elevates active syllable overlay to GPU composite layer via transform-gpu and will-change-[clip-path]", () => {
+    it("uses '--lyric-pct' CSS custom property in DocumentPipPlayer.tsx", () => {
+      expect(pipSrc).toContain('"--lyric-pct": `${pct}%`');
+      expect(pipSrc).toContain("var(--lyric-pct,");
+    });
+
+    it("elevates active syllable overlay to GPU composite layer via transform-gpu and will-change-[clip-path] across all renderers", () => {
       expect(lyricsSrc).toContain("transform-gpu will-change-[clip-path]");
       expect(phoneSrc).toContain("transform-gpu will-change-[clip-path]");
+      expect(pipSrc).toContain("transform-gpu will-change-[clip-path]");
     });
   });
 });

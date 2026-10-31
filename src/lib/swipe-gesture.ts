@@ -23,18 +23,18 @@ export function calculateSwipeIntent(
   const ox = offset.x;
   const oy = offset.y ?? 0;
 
-  // If drag intent was dominantly vertical, cancel horizontal trigger
-  if (Math.abs(oy) > Math.abs(ox) && Math.abs(oy) > 30) {
+  // If drag intent was dominantly vertical or diagonal, cancel horizontal trigger
+  if (Math.abs(oy) >= Math.abs(ox)) {
     return null;
   }
 
-  // Swipe left -> Next track
-  if (ox < -thresholdPx || velocity.x < -velocityThreshold) {
+  // Swipe left -> Next track (displacement exceeds left threshold, or high left velocity without opposing rightward displacement)
+  if (ox < -thresholdPx || (velocity.x < -velocityThreshold && ox <= 0)) {
     return "next";
   }
 
-  // Swipe right -> Previous track
-  if (ox > thresholdPx || velocity.x > velocityThreshold) {
+  // Swipe right -> Previous track (displacement exceeds right threshold, or high right velocity without opposing leftward displacement)
+  if (ox > thresholdPx || (velocity.x > velocityThreshold && ox >= 0)) {
     return "prev";
   }
 

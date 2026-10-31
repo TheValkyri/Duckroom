@@ -24,7 +24,9 @@ export function isMobileAudioDevice(): boolean {
   const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
   const isTouchMac =
     typeof navigator.maxTouchPoints === "number" && navigator.maxTouchPoints > 1 && /Macintosh/i.test(ua);
-  return isMobileUA || isTouchMac;
+  const isClientHintsMobile =
+    typeof (navigator as any).userAgentData?.mobile === "boolean" && (navigator as any).userAgentData.mobile === true;
+  return isMobileUA || isTouchMac || isClientHintsMobile;
 }
 
 /** Test hook for simulating mobile devices in tests */
@@ -56,6 +58,7 @@ export function getAudioAnalyser(audioEl: HTMLAudioElement | null): AnalyserNode
   // Android Chrome to mute/suspend playback on screen lock.
   if (isMobileAudioDevice()) return null;
   if (typeof document !== "undefined" && document.hidden) return null;
+  if (audioEl.paused === true) return null;
 
   try {
     if (!audioCtx || audioCtx.state === "closed") {
